@@ -1517,6 +1517,8 @@ dependencies = [
 name = "orexis-usecases"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
+ "futures",
  "orexis-core",
  "orexis-ports",
  "serde_json",

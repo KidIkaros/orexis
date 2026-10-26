@@ -293,7 +293,7 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M4 status (2026-10-26):** automated gate green; M4-01 … M4-04 resolved. Manual: SIGKILL a real repository turn and restart.
 
-**M5 status (2026-10-26):** M5-01 entity store resolved; M5-02 … M5-06 open; decision 007 resolved (ADR-0013).
+**M5 status (2026-10-26):** M5-01 entity store and M5-02 drives resolved; M5-03 … M5-06 open; decision 007 resolved (ADR-0013).
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 
