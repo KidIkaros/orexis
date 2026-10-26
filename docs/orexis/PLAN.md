@@ -49,6 +49,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Session event model: durable medium events, session + event versioning, lazy migration, four generation triggers, SQLite + JSONL, `seq` + ULID, verbatim request + hash, append-only compaction, fork copies prefix, redact at write, indefinite retention, batch + fsync | ADR-0001; ticket 001 |
 | Provider catalog: rich profile + `extra`, vendored snapshot + refresh, shipped < user < project < CLI, keyring + env, conservative unknown defaults, profile-declared capacity, per-profile fallbacks, adapter-owned OAuth | ADR-0002; ticket 002 |
 | Codec set: `native`, `xml-manual`, `json`, `lenient`; code-mode is a program surface, not a codec; automatic selection by capability with `--codec` override; sans-io fixtures | ADR-0003; ticket 003 |
+| TUI surface: four fixed regions, composer-first focus, inline tool expansion + bottom sheet for large diffs, adaptive overlays and status bar, virtualized transcript, full keymap, eleven states | ADR-0004; ticket 004 |
 
 ### Frontier
 
@@ -57,7 +58,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 1. ~~**Session event schema and migration format**~~ — resolved; ADR-0001.
 2. ~~**`ProviderProfile` schema and catalog source** (models.dev snapshot vs live)~~ — resolved; ADR-0002.
 3. ~~**Codec set beyond the ported four**~~ — resolved; ADR-0003.
-4. **TUI layout and keymap** — blocks M1.
+4. ~~**TUI layout and keymap**~~ — resolved; ADR-0004.
 5. **Edit-tool contract per model tier** — blocks M3.
 6. **Desktop panel layout in Leptos** — blocks M2.
 7. **Entity model: five vs six drives, affect dimensions** — blocks M5.
