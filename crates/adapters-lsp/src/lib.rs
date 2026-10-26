@@ -1,19 +1,31 @@
-//! Minimal stdio LSP client for post-edit diagnostics.
+//! Minimal stdio LSP client with a persistent server per workspace.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use orexis_ports::{Diagnostic, Lsp, PortResult};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{ChildStdin, ChildStdout, Command};
+use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::sync::Mutex;
+
+struct Session {
+    _child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    versions: HashMap<String, i32>,
+}
 
 pub struct StdioLsp {
     root: PathBuf,
     command: Vec<String>,
     timeout: Duration,
+    session: Mutex<Option<Session>>,
+    spawns: AtomicUsize,
 }
 
 impl StdioLsp {
@@ -22,6 +34,8 @@ impl StdioLsp {
             root: root.into(),
             command: vec![command.into()],
             timeout: Duration::from_secs(5),
+            session: Mutex::new(None),
+            spawns: AtomicUsize::new(0),
         }
     }
 
@@ -30,7 +44,12 @@ impl StdioLsp {
         self
     }
 
-    async fn collect(&self, path: &str, content: &str) -> PortResult<Vec<Diagnostic>> {
+    /// Number of server processes started; a persistent client starts one.
+    pub fn spawns(&self) -> usize {
+        self.spawns.load(Ordering::SeqCst)
+    }
+
+    async fn start(&self) -> std::io::Result<Session> {
         let mut command = Command::new(&self.command[0]);
         command
             .args(&self.command[1..])
@@ -39,40 +58,17 @@ impl StdioLsp {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .kill_on_drop(true);
-        let mut child = match command.spawn() {
-            Ok(child) => child,
-            Err(_) => return Ok(Vec::new()),
-        };
+        let mut child = command.spawn()?;
         let Some(mut stdin) = child.stdin.take() else {
-            return Ok(Vec::new());
+            return Err(std::io::Error::other("missing lsp stdin"));
         };
         let Some(stdout) = child.stdout.take() else {
-            return Ok(Vec::new());
+            return Err(std::io::Error::other("missing lsp stdout"));
         };
         let mut stdout = BufReader::new(stdout);
-        let uri = format!("file://{}", self.root.join(path).display());
 
-        let result = tokio::time::timeout(
-            self.timeout,
-            self.session(&mut stdin, &mut stdout, &uri, content),
-        )
-        .await;
-        let _ = child.kill().await;
-        match result {
-            Ok(Ok(diagnostics)) => Ok(diagnostics),
-            Ok(Err(_)) | Err(_) => Ok(Vec::new()),
-        }
-    }
-
-    async fn session(
-        &self,
-        stdin: &mut ChildStdin,
-        stdout: &mut BufReader<ChildStdout>,
-        uri: &str,
-        content: &str,
-    ) -> std::io::Result<Vec<Diagnostic>> {
         write_message(
-            stdin,
+            &mut stdin,
             &json!({
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -86,55 +82,113 @@ impl StdioLsp {
         )
         .await?;
         loop {
-            let Some(message) = read_message(stdout).await? else {
-                return Ok(Vec::new());
+            let Some(message) = read_message(&mut stdout).await? else {
+                return Err(std::io::Error::other("lsp closed during initialize"));
             };
             if message.get("id").and_then(Value::as_u64) == Some(1) {
                 break;
             }
         }
         write_message(
-            stdin,
+            &mut stdin,
             &json!({ "jsonrpc": "2.0", "method": "initialized", "params": {} }),
         )
         .await?;
-        write_message(
-            stdin,
-            &json!({
-                "jsonrpc": "2.0",
-                "method": "textDocument/didOpen",
-                "params": {
-                    "textDocument": {
-                        "uri": uri,
-                        "languageId": "rust",
-                        "version": 1,
-                        "text": content
-                    }
-                }
-            }),
-        )
-        .await?;
 
-        loop {
-            let Some(message) = read_message(stdout).await? else {
-                return Ok(Vec::new());
-            };
-            if message.get("method").and_then(Value::as_str)
-                == Some("textDocument/publishDiagnostics")
-            {
-                let params = &message["params"];
-                if params["uri"].as_str() == Some(uri) {
-                    return Ok(parse_diagnostics(uri, &params["diagnostics"]));
-                }
-            }
-        }
+        Ok(Session {
+            _child: child,
+            stdin,
+            stdout,
+            versions: HashMap::new(),
+        })
     }
 }
 
 #[async_trait]
 impl Lsp for StdioLsp {
     async fn diagnostics(&self, path: &str, content: &str) -> PortResult<Vec<Diagnostic>> {
-        self.collect(path, content).await
+        let uri = format!("file://{}", self.root.join(path).display());
+        let mut guard = self.session.lock().await;
+
+        if guard.is_none() {
+            match tokio::time::timeout(self.timeout, self.start()).await {
+                Ok(Ok(session)) => {
+                    *guard = Some(session);
+                    self.spawns.fetch_add(1, Ordering::SeqCst);
+                }
+                _ => return Ok(Vec::new()),
+            }
+        }
+
+        let outcome = {
+            let Some(session) = guard.as_mut() else {
+                return Ok(Vec::new());
+            };
+            let version = session.versions.get(&uri).copied().unwrap_or(0) + 1;
+            session.versions.insert(uri.clone(), version);
+            let message = if version == 1 {
+                json!({
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/didOpen",
+                    "params": {
+                        "textDocument": {
+                            "uri": uri,
+                            "languageId": "rust",
+                            "version": version,
+                            "text": content
+                        }
+                    }
+                })
+            } else {
+                json!({
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/didChange",
+                    "params": {
+                        "textDocument": { "uri": uri, "version": version },
+                        "contentChanges": [{ "text": content }]
+                    }
+                })
+            };
+            if write_message(&mut session.stdin, &message).await.is_err() {
+                None
+            } else {
+                match tokio::time::timeout(
+                    self.timeout,
+                    read_diagnostics(&mut session.stdout, &uri),
+                )
+                .await
+                {
+                    Ok(Ok(diagnostics)) => Some(diagnostics),
+                    _ => None,
+                }
+            }
+        };
+
+        match outcome {
+            Some(diagnostics) => Ok(diagnostics),
+            None => {
+                *guard = None;
+                Ok(Vec::new())
+            }
+        }
+    }
+}
+
+async fn read_diagnostics(
+    stdout: &mut BufReader<ChildStdout>,
+    uri: &str,
+) -> std::io::Result<Vec<Diagnostic>> {
+    loop {
+        let Some(message) = read_message(stdout).await? else {
+            return Ok(Vec::new());
+        };
+        if message.get("method").and_then(Value::as_str) == Some("textDocument/publishDiagnostics")
+        {
+            let params = &message["params"];
+            if params["uri"].as_str() == Some(uri) {
+                return Ok(parse_diagnostics(uri, &params["diagnostics"]));
+            }
+        }
     }
 }
 

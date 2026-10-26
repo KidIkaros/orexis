@@ -25,7 +25,7 @@ async fn main() -> std::io::Result<()> {
                 )
                 .await?;
             }
-            Some("textDocument/didOpen") => {
+            Some("textDocument/didOpen") | Some("textDocument/didChange") => {
                 let uri = message["params"]["textDocument"]["uri"]
                     .as_str()
                     .unwrap_or("")
