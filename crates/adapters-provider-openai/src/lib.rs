@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use orexis_adapters_http::{ByteStream, Transport};
 use orexis_adapters_provider_catalog::ProviderProfile;
-use orexis_core::{Action, Message, Role, ToolSpec};
-use orexis_ports::Provider;
+use orexis_core::{Action, Message, ProviderResponse, Role, ToolSpec};
+use orexis_ports::{PortError, PortResult, Provider};
 use serde_json::{json, Value};
 
 pub struct OpenAiCompatibleProvider<T: Transport> {
@@ -81,7 +81,7 @@ impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
-    ) -> Vec<Action> {
+    ) -> PortResult<ProviderResponse> {
         let url = format!(
             "{}/chat/completions",
             self.profile.base_url.trim_end_matches('/')
@@ -103,15 +103,19 @@ impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
             )
             .await
         {
-            Ok(stream) => parse_stream(stream).await,
-            Err(error) => vec![
-                Action::Say {
-                    text: format!("provider error: {error}"),
-                },
-                Action::Done {
-                    summary: "provider error".to_string(),
-                },
-            ],
+            Ok(stream) => {
+                let actions = parse_stream(stream).await;
+                let raw_text = actions
+                    .iter()
+                    .filter_map(|action| match action {
+                        Action::Say { text } => Some(text.clone()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+                Ok(ProviderResponse { actions, raw_text })
+            }
+            Err(error) => Err(PortError(error.to_string())),
         }
     }
 }
@@ -229,7 +233,11 @@ mod tests {
             "data: {\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}]}\n\n",
             "data: [DONE]\n\n",
         ]);
-        let actions = provider.complete(&messages(), &[], 0).await;
+        let actions = provider
+            .complete(&messages(), &[], 0)
+            .await
+            .expect("complete")
+            .actions;
         assert_eq!(
             actions,
             vec![
@@ -250,7 +258,11 @@ mod tests {
             "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"x\\\"}\"}}]}}]}\n\n",
             "data: [DONE]\n\n",
         ]);
-        let actions = provider.complete(&messages(), &[], 0).await;
+        let actions = provider
+            .complete(&messages(), &[], 0)
+            .await
+            .expect("complete")
+            .actions;
         assert_eq!(
             actions,
             vec![Action::CallTool {
@@ -268,6 +280,21 @@ mod tests {
         assert!(headers
             .iter()
             .any(|(name, value)| name == "authorization" && value == "Bearer test-key"));
+    }
+
+    #[tokio::test]
+    async fn transport_error_is_returned() {
+        use orexis_adapters_http::FailingTransport;
+        let provider = OpenAiCompatibleProvider::new(
+            profile(),
+            "gpt-5",
+            None,
+            FailingTransport {
+                message: "boom".to_string(),
+            },
+        );
+        let result = provider.complete(&messages(), &[], 0).await;
+        assert!(result.is_err());
     }
 
     #[test]

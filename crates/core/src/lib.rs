@@ -31,6 +31,12 @@ pub struct Observation {
     pub output: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderResponse {
+    pub actions: Vec<Action>,
+    pub raw_text: String,
+}
+
 /// A tool the model may call. `schema` is a JSON Schema object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolSpec {
@@ -113,6 +119,9 @@ pub enum SessionEvent {
     Done {
         summary: String,
     },
+    Error {
+        message: String,
+    },
     Compaction {
         range_start_seq: u64,
         range_end_seq: u64,
@@ -130,6 +139,7 @@ impl SessionEvent {
             Self::ToolCall { .. } => "tool_call",
             Self::Observation { .. } => "observation",
             Self::Done { .. } => "done",
+            Self::Error { .. } => "error",
             Self::Compaction { .. } => "compaction",
         }
     }
@@ -241,6 +251,9 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         SessionEvent::Done { summary } => SessionEvent::Done {
             summary: redact_text(summary),
         },
+        SessionEvent::Error { message } => SessionEvent::Error {
+            message: redact_text(message),
+        },
         SessionEvent::Compaction {
             range_start_seq,
             range_end_seq,
@@ -313,6 +326,15 @@ mod tests {
         };
         assert!(text.contains("[REDACTED:"));
         assert!(!text.contains("sk-abcdefghijklmnopqrstuvwx"));
+    }
+
+    #[test]
+    fn error_events_are_control_events() {
+        let event = SessionEvent::Error {
+            message: "boom".to_string(),
+        };
+        assert_eq!(event.kind(), "error");
+        assert!(derive_messages(std::slice::from_ref(&event)).is_empty());
     }
 
     #[test]

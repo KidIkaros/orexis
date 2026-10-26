@@ -2,7 +2,8 @@
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, ContextFile, EventRef, Message, Observation, SessionEvent, StoredEvent, ToolSpec,
+    Action, ContextFile, EventRef, Message, Observation, ProviderResponse, SessionEvent,
+    StoredEvent, ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,7 +21,12 @@ pub type PortResult<T> = Result<T, PortError>;
 
 #[async_trait]
 pub trait Provider: Send + Sync {
-    async fn complete(&self, messages: &[Message], tools: &[ToolSpec], step: usize) -> Vec<Action>;
+    async fn complete(
+        &self,
+        messages: &[Message],
+        tools: &[ToolSpec],
+        step: usize,
+    ) -> PortResult<ProviderResponse>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +49,7 @@ pub trait Codec: Send + Sync {
 
 #[async_trait]
 pub trait ToolExecutor: Send + Sync {
-    async fn execute(&self, name: &str, args: &str) -> Observation;
+    async fn execute(&self, name: &str, args: &str) -> PortResult<Observation>;
 }
 
 #[async_trait]

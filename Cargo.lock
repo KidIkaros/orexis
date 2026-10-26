@@ -767,6 +767,7 @@ dependencies = [
 name = "orexis-slice"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "futures",
  "orexis-adapters-fake",
  "orexis-adapters-session-sqlite",

@@ -3,7 +3,9 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent, ToolSpec};
+use orexis_core::{
+    Action, EventRef, Message, Observation, ProviderResponse, SessionEvent, StoredEvent, ToolSpec,
+};
 use orexis_ports::{
     EventSink, PortError, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
 };
@@ -25,11 +27,15 @@ impl Provider for ScriptedProvider {
         _messages: &[Message],
         _tools: &[ToolSpec],
         step: usize,
-    ) -> Vec<Action> {
-        self.script.get(step).cloned().unwrap_or_else(|| {
+    ) -> PortResult<ProviderResponse> {
+        let actions = self.script.get(step).cloned().unwrap_or_else(|| {
             vec![Action::Done {
                 summary: "script exhausted".to_string(),
             }]
+        });
+        Ok(ProviderResponse {
+            actions,
+            raw_text: String::new(),
         })
     }
 }
@@ -38,11 +44,11 @@ pub struct EchoTools;
 
 #[async_trait]
 impl ToolExecutor for EchoTools {
-    async fn execute(&self, name: &str, args: &str) -> Observation {
-        Observation {
+    async fn execute(&self, name: &str, args: &str) -> PortResult<Observation> {
+        Ok(Observation {
             name: name.to_string(),
             output: format!("ok({args})"),
-        }
+        })
     }
 }
 

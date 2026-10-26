@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use orexis_adapters_http::{ByteStream, Transport};
 use orexis_adapters_provider_catalog::ProviderProfile;
-use orexis_core::{Action, Message, Role, ToolSpec};
-use orexis_ports::Provider;
+use orexis_core::{Action, Message, ProviderResponse, Role, ToolSpec};
+use orexis_ports::{PortError, PortResult, Provider};
 use serde_json::{json, Value};
 
 pub struct AnthropicProvider<T: Transport> {
@@ -107,7 +107,7 @@ impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
-    ) -> Vec<Action> {
+    ) -> PortResult<ProviderResponse> {
         let url = format!(
             "{}/v1/messages",
             self.profile.base_url.trim_end_matches('/')
@@ -129,15 +129,19 @@ impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
             )
             .await
         {
-            Ok(stream) => parse_stream(stream).await,
-            Err(error) => vec![
-                Action::Say {
-                    text: format!("provider error: {error}"),
-                },
-                Action::Done {
-                    summary: "provider error".to_string(),
-                },
-            ],
+            Ok(stream) => {
+                let actions = parse_stream(stream).await;
+                let raw_text = actions
+                    .iter()
+                    .filter_map(|action| match action {
+                        Action::Say { text } => Some(text.clone()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+                Ok(ProviderResponse { actions, raw_text })
+            }
+            Err(error) => Err(PortError(error.to_string())),
         }
     }
 }
@@ -261,7 +265,11 @@ mod tests {
             "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n\n",
             "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
         ]);
-        let actions = provider.complete(&messages(), &[], 0).await;
+        let actions = provider
+            .complete(&messages(), &[], 0)
+            .await
+            .expect("complete")
+            .actions;
         assert_eq!(
             actions,
             vec![
@@ -283,7 +291,11 @@ mod tests {
             "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"x\\\"}\"}}\n\n",
             "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"}}\n\n",
         ]);
-        let actions = provider.complete(&messages(), &[], 0).await;
+        let actions = provider
+            .complete(&messages(), &[], 0)
+            .await
+            .expect("complete")
+            .actions;
         assert_eq!(
             actions,
             vec![Action::CallTool {
@@ -291,6 +303,21 @@ mod tests {
                 args: "{\"path\":\"x\"}".to_string()
             }]
         );
+    }
+
+    #[tokio::test]
+    async fn transport_error_is_returned() {
+        use orexis_adapters_http::FailingTransport;
+        let provider = AnthropicProvider::new(
+            profile(),
+            "claude-sonnet-4-5",
+            None,
+            FailingTransport {
+                message: "boom".to_string(),
+            },
+        );
+        let result = provider.complete(&messages(), &[], 0).await;
+        assert!(result.is_err());
     }
 
     #[test]

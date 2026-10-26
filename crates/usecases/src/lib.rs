@@ -91,9 +91,24 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         )
         .await?;
 
-        let actions = provider
+        let response = match provider
             .complete(&assembled.messages, context.tools, step)
-            .await;
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                append(
+                    session,
+                    sink,
+                    SessionEvent::Error {
+                        message: error.to_string(),
+                    },
+                )
+                .await?;
+                return Err(error);
+            }
+        };
+        let actions = response.actions;
         let text = actions
             .iter()
             .filter_map(|action| match action {
@@ -124,7 +139,20 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
                         },
                     )
                     .await?;
-                    let observation = tools.execute(&name, &args).await;
+                    let observation = match tools.execute(&name, &args).await {
+                        Ok(observation) => observation,
+                        Err(error) => {
+                            append(
+                                session,
+                                sink,
+                                SessionEvent::Error {
+                                    message: error.to_string(),
+                                },
+                            )
+                            .await?;
+                            return Err(error);
+                        }
+                    };
                     append(
                         session,
                         sink,

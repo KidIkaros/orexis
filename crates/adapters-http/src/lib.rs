@@ -107,3 +107,19 @@ impl Transport for MockTransport {
         )))
     }
 }
+
+pub struct FailingTransport {
+    pub message: String,
+}
+
+#[async_trait]
+impl Transport for FailingTransport {
+    async fn post_stream(
+        &self,
+        _url: &str,
+        _headers: Vec<(String, String)>,
+        _body: String,
+    ) -> Result<ByteStream, TransportError> {
+        Err(TransportError::Message(self.message.clone()))
+    }
+}
