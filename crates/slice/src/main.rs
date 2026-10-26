@@ -23,6 +23,7 @@ fn main() {
         checkpointer: None,
         verifier: None,
         skip_verify: false,
+        delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

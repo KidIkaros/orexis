@@ -61,6 +61,7 @@ fn run(verifier: Option<&dyn Verifier>, skip_verify: bool) -> (bool, usize, Vec<
         checkpointer: None,
         verifier,
         skip_verify,
+        delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

@@ -13,7 +13,7 @@ use tokio::sync::{broadcast, Semaphore};
 
 use crate::approvals::{ApprovalHub, HubGate};
 use crate::proto::{read_msg, write_msg, ClientMsg, ServerMsg};
-use crate::session::{BroadcastSink, SessionRegistry, SessionRuntime};
+use crate::session::{BroadcastDeltaSink, BroadcastSink, SessionRegistry, SessionRuntime};
 
 pub struct DaemonConfig {
     pub socket: PathBuf,
@@ -139,6 +139,7 @@ async fn handle(
                         };
                         write_msg(&mut write_half, &ServerMsg::Busy { session_id: rt.id.clone() }).await?;
                         let sink = Arc::new(BroadcastSink::new(rt.tx.clone()));
+                        let delta_sink = Arc::new(BroadcastDeltaSink::new(rt.tx.clone()));
                         let config = config.clone();
                         let rt_for_task = rt.clone();
                         let tools = tools.clone();
@@ -164,6 +165,7 @@ async fn handle(
                                 checkpointer: config.checkpointer.as_deref(),
                                 verifier: config.verifier.as_deref(),
                                 skip_verify,
+                                delta_sink: delta_sink.as_ref(),
                             }).await;
                             if let Ok(mut turn) = rt_for_task.turn.lock() {
                                 *turn = None;

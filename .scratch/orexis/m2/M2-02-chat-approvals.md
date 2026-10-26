@@ -10,7 +10,7 @@ The primary task surface: transcript, streaming, composer, and the inline approv
 
 ## Acceptance
 
-- [ ] Streaming deltas render without blocking input.
+- [x] Streaming deltas render without blocking input (plumbing in M2-07; UI wiring here).
 - [ ] Tool rows collapse and expand; large output opens the right panel.
 - [ ] Approval card shows command, risk, reversibility; `y/n/d/a` work.
 - [ ] Approval never steals focus; a badge announces it.

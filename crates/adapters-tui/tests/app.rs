@@ -157,3 +157,26 @@ fn same_name_tools_pair_by_call_id() {
     assert!(second.ok);
     assert_eq!(second.detail, "second");
 }
+
+#[test]
+fn delta_stream_appends_and_final_clears() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Delta {
+        text: "he".to_string(),
+    });
+    app.apply(ServerMsg::Delta {
+        text: "llo".to_string(),
+    });
+    assert_eq!(app.live.as_deref(), Some("hello"));
+    assert!(render(&app, 80, 24).contains("hello"));
+
+    app.push_event(&SessionEvent::ModelResponse {
+        text: "hello".to_string(),
+        actions: Vec::new(),
+    });
+    assert!(app.live.is_none());
+    assert!(app
+        .entries
+        .iter()
+        .any(|entry| matches!(entry, Entry::Assistant(text) if text == "hello")));
+}

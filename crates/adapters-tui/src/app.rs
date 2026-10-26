@@ -32,6 +32,7 @@ pub struct TuiApp {
     pub error: Option<String>,
     pub budget: Option<(u64, u64)>,
     pub queued: Option<usize>,
+    pub live: Option<String>,
     pub pending_approval: Option<u64>,
     pub palette_query: String,
     pub palette_selected: usize,
@@ -63,6 +64,7 @@ impl Default for TuiApp {
             error: None,
             budget: None,
             queued: None,
+            live: None,
             pending_approval: None,
             palette_query: String::new(),
             palette_selected: 0,
@@ -92,8 +94,11 @@ impl TuiApp {
                 self.entries.push(Entry::User(text.clone()));
                 self.state = TuiState::Streaming;
             }
-            SessionEvent::ModelResponse { text, .. } if !text.is_empty() => {
-                self.entries.push(Entry::Assistant(text.clone()));
+            SessionEvent::ModelResponse { text, .. } => {
+                self.live = None;
+                if !text.is_empty() {
+                    self.entries.push(Entry::Assistant(text.clone()));
+                }
                 self.state = TuiState::Streaming;
             }
             SessionEvent::ToolCall {
@@ -184,6 +189,7 @@ impl TuiApp {
         match message {
             ServerMsg::Attached { session_id } => self.session = session_id,
             ServerMsg::Event { event, .. } => self.push_event(&event),
+            ServerMsg::Delta { text } => self.apply_delta(&text),
             ServerMsg::ApprovalRequest { id, tool, args } => {
                 self.pending_approval = Some(id);
                 self.show_approval(&format!("{tool} {args}"), "ask", true);
@@ -197,6 +203,12 @@ impl TuiApp {
             }
             ServerMsg::Error { message } => self.set_error(&message),
         }
+    }
+
+    pub fn apply_delta(&mut self, text: &str) {
+        self.live.get_or_insert_with(String::new).push_str(text);
+        self.state = TuiState::Streaming;
+        self.revision += 1;
     }
 
     pub fn palette_commands(&self) -> Vec<(String, TuiAction)> {

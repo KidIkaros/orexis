@@ -115,6 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         checkpointer: runtime.checkpointer.as_deref(),
         verifier: runtime.verifier.as_deref(),
         skip_verify: runtime.verifier.is_none(),
+        delta_sink: &orexis_ports::NullDeltaSink,
         context,
     })
     .await?;

@@ -74,6 +74,7 @@ pub struct AppState {
     pub settings_open: bool,
     pub palette_open: bool,
     pub status: Status,
+    pub live: Option<String>,
 }
 
 impl Default for AppState {
@@ -89,6 +90,7 @@ impl Default for AppState {
             settings_open: false,
             palette_open: false,
             status: Status::Empty,
+            live: None,
         }
     }
 }
@@ -102,6 +104,7 @@ impl AppState {
                 self.status = Status::Empty;
             }
             ServerMsg::Event { event, .. } => self.apply_event(&event),
+            ServerMsg::Delta { text } => self.apply_delta(&text),
             ServerMsg::ApprovalRequest { id, tool, args } => {
                 let approval = Approval { id, tool, args };
                 self.pending = Some(approval.clone());
@@ -119,14 +122,22 @@ impl AppState {
         }
     }
 
+    pub fn apply_delta(&mut self, text: &str) {
+        self.live.get_or_insert_with(String::new).push_str(text);
+        self.status = Status::Running;
+    }
+
     fn apply_event(&mut self, event: &SessionEvent) {
         match event {
             SessionEvent::UserMessage { text } => {
                 self.transcript.push(DesktopEntry::User(text.clone()));
                 self.status = Status::Running;
             }
-            SessionEvent::ModelResponse { text, .. } if !text.is_empty() => {
-                self.transcript.push(DesktopEntry::Assistant(text.clone()));
+            SessionEvent::ModelResponse { text, .. } => {
+                self.live = None;
+                if !text.is_empty() {
+                    self.transcript.push(DesktopEntry::Assistant(text.clone()));
+                }
                 self.status = Status::Running;
             }
             SessionEvent::ToolCall {
@@ -314,5 +325,27 @@ mod tests {
             panic!("expected tool");
         };
         assert!(!ok);
+    }
+
+    #[test]
+    fn delta_stream_appends_and_final_clears() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Delta {
+            text: "he".to_string(),
+        });
+        state.apply(ServerMsg::Delta {
+            text: "llo".to_string(),
+        });
+        assert_eq!(state.live.as_deref(), Some("hello"));
+
+        state.apply(event(SessionEvent::ModelResponse {
+            text: "hello".to_string(),
+            actions: Vec::new(),
+        }));
+        assert!(state.live.is_none());
+        assert!(state
+            .transcript
+            .iter()
+            .any(|entry| matches!(entry, DesktopEntry::Assistant(text) if text == "hello")));
     }
 }

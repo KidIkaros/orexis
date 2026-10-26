@@ -415,3 +415,42 @@ async fn undo_restores_the_latest_checkpoint() {
     assert!(!recorder.created.lock().expect("created").is_empty());
     assert_eq!(recorder.restored.lock().expect("restored").len(), 1);
 }
+
+#[tokio::test]
+async fn delta_messages_reach_the_client() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let script = vec![vec![
+        Action::Say {
+            text: "hello".to_string(),
+        },
+        Action::Done {
+            summary: "hello".to_string(),
+        },
+    ]];
+    let daemon = Daemon::new(config_with(&socket, &db, script));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "say hello".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+
+    let events = read_until_done(&mut reader, &mut line).await;
+    assert!(events.iter().any(|message| matches!(
+        message,
+        ServerMsg::Delta { text } if text == "hello"
+    )));
+}

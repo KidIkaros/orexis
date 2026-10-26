@@ -35,6 +35,9 @@ pub enum ServerMsg {
         replay: bool,
         event: SessionEvent,
     },
+    Delta {
+        text: String,
+    },
     ApprovalRequest {
         id: u64,
         tool: String,

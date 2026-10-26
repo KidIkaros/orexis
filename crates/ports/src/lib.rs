@@ -32,6 +32,17 @@ pub trait SessionFactory: Send + Sync {
 }
 
 #[async_trait]
+pub trait DeltaSink: Send + Sync {
+    fn delta(&self, text: &str);
+}
+
+pub struct NullDeltaSink;
+
+impl DeltaSink for NullDeltaSink {
+    fn delta(&self, _text: &str) {}
+}
+
+#[async_trait]
 pub trait Provider: Send + Sync {
     async fn complete(
         &self,
@@ -39,6 +50,25 @@ pub trait Provider: Send + Sync {
         tools: &[ToolSpec],
         step: usize,
     ) -> PortResult<ProviderResponse>;
+
+    /// Streaming variant. The default emits the final text as one delta.
+    async fn stream(
+        &self,
+        messages: &[Message],
+        tools: &[ToolSpec],
+        step: usize,
+        sink: &dyn DeltaSink,
+    ) -> PortResult<ProviderResponse> {
+        let response = self.complete(messages, tools, step).await?;
+        if let Some(Action::Say { text }) = response
+            .actions
+            .iter()
+            .find(|action| matches!(action, Action::Say { .. }))
+        {
+            sink.delta(text);
+        }
+        Ok(response)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

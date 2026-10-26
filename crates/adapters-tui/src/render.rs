@@ -166,6 +166,14 @@ fn build_transcript_lines(app: &TuiApp) -> Vec<Line<'static>> {
             }
         }
     }
+    if let Some(live) = &app.live {
+        if !live.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("orexis › ", bold(app)),
+                Span::raw(live.clone()),
+            ]));
+        }
+    }
     lines
 }
 

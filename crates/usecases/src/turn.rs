@@ -2,8 +2,8 @@
 
 use orexis_core::{hash_messages, Action, SessionEvent, FORMAT_VERSION};
 use orexis_ports::{
-    Checkpointer, Codec, EventSink, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
-    Verifier,
+    Checkpointer, Codec, DeltaSink, EventSink, PortResult, Provider, SessionAppend, SessionRead,
+    ToolExecutor, Verifier,
 };
 
 use crate::actions::execute_actions;
@@ -25,6 +25,7 @@ pub struct TurnDeps<'a> {
     pub checkpointer: Option<&'a dyn Checkpointer>,
     pub verifier: Option<&'a dyn Verifier>,
     pub skip_verify: bool,
+    pub delta_sink: &'a dyn DeltaSink,
 }
 
 pub struct TurnOutcome {
@@ -47,6 +48,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         checkpointer,
         verifier,
         skip_verify,
+        delta_sink,
     } = deps;
 
     append(
@@ -131,7 +133,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         .await?;
 
         let response = match provider
-            .complete(&assembled.messages, context.tools, step)
+            .stream(&assembled.messages, context.tools, step, delta_sink)
             .await
         {
             Ok(response) => response,

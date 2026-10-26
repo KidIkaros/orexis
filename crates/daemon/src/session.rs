@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use orexis_core::SessionEvent;
 use orexis_ports::{
-    EventSink, PortError, PortResult, SessionAppend, SessionFactory, SessionRead, SessionRefs,
+    DeltaSink, EventSink, PortError, PortResult, SessionAppend, SessionFactory, SessionRead,
+    SessionRefs,
 };
 use tokio::sync::broadcast;
 
@@ -27,6 +28,24 @@ impl EventSink for BroadcastSink {
             seq,
             replay: false,
             event: event.clone(),
+        });
+    }
+}
+
+pub struct BroadcastDeltaSink {
+    tx: broadcast::Sender<ServerMsg>,
+}
+
+impl BroadcastDeltaSink {
+    pub fn new(tx: broadcast::Sender<ServerMsg>) -> Self {
+        Self { tx }
+    }
+}
+
+impl DeltaSink for BroadcastDeltaSink {
+    fn delta(&self, text: &str) {
+        let _ = self.tx.send(ServerMsg::Delta {
+            text: text.to_string(),
         });
     }
 }

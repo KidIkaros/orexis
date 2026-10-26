@@ -7,7 +7,7 @@ use futures::StreamExt;
 use orexis_adapters_http::{ByteStream, Transport};
 use orexis_adapters_provider_catalog::ProviderProfile;
 use orexis_core::{Action, Message, ProviderResponse, Role, ToolSpec};
-use orexis_ports::{PortError, PortResult, Provider};
+use orexis_ports::{DeltaSink, NullDeltaSink, PortError, PortResult, Provider};
 use serde_json::{json, Value};
 
 pub struct OpenAiCompatibleProvider<T: Transport> {
@@ -107,41 +107,60 @@ impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
         tools: &[ToolSpec],
         _step: usize,
     ) -> PortResult<ProviderResponse> {
-        let url = format!(
-            "{}/chat/completions",
-            self.profile.base_url.trim_end_matches('/')
-        );
-        let mut headers = vec![("content-type".to_string(), "application/json".to_string())];
-        if let Some(key) = &self.api_key {
-            headers.push((
-                self.profile.auth.header.clone(),
-                format!("{}{}", self.profile.auth.prefix, key),
-            ));
-        }
+        request(self, messages, tools, &NullDeltaSink).await
+    }
 
-        match self
-            .transport
-            .post_stream(
-                &url,
-                headers,
-                self.request_body(messages, tools).to_string(),
-            )
-            .await
-        {
-            Ok(stream) => {
-                let actions = parse_stream(stream).await;
-                let raw_text = actions
-                    .iter()
-                    .filter_map(|action| match action {
-                        Action::Say { text } => Some(text.clone()),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>()
-                    .join("");
-                Ok(ProviderResponse { actions, raw_text })
-            }
-            Err(error) => Err(PortError(error.to_string())),
+    async fn stream(
+        &self,
+        messages: &[Message],
+        tools: &[ToolSpec],
+        _step: usize,
+        sink: &dyn DeltaSink,
+    ) -> PortResult<ProviderResponse> {
+        request(self, messages, tools, sink).await
+    }
+}
+
+async fn request<T: Transport>(
+    provider: &OpenAiCompatibleProvider<T>,
+    messages: &[Message],
+    tools: &[ToolSpec],
+    sink: &dyn DeltaSink,
+) -> PortResult<ProviderResponse> {
+    let url = format!(
+        "{}/chat/completions",
+        provider.profile.base_url.trim_end_matches('/')
+    );
+    let mut headers = vec![("content-type".to_string(), "application/json".to_string())];
+    if let Some(key) = &provider.api_key {
+        headers.push((
+            provider.profile.auth.header.clone(),
+            format!("{}{}", provider.profile.auth.prefix, key),
+        ));
+    }
+
+    match provider
+        .transport
+        .post_stream(
+            &url,
+            headers,
+            provider.request_body(messages, tools).to_string(),
+        )
+        .await
+    {
+        Ok(stream) => {
+            let actions = parse_stream(stream, sink).await;
+            let raw_text = actions
+                .iter()
+                .filter_map(|action| match action {
+                    Action::Say { text } => Some(text.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            Ok(ProviderResponse { actions, raw_text })
         }
+        Err(error) => Err(PortError(error.to_string())),
     }
 }
 
@@ -152,7 +171,7 @@ struct ToolCallAccum {
     args: String,
 }
 
-async fn parse_stream(mut stream: ByteStream) -> Vec<Action> {
+async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Action> {
     let mut buffer = String::new();
     let mut content = String::new();
     let mut tool_calls: BTreeMap<usize, ToolCallAccum> = BTreeMap::new();
@@ -180,6 +199,7 @@ async fn parse_stream(mut stream: ByteStream) -> Vec<Action> {
                 let choice = &value["choices"][0];
                 if let Some(text) = choice["delta"]["content"].as_str() {
                     content.push_str(text);
+                    sink.delta(text);
                 }
                 if let Some(calls) = choice["delta"]["tool_calls"].as_array() {
                     for call in calls {
@@ -374,5 +394,38 @@ mod tests {
         assert_eq!(body["model"], "gpt-5");
         assert_eq!(body["tools"][0]["function"]["name"], "read");
         assert_eq!(body["stream"], true);
+    }
+
+    struct RecordingDeltaSink {
+        deltas: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl DeltaSink for RecordingDeltaSink {
+        fn delta(&self, text: &str) {
+            self.deltas.lock().expect("deltas").push(text.to_string());
+        }
+    }
+
+    #[tokio::test]
+    async fn stream_emits_content_deltas() {
+        let provider = provider(vec![
+            "data: {\"choices\":[{\"delta\":{\"content\":\"hel\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"lo\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+            "data: [DONE]\n\n",
+        ]);
+        let sink = RecordingDeltaSink {
+            deltas: std::sync::Mutex::new(Vec::new()),
+        };
+        let actions = provider
+            .stream(&messages(), &[], 0, &sink)
+            .await
+            .expect("stream")
+            .actions;
+        assert_eq!(
+            sink.deltas.lock().expect("deltas").as_slice(),
+            ["hel", "lo"]
+        );
+        assert!(matches!(actions[0], Action::Say { .. }));
     }
 }
