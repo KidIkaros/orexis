@@ -6,7 +6,12 @@ license.workspace = true
 
 [dependencies]
 orexis-core.workspace = true
+orexis-ports.workspace = true
 orexis-usecases.workspace = true
 orexis-composition.workspace = true
 orexis-adapters-fake.workspace = true
+orexis-adapters-session-sqlite.workspace = true
 futures.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

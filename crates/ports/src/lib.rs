@@ -1,7 +1,20 @@
 //! Ports declared by the consumer side. No concrete adapter is named here.
 
 use async_trait::async_trait;
-use orexis_core::{Action, Message, Observation, SessionEvent};
+use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PortError(pub String);
+
+impl std::fmt::Display for PortError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for PortError {}
+
+pub type PortResult<T> = Result<T, PortError>;
 
 #[async_trait]
 pub trait Provider: Send + Sync {
@@ -15,12 +28,17 @@ pub trait ToolExecutor: Send + Sync {
 
 #[async_trait]
 pub trait SessionAppend: Send + Sync {
-    async fn append(&self, event: SessionEvent);
+    async fn append(&self, event: SessionEvent) -> PortResult<EventRef>;
 }
 
 #[async_trait]
 pub trait SessionRead: Send + Sync {
-    async fn events(&self) -> Vec<SessionEvent>;
+    async fn events(&self) -> PortResult<Vec<StoredEvent>>;
+}
+
+#[async_trait]
+pub trait SessionFork: Send + Sync {
+    async fn fork(&self, at_seq: u64) -> PortResult<String>;
 }
 
 pub trait EventSink: Send + Sync {

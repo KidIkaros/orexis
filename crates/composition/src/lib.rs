@@ -17,7 +17,9 @@ pub struct App {
 pub fn build() -> App {
     let provider = Arc::new(ScriptedProvider::new(vec![
         vec![
-            Action::Say("reading the file".to_string()),
+            Action::Say {
+                text: "reading the file".to_string(),
+            },
             Action::CallTool {
                 name: "read".to_string(),
                 args: "src/lib.rs".to_string(),

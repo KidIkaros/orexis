@@ -1,12 +1,7 @@
 //! The turn loop: a use case over core + ports. No adapter, no runtime.
 
-use orexis_core::{derive_messages, Action, Message, SessionEvent, FORMAT_VERSION};
-use orexis_ports::{EventSink, Provider, SessionAppend, SessionRead, ToolExecutor};
-
-pub struct TurnOutcome {
-    pub steps: usize,
-    pub done: bool,
-}
+use orexis_core::{derive_messages, hash_messages, Action, SessionEvent, FORMAT_VERSION};
+use orexis_ports::{EventSink, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor};
 
 pub struct TurnDeps<'a> {
     pub provider: &'a dyn Provider,
@@ -19,7 +14,12 @@ pub struct TurnDeps<'a> {
     pub max_steps: usize,
 }
 
-pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
+pub struct TurnOutcome {
+    pub steps: usize,
+    pub done: bool,
+}
+
+pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
     let TurnDeps {
         provider,
         tools,
@@ -30,6 +30,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
         prompt,
         max_steps,
     } = deps;
+
     append(
         session,
         sink,
@@ -38,7 +39,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
             format_version: FORMAT_VERSION,
         },
     )
-    .await;
+    .await?;
     append(
         session,
         sink,
@@ -46,7 +47,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
             text: prompt.to_string(),
         },
     )
-    .await;
+    .await?;
 
     let mut done = false;
     let mut steps = 0;
@@ -54,7 +55,12 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
     for step in 0..max_steps {
         steps = step + 1;
 
-        let events = reader.events().await;
+        let events = reader
+            .events()
+            .await?
+            .into_iter()
+            .map(|stored| stored.event)
+            .collect::<Vec<_>>();
         let messages = derive_messages(&events);
         append(
             session,
@@ -64,13 +70,13 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
                 request_hash: hash_messages(&messages),
             },
         )
-        .await;
+        .await?;
 
         let actions = provider.complete(&messages, step).await;
         let text = actions
             .iter()
             .filter_map(|action| match action {
-                Action::Say(text) => Some(text.clone()),
+                Action::Say { text } => Some(text.clone()),
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -83,7 +89,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
                 actions: actions.clone(),
             },
         )
-        .await;
+        .await?;
 
         for action in actions {
             match action {
@@ -96,7 +102,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
                             args: args.clone(),
                         },
                     )
-                    .await;
+                    .await?;
                     let observation = tools.execute(&name, &args).await;
                     append(
                         session,
@@ -106,14 +112,14 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
                             output: observation.output,
                         },
                     )
-                    .await;
+                    .await?;
                 }
                 Action::Done { summary } => {
-                    append(session, sink, SessionEvent::Done { summary }).await;
+                    append(session, sink, SessionEvent::Done { summary }).await?;
                     done = true;
                     break;
                 }
-                Action::Say(_) => {}
+                Action::Say { .. } => {}
             }
         }
 
@@ -122,22 +128,17 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> TurnOutcome {
         }
     }
 
-    TurnOutcome { steps, done }
+    Ok(TurnOutcome { steps, done })
 }
 
-async fn append(session: &dyn SessionAppend, sink: &dyn EventSink, event: SessionEvent) {
-    session.append(event.clone()).await;
+async fn append(
+    session: &dyn SessionAppend,
+    sink: &dyn EventSink,
+    event: SessionEvent,
+) -> PortResult<orexis_core::EventRef> {
+    let event_ref = session.append(event.clone()).await?;
     sink.emit(&event);
-}
-
-pub fn hash_messages(messages: &[Message]) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    for message in messages {
-        message.role.hash(&mut hasher);
-        message.text.hash(&mut hasher);
-    }
-    hasher.finish()
+    Ok(event_ref)
 }
 
 /// Replay check: every logged `ModelRequest` hash must equal the pure
@@ -182,7 +183,7 @@ mod tests {
             SessionEvent::UserMessage { text: "hi".into() },
             SessionEvent::ModelRequest {
                 profile_id: "fake".into(),
-                request_hash: 42,
+                request_hash: "deadbeef".into(),
             },
         ];
         assert!(!verify_replay(&events));

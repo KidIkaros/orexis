@@ -4,6 +4,7 @@ members = [
     "crates/ports",
     "crates/usecases",
     "crates/adapters-fake",
+    "crates/adapters-session-sqlite",
     "crates/composition",
     "crates/slice",
 ]
@@ -19,6 +20,7 @@ orexis-core = { path = "crates/core" }
 orexis-ports = { path = "crates/ports" }
 orexis-usecases = { path = "crates/usecases" }
 orexis-adapters-fake = { path = "crates/adapters-fake" }
+orexis-adapters-session-sqlite = { path = "crates/adapters-session-sqlite" }
 orexis-composition = { path = "crates/composition" }
 async-trait = "0.1"
 futures = "0.3"

@@ -3,8 +3,10 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use orexis_core::{Action, Message, Observation, SessionEvent};
-use orexis_ports::{EventSink, Provider, SessionAppend, SessionRead, ToolExecutor};
+use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent};
+use orexis_ports::{
+    EventSink, PortError, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
+};
 
 pub struct ScriptedProvider {
     script: Vec<Vec<Action>>,
@@ -41,20 +43,35 @@ impl ToolExecutor for EchoTools {
 
 #[derive(Default)]
 pub struct InMemorySession {
-    events: Mutex<Vec<SessionEvent>>,
+    events: Mutex<Vec<StoredEvent>>,
 }
 
 #[async_trait]
 impl SessionAppend for InMemorySession {
-    async fn append(&self, event: SessionEvent) {
-        self.events.lock().expect("session lock").push(event);
+    async fn append(&self, event: SessionEvent) -> PortResult<EventRef> {
+        let mut events = self
+            .events
+            .lock()
+            .map_err(|_| PortError("session lock poisoned".into()))?;
+        let seq = events.len() as u64 + 1;
+        let event_id = format!("evt-{seq:04}");
+        events.push(StoredEvent {
+            seq,
+            event_id: event_id.clone(),
+            generation_id: 1,
+            event,
+        });
+        Ok(EventRef { seq, event_id })
     }
 }
 
 #[async_trait]
 impl SessionRead for InMemorySession {
-    async fn events(&self) -> Vec<SessionEvent> {
-        self.events.lock().expect("session lock").clone()
+    async fn events(&self) -> PortResult<Vec<StoredEvent>> {
+        self.events
+            .lock()
+            .map(|events| events.clone())
+            .map_err(|_| PortError("session lock poisoned".into()))
     }
 }
 
@@ -65,16 +82,18 @@ pub struct RecordingSink {
 
 impl RecordingSink {
     pub fn lines(&self) -> Vec<String> {
-        self.lines.lock().expect("sink lock").clone()
+        self.lines
+            .lock()
+            .map(|lines| lines.clone())
+            .unwrap_or_default()
     }
 }
 
 impl EventSink for RecordingSink {
     fn emit(&self, event: &SessionEvent) {
-        self.lines
-            .lock()
-            .expect("sink lock")
-            .push(format!("{event:?}"));
+        if let Ok(mut lines) = self.lines.lock() {
+            lines.push(format!("{event:?}"));
+        }
     }
 }
 

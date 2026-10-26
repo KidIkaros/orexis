@@ -3,7 +3,7 @@
 use futures::executor::block_on;
 use orexis_adapters_fake::render_transcript;
 use orexis_composition::build;
-use orexis_core::derive_messages;
+use orexis_core::{derive_messages, SessionEvent};
 use orexis_usecases::{run_turn, verify_replay, TurnDeps};
 
 fn main() {
@@ -18,9 +18,11 @@ fn main() {
         session_id: "slice-1",
         prompt: "read src/lib.rs and summarize",
         max_steps: 8,
-    }));
+    }))
+    .expect("turn");
 
-    let events = block_on(app.reader.events());
+    let stored = block_on(app.reader.events()).expect("events");
+    let events: Vec<SessionEvent> = stored.into_iter().map(|entry| entry.event).collect();
     print!("{}", render_transcript(&events));
     println!("steps: {}  done: {}", outcome.steps, outcome.done);
 

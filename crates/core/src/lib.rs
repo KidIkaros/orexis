@@ -1,26 +1,30 @@
 //! Pure domain types for the vertical slice. No I/O, no ports, no runtime.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     User,
     Assistant,
     Tool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Message {
     pub role: Role,
     pub text: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Action {
-    Say(String),
+    Say { text: String },
     CallTool { name: String, args: String },
     Done { summary: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Observation {
     pub name: String,
     pub output: String,
@@ -28,8 +32,25 @@ pub struct Observation {
 
 pub const FORMAT_VERSION: u32 = 1;
 
+/// A durable event reference returned by an append.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventRef {
+    pub seq: u64,
+    pub event_id: String,
+}
+
+/// An event plus its stored metadata.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredEvent {
+    pub seq: u64,
+    pub event_id: String,
+    pub generation_id: u64,
+    pub event: SessionEvent,
+}
+
 /// The durable session log (ADR-0001), reduced to the slice's event kinds.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SessionEvent {
     SessionStart {
         session_id: String,
@@ -40,7 +61,7 @@ pub enum SessionEvent {
     },
     ModelRequest {
         profile_id: String,
-        request_hash: u64,
+        request_hash: String,
     },
     ModelResponse {
         text: String,
@@ -57,6 +78,20 @@ pub enum SessionEvent {
     Done {
         summary: String,
     },
+}
+
+impl SessionEvent {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::SessionStart { .. } => "session_start",
+            Self::UserMessage { .. } => "user_message",
+            Self::ModelRequest { .. } => "model_request",
+            Self::ModelResponse { .. } => "model_response",
+            Self::ToolCall { .. } => "tool_call",
+            Self::Observation { .. } => "observation",
+            Self::Done { .. } => "done",
+        }
+    }
 }
 
 /// Pure projection: the model-visible messages derived from the log.
@@ -91,6 +126,91 @@ pub fn render_messages(messages: &[Message]) -> String {
         .join("\n")
 }
 
+/// A content digest over the model-visible messages.
+pub fn hash_messages(messages: &[Message]) -> String {
+    let mut hasher = blake3::Hasher::new();
+    for message in messages {
+        hasher.update(format!("{:?}:{}\n", message.role, message.text).as_bytes());
+    }
+    hasher.finalize().to_hex().to_string()
+}
+
+/// Redact credential-shaped tokens at write time (ADR-0001).
+pub fn redact_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for token in text.split_inclusive(char::is_whitespace) {
+        let trimmed = token.trim_end();
+        if looks_secret(trimmed) {
+            let digest = blake3::hash(trimmed.as_bytes()).to_hex().to_string();
+            out.push_str(&format!("[REDACTED:{}]", &digest[..8]));
+            out.push_str(&token[trimmed.len()..]);
+        } else {
+            out.push_str(token);
+        }
+    }
+    out
+}
+
+fn looks_secret(token: &str) -> bool {
+    let candidate = token.trim_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != '_');
+    (candidate.starts_with("sk-") && candidate.len() >= 20)
+        || (candidate.starts_with("ghp_") && candidate.len() >= 20)
+        || (candidate.starts_with("xoxb-") && candidate.len() >= 20)
+        || (candidate.starts_with("AKIA") && candidate.len() == 20)
+}
+
+pub fn redact_event(event: &SessionEvent) -> SessionEvent {
+    match event {
+        SessionEvent::SessionStart {
+            session_id,
+            format_version,
+        } => SessionEvent::SessionStart {
+            session_id: session_id.clone(),
+            format_version: *format_version,
+        },
+        SessionEvent::UserMessage { text } => SessionEvent::UserMessage {
+            text: redact_text(text),
+        },
+        SessionEvent::ModelRequest {
+            profile_id,
+            request_hash,
+        } => SessionEvent::ModelRequest {
+            profile_id: profile_id.clone(),
+            request_hash: request_hash.clone(),
+        },
+        SessionEvent::ModelResponse { text, actions } => SessionEvent::ModelResponse {
+            text: redact_text(text),
+            actions: actions.iter().map(redact_action).collect(),
+        },
+        SessionEvent::ToolCall { name, args } => SessionEvent::ToolCall {
+            name: name.clone(),
+            args: redact_text(args),
+        },
+        SessionEvent::Observation { name, output } => SessionEvent::Observation {
+            name: name.clone(),
+            output: redact_text(output),
+        },
+        SessionEvent::Done { summary } => SessionEvent::Done {
+            summary: redact_text(summary),
+        },
+    }
+}
+
+fn redact_action(action: &Action) -> Action {
+    match action {
+        Action::Say { text } => Action::Say {
+            text: redact_text(text),
+        },
+        Action::CallTool { name, args } => Action::CallTool {
+            name: name.clone(),
+            args: redact_text(args),
+        },
+        Action::Done { summary } => Action::Done {
+            summary: redact_text(summary),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,7 +225,9 @@ mod tests {
             SessionEvent::UserMessage { text: "hi".into() },
             SessionEvent::ModelResponse {
                 text: "hello".into(),
-                actions: vec![Action::Say("hello".into())],
+                actions: vec![Action::Say {
+                    text: "hello".into(),
+                }],
             },
             SessionEvent::ToolCall {
                 name: "read".into(),
@@ -121,5 +243,27 @@ mod tests {
         assert_eq!(messages[0].role, Role::User);
         assert_eq!(messages[1].role, Role::Assistant);
         assert_eq!(messages[2].role, Role::Tool);
+    }
+
+    #[test]
+    fn redacts_credential_shaped_tokens() {
+        let event = SessionEvent::UserMessage {
+            text: "use sk-abcdefghijklmnopqrstuvwx now".into(),
+        };
+        let redacted = redact_event(&event);
+        let SessionEvent::UserMessage { text } = redacted else {
+            panic!("wrong variant");
+        };
+        assert!(text.contains("[REDACTED:"));
+        assert!(!text.contains("sk-abcdefghijklmnopqrstuvwx"));
+    }
+
+    #[test]
+    fn hash_is_stable() {
+        let messages = vec![Message {
+            role: Role::User,
+            text: "hi".into(),
+        }];
+        assert_eq!(hash_messages(&messages), hash_messages(&messages));
     }
 }
