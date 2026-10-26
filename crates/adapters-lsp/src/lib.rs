@@ -14,7 +14,9 @@ use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::sync::Mutex;
 
 struct Session {
-    _child: Child,
+    /// Kept alive for RAII; dropping it kills the server.
+    #[allow(dead_code)]
+    child: Child,
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
     versions: HashMap<String, i32>,
@@ -96,7 +98,7 @@ impl StdioLsp {
         .await?;
 
         Ok(Session {
-            _child: child,
+            child,
             stdin,
             stdout,
             versions: HashMap::new(),
