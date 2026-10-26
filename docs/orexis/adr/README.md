@@ -54,3 +54,4 @@ What else was on the table, and why it lost.
 | [0012](0012-oversight-projections.md) | M2 oversight projections vs the M8 team domain | accepted |
 | [0013](0013-entity-model.md) | Entity model: six drives and PAD affect | accepted |
 | [0014](0014-identity-vs-persona.md) | Entity identity is not model persona | accepted |
+| [0015](0015-evolution-tiers.md) | Evolution tiers, validation ladder, and rollback | accepted |

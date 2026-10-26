@@ -46,6 +46,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | MCP + ACP in v1; A2A/UTCP in M7 | §5, M7 |
 | Entity model: six drives (connection, curiosity, mastery, coherence, rest, growth) + PAD affect; drives propose, affect modulates posture; never prompt mid-session | ADR-0013; ticket 007 |
 | Entity identity is external/persistent/model-agnostic; model persona is internal/model-specific; neuron alignment/steering is research, not M5 | ADR-0014; issue 012 |
+| Evolution: default off; skills opt-in after the ladder; quarantine stage-only; core signed + human; sealed set; signed git ledger; rollback triggers | ADR-0015; issue 008 |
 | Lexical memory; no code RAG | §7 |
 | Tiered, git-backed, signed evolution | §4.5 |
 | Milestones M1–M9 with per-milestone cut rule | §5 |
@@ -67,7 +68,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 5. ~~**Edit-tool contract per model tier**~~ — resolved; issue 005.
 6. ~~**Desktop panel layout in Leptos**~~ — resolved; ADR-0008.
 7. ~~**Entity model: five vs six drives, affect dimensions**~~ — resolved; ADR-0013.
-8. **Evolution tier defaults and validation ladder** — blocks M6.
+8. ~~**Evolution tier defaults and validation ladder**~~ — resolved; ADR-0015.
 9. **Native adapter timing: Gemini / Bedrock / Vertex** — blocks M7.
 10. **Packaging and signing** — blocks M9.
 11. ~~**Eight per-repo study decisions**~~ — resolved; synthesis drafted.
@@ -293,6 +294,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 **M2 status (2026-10-26):** implemented in source; M2-01 … M2-06 wired; fleet/board/changes are session projections per ADR-0012; `scripts/m2-gate.sh` green for automated checks. Tauri shell build, evaluation cycles, and usability measurement remain manual.
 
 **M4 status (2026-10-26):** automated gate green; M4-01 … M4-04 resolved. Manual: SIGKILL a real repository turn and restart.
+
+**M6 status (2026-10-26):** specified; decision 008 resolved (ADR-0015); tickets M6-01 … M6-05.
 
 **M5 status (2026-10-26):** automated gate green; M5-01 … M5-06 resolved. Manual: `/self` against a real repo and a live model switch. Decision 007 resolved (ADR-0013); neuron alignment is a separate research track (ADR-0014, M5-R01).
 
