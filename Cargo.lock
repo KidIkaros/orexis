@@ -648,6 +648,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-context-fs"
+version = "0.0.0"
+dependencies = [
+ "orexis-core",
+ "orexis-ports",
+ "tempfile",
+]
+
+[[package]]
 name = "orexis-adapters-fake"
 version = "0.0.0"
 dependencies = [
@@ -774,6 +783,7 @@ version = "0.0.0"
 dependencies = [
  "orexis-core",
  "orexis-ports",
+ "serde_json",
 ]
 
 [[package]]

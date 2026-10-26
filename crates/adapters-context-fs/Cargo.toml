@@ -1,0 +1,12 @@
+[package]
+name = "orexis-adapters-context-fs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

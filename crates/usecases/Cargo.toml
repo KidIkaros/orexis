@@ -7,3 +7,6 @@ license.workspace = true
 [dependencies]
 orexis-core.workspace = true
 orexis-ports.workspace = true
+
+[dev-dependencies]
+serde_json = "1"

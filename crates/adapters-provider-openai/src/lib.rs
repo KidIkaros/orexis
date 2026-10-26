@@ -40,6 +40,7 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
         let messages: Vec<Value> = messages
             .iter()
             .map(|message| match message.role {
+                Role::System => json!({ "role": "system", "content": message.text }),
                 Role::User => json!({ "role": "user", "content": message.text }),
                 Role::Assistant => json!({ "role": "assistant", "content": message.text }),
                 Role::Tool => json!({

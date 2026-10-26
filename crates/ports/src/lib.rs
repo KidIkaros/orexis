@@ -1,7 +1,9 @@
 //! Ports declared by the consumer side. No concrete adapter is named here.
 
 use async_trait::async_trait;
-use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent, ToolSpec};
+use orexis_core::{
+    Action, ContextFile, EventRef, Message, Observation, SessionEvent, StoredEvent, ToolSpec,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PortError(pub String);
@@ -57,6 +59,14 @@ pub trait SessionRead: Send + Sync {
 #[async_trait]
 pub trait SessionFork: Send + Sync {
     async fn fork(&self, at_seq: u64) -> PortResult<String>;
+}
+
+pub trait ContextSource: Send + Sync {
+    fn load(&self) -> Vec<ContextFile>;
+}
+
+pub trait Summarizer: Send + Sync {
+    fn summarize(&self, events: &[SessionEvent]) -> String;
 }
 
 pub trait EventSink: Send + Sync {

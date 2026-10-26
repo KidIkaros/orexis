@@ -47,8 +47,15 @@ impl<T: Transport> AnthropicProvider<T> {
     }
 
     pub fn request_body(&self, messages: &[Message], tools: &[ToolSpec]) -> Value {
+        let system = messages
+            .iter()
+            .filter(|message| message.role == Role::System)
+            .map(|message| message.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n\n");
         let messages: Vec<Value> = messages
             .iter()
+            .filter(|message| message.role != Role::System)
             .map(|message| match message.role {
                 Role::User => json!({ "role": "user", "content": message.text }),
                 Role::Assistant => json!({ "role": "assistant", "content": message.text }),
@@ -56,6 +63,7 @@ impl<T: Transport> AnthropicProvider<T> {
                     "role": "user",
                     "content": format!("[tool result] {}", message.text),
                 }),
+                Role::System => json!({ "role": "user", "content": message.text }),
             })
             .collect();
 
@@ -65,6 +73,9 @@ impl<T: Transport> AnthropicProvider<T> {
             "stream": true,
             "messages": messages,
         });
+        if !system.is_empty() {
+            body["system"] = json!(system);
+        }
 
         if !tools.is_empty() {
             let mut tools_json: Vec<Value> = tools
@@ -295,6 +306,24 @@ mod tests {
         assert_eq!(body["max_tokens"], 64000);
         assert_eq!(body["tools"][0]["input_schema"]["type"], "object");
         assert_eq!(body["tools"][0]["cache_control"]["type"], "ephemeral");
+    }
+
+    #[test]
+    fn system_messages_go_to_the_system_field() {
+        let provider = provider(vec![]);
+        let messages = vec![
+            Message {
+                role: Role::System,
+                text: "be helpful".to_string(),
+            },
+            Message {
+                role: Role::User,
+                text: "hi".to_string(),
+            },
+        ];
+        let body = provider.request_body(&messages, &[]);
+        assert_eq!(body["system"], "be helpful");
+        assert_eq!(body["messages"].as_array().unwrap().len(), 1);
     }
 
     #[tokio::test]

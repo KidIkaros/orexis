@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use orexis_adapters_fake::render_transcript;
 use orexis_composition::build;
 use orexis_core::{derive_messages, SessionEvent};
-use orexis_usecases::{run_turn, verify_replay, TurnDeps};
+use orexis_usecases::{run_turn, verify_replay, ContextConfig, TurnDeps};
 
 fn main() {
     let app = build();
@@ -18,6 +18,12 @@ fn main() {
         session_id: "slice-1",
         prompt: "read src/lib.rs and summarize",
         max_steps: 8,
+        context: ContextConfig {
+            system_prompt: "",
+            tools: &[],
+            context_files: &[],
+            context_limit: 32768,
+        },
     }))
     .expect("turn");
 

@@ -8,6 +8,7 @@ pub enum Role {
     User,
     Assistant,
     Tool,
+    System,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,6 +59,12 @@ impl CodecId {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContextFile {
+    pub path: String,
+    pub content: String,
+}
+
 pub const FORMAT_VERSION: u32 = 1;
 
 /// A durable event reference returned by an append.
@@ -106,6 +113,11 @@ pub enum SessionEvent {
     Done {
         summary: String,
     },
+    Compaction {
+        range_start_seq: u64,
+        range_end_seq: u64,
+        summary: String,
+    },
 }
 
 impl SessionEvent {
@@ -118,6 +130,7 @@ impl SessionEvent {
             Self::ToolCall { .. } => "tool_call",
             Self::Observation { .. } => "observation",
             Self::Done { .. } => "done",
+            Self::Compaction { .. } => "compaction",
         }
     }
 }
@@ -139,6 +152,13 @@ pub fn derive_messages(events: &[SessionEvent]) -> Vec<Message> {
                 role: Role::Tool,
                 text: format!("{name}: {output}"),
             }),
+            SessionEvent::Compaction { summary, .. } => {
+                out.clear();
+                out.push(Message {
+                    role: Role::System,
+                    text: format!("[summary] {summary}"),
+                });
+            }
             _ => {}
         }
     }
@@ -221,6 +241,15 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         SessionEvent::Done { summary } => SessionEvent::Done {
             summary: redact_text(summary),
         },
+        SessionEvent::Compaction {
+            range_start_seq,
+            range_end_seq,
+            summary,
+        } => SessionEvent::Compaction {
+            range_start_seq: *range_start_seq,
+            range_end_seq: *range_end_seq,
+            summary: redact_text(summary),
+        },
     }
 }
 
@@ -284,6 +313,23 @@ mod tests {
         };
         assert!(text.contains("[REDACTED:"));
         assert!(!text.contains("sk-abcdefghijklmnopqrstuvwx"));
+    }
+
+    #[test]
+    fn compaction_resets_history() {
+        let events = vec![
+            SessionEvent::UserMessage { text: "old".into() },
+            SessionEvent::Compaction {
+                range_start_seq: 1,
+                range_end_seq: 1,
+                summary: "earlier".into(),
+            },
+            SessionEvent::UserMessage { text: "new".into() },
+        ];
+        let messages = derive_messages(&events);
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].role, Role::System);
+        assert_eq!(messages[1].text, "new");
     }
 
     #[test]
