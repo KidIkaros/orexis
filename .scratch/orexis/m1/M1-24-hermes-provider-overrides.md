@@ -11,7 +11,7 @@ Use Hermes's provider profiles (MIT) as a curated source for base URLs, auth env
 ## Acceptance
 
 - [x] Extract provider data (name, base_url, api_mode, auth_type, env_vars, aliases, vision) without importing Python behavior at runtime.
-- [x] Snapshot: 50 providers from `hermes-agent@bf0203a794`, MIT license.
+- [x] Snapshot: 50 providers from `hermes-agent@bf0203a794`, MIT license; 34 loaded, 16 skipped.
 - [x] Load only `chat_completions` / `anthropic_messages` with `api_key` or `none` auth and a non-empty base URL.
 - [x] Skip OAuth, responses, Bedrock, Vertex, Azure placeholders, and empty base URLs.
 - [x] Curated majors: OpenAI and Anthropic (existing), plus Groq, Mistral, and Gemini's OpenAI-compatible endpoint.
@@ -21,6 +21,7 @@ Use Hermes's provider profiles (MIT) as a curated source for base URLs, auth env
 ## Notes
 
 - Precedence is models.dev < Hermes < curated YAML; curated auth/wire wins, models are merged.
+- Skipped 16: 4 empty/placeholder base URLs (`azure-foundry`, `custom`, `lmstudio`, `tencent-tokenhub`), 5 responses/Bedrock (`openai-codex`, `xai`, `meta-ai`, `solstice`, `bedrock`), 6 OAuth/copilot/external/vertex (`copilot`, `copilot-acp`, `minimax-oauth`, `qwen-oauth`, `nous`, `vertex`), 1 hidden (`router`).
 - Hermes-derived Anthropic-compatible providers (`minimax`, `commandcode`) assume `x-api-key`; their auth quirks are unverified.
 - Azure, Bedrock, and Vertex need native adapters; they are intentionally skipped rather than mislabeled as OpenAI-compatible.
 - `scripts/import-hermes-providers.py` regenerates the snapshot from a Hermes checkout.

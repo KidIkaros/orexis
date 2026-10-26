@@ -18,11 +18,7 @@ come from curated profiles or Hermes extraction (M1-24).
 - `hermes-providers.json` — data extracted from `hermes-agent@bf0203a794`
   with `scripts/import-hermes-providers.py`, MIT (`hermes.LICENSE`). No Hermes
   code is vendored.
-- 50 providers: 40 `chat_completions`, 5 `anthropic_messages`, 4
-  `codex_responses`, 1 `bedrock_converse`. Only `chat_completions` and
-  `anthropic_messages` with `api_key`/`none` auth and a non-empty base URL are
-  loaded. OAuth, responses, Bedrock, Vertex, Azure placeholders, and empty
-  base URLs are skipped.
+- 50 providers extracted; **34 loaded**. 16 skipped: 4 empty/placeholder base URLs, 5 responses/Bedrock, 6 OAuth/copilot/external/vertex, 1 hidden.
 - Precedence: models.dev < Hermes < curated `*.yaml`.
 - Curated majors added here: `groq`, `mistral`, and `gemini` (OpenAI-compatible
   endpoint). OpenAI and Anthropic already have curated profiles.
