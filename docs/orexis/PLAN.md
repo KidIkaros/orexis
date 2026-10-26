@@ -56,6 +56,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | TUI surface: four fixed regions, composer-first focus, inline tool expansion + bottom sheet for large diffs, adaptive overlays and status bar, virtualized transcript, full keymap, eleven states | ADR-0004; ticket 004 |
 | Study: eight repos read to adopt/adapt/reject; synthesis drafted with pattern catalog, resolved conflicts, ADR map, confidence, and remaining verification | `docs/orexis/study/synthesis.md`; ticket 011 |
 | Study gate cleared: synthesis + ADRs 0001–0004 + vertical slice (six crates) replaying byte-identically | `docs/orexis/slice.md` |
+| Native adapters are on-demand (wire/fidelity/auth triggers), not milestone-scheduled; M7 stays protocols-only | ADR-0016; ticket 009 |
 
 ### Frontier
 
@@ -69,7 +70,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 6. ~~**Desktop panel layout in Leptos**~~ — resolved; ADR-0008.
 7. ~~**Entity model: five vs six drives, affect dimensions**~~ — resolved; ADR-0013.
 8. ~~**Evolution tier defaults and validation ladder**~~ — resolved; ADR-0015.
-9. **Native adapter timing: Gemini / Bedrock / Vertex** — blocks M7.
+9. ~~**Native adapter timing: Gemini / Bedrock / Vertex**~~ — resolved; ADR-0016.
 10. **Packaging and signing** — blocks M9.
 11. ~~**Eight per-repo study decisions**~~ — resolved; synthesis drafted.
 
@@ -472,7 +473,7 @@ Reuse harness probe/compare. Add coding tasks (edit drift, multi-file refactor, 
 
 **Decided, not re-litigable:** Rust; async ports over a runtime-agnostic core; sans-io protocols; `tokio` banned inward; ports consumer-side; adapters only in composition; strategies are use cases; workers share the entity's identity; concurrency is provider-bounded; single-agent default, team opt-in; MCP + ACP in v1; no code RAG; **inference location is per-profile, chosen at init**; **provider breadth via profiles and a catalog**; **sovereign state + model-agnostic inference** as the position.
 
-**Open (study outputs):** session schema; codec set beyond the ported four; TUI/desktop layout details; entity model specifics; evolution tier defaults; A2A/UTCP timing; packaging; native Gemini/Bedrock/Vertex timing (M7).
+**Open (study outputs):** session schema; codec set beyond the ported four; TUI/desktop layout details; entity model specifics; evolution tier defaults; A2A/UTCP timing; packaging.
 
 ---
 

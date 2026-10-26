@@ -51,6 +51,9 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 6. [Desktop panel layout in Leptos](006-desktop-panel-layout.md)
 7. [Entity model: five vs six drives, affect dimensions](007-entity-model.md)
 8. [Evolution tier defaults and validation ladder](008-evolution-tier-defaults.md)
-9. [Native adapter timing: Gemini / Bedrock / Vertex](009-native-adapter-timing.md)
+9. ~~[Native adapter timing: Gemini / Bedrock / Vertex](009-native-adapter-timing.md)~~ — resolved; ADR-0016.
 10. [Packaging and signing](010-packaging-signing.md)
 11. ~~[Eight per-repo study decisions](011-per-repo-study-decisions.md)~~ — resolved; synthesis drafted.
+12. ~~[Neuron alignment/steering](012-neuron-alignment.md)~~ — research track; ADR-0014.
+13. [Per-dialect provider conformance fixtures](013-provider-wire-conformance-fixtures.md)
+14. [`init` and `providers` surface implemented auth kinds](014-init-auth-kind-visibility.md)

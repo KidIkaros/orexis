@@ -2,7 +2,7 @@
 
 - **Type:** research
 - **Blocks:** —
-- **Status:** open (fog)
+- **Status:** resolved as a research track (ADR-0014); M5-R01 remains open
 - **Claimed by:** —
 
 ## Question

@@ -55,3 +55,4 @@ What else was on the table, and why it lost.
 | [0013](0013-entity-model.md) | Entity model: six drives and PAD affect | accepted |
 | [0014](0014-identity-vs-persona.md) | Entity identity is not model persona | accepted |
 | [0015](0015-evolution-tiers.md) | Evolution tiers, validation ladder, and rollback | accepted |
+| [0016](0016-native-adapter-timing.md) | Native adapters are on-demand, not milestone-scheduled | accepted |

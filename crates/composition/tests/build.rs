@@ -70,6 +70,43 @@ fn native_profiles_select_native() {
 }
 
 #[test]
+fn native_gemini_wire_is_on_demand_and_names_the_compatible_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let yaml = r#"
+id: gemini-native
+display_name: Gemini (native)
+kind: gemini
+base_url: https://generativelanguage.googleapis.com/v1beta
+auth:
+  kind: api_key
+  env: [GEMINI_API_KEY]
+wire:
+  dialect: gemini
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+models:
+  - id: gemini-2.5-flash
+    context: 1048576
+limits:
+  max_concurrency: 4
+"#;
+    std::fs::write(dir.path().join("gemini-native.yaml"), yaml).expect("write");
+    let build_config = BuildConfig {
+        profile_id: "gemini-native".to_string(),
+        ..config(&dir, dir.path().to_path_buf(), "gemini-2.5-flash")
+    };
+    let err = match build_runtime(build_config) {
+        Err(err) => err,
+        Ok(_) => panic!("the native Gemini wire is on demand"),
+    };
+    let message = err.to_string();
+    assert!(message.contains("on demand"), "message: {message}");
+    assert!(message.contains("openai_compatible"), "message: {message}");
+}
+
+#[test]
 fn unknown_models_warn_and_keep_capacity() {
     let dir = tempfile::tempdir().expect("tempdir");
     let providers = providers_dir("native");

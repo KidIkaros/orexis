@@ -147,7 +147,9 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         }
         ProviderKind::Gemini => {
             return Err(BuildError::Unsupported(
-                "the native Gemini adapter lands in M1-07".to_string(),
+                "the native Gemini wire is on demand; use an openai_compatible profile \
+                 (generativelanguage.googleapis.com/v1beta/openai) until a trigger fires"
+                    .to_string(),
             ))
         }
     };
