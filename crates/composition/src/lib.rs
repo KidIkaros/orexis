@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use orexis_adapters_codec::{codec_for, NativeCodec};
 use orexis_adapters_context_fs::FileContextSource;
-use orexis_adapters_fake::{EchoTools, InMemorySession, RecordingSink, ScriptedProvider};
+use orexis_adapters_fake::{
+    EchoTools, InMemorySession, RecordingSink, ScriptedProvider, SlowProvider,
+};
 use orexis_adapters_http::ReqwestTransport;
 use orexis_adapters_lsp::StdioLsp;
 use orexis_adapters_provider_anthropic::AnthropicProvider;
@@ -195,9 +197,13 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
 
 /// Deterministic wiring for tests and `OREXIS_FAKE=1`.
 pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
-    let provider = Arc::new(ScriptedProvider::new(vec![vec![Action::Done {
-        summary: "fake provider".to_string(),
-    }]]));
+    let provider: Arc<dyn Provider> = if std::env::var("OREXIS_FAKE_SLOW").is_ok() {
+        Arc::new(SlowProvider::new(std::time::Duration::from_secs(30)))
+    } else {
+        Arc::new(ScriptedProvider::new(vec![vec![Action::Done {
+            summary: "fake provider".to_string(),
+        }]]))
+    };
     Runtime {
         provider,
         tools: Arc::new(EchoTools),

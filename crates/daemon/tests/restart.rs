@@ -11,6 +11,17 @@ use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
 use tokio::time::timeout;
 
+fn spawn_slow(socket: &Path, db: &Path) -> Child {
+    Command::new(env!("CARGO_BIN_EXE_serve"))
+        .env("OREXIS_FAKE", "1")
+        .env("OREXIS_FAKE_SLOW", "1")
+        .env("OREXIS_SOCKET", socket)
+        .env("OREXIS_DB", db)
+        .kill_on_drop(true)
+        .spawn()
+        .expect("spawn slow serve")
+}
+
 fn spawn(socket: &Path, db: &Path) -> Child {
     Command::new(env!("CARGO_BIN_EXE_serve"))
         .env("OREXIS_FAKE", "1")
@@ -46,6 +57,19 @@ async fn read_server(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -
         .expect("read");
     assert!(read > 0, "eof");
     serde_json::from_str(line.trim()).expect("server msg")
+}
+
+async fn read_until_recovered(
+    reader: &mut BufReader<OwnedReadHalf>,
+    line: &mut String,
+) -> SessionEvent {
+    loop {
+        if let ServerMsg::Event { event, .. } = read_server(reader, line).await {
+            if matches!(event, SessionEvent::Recovered { .. }) {
+                return event;
+            }
+        }
+    }
 }
 
 async fn read_until_done(
@@ -134,4 +158,59 @@ async fn kill_and_restart_preserves_the_session() {
 
     child.kill().await.expect("kill");
     let _ = child.wait().await;
+}
+
+#[tokio::test]
+async fn kill_mid_turn_recovers() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+
+    let mut child = spawn_slow(&socket, &db);
+    let stream = connect(&socket).await;
+    let (read_half, mut writer) = stream.into_split();
+    let mut reader = BufReader::new(read_half);
+    let mut line = String::new();
+
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let ServerMsg::Attached { session_id } = read_server(&mut reader, &mut line).await else {
+        panic!("expected attached");
+    };
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "slow turn".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    loop {
+        if matches!(
+            read_server(&mut reader, &mut line).await,
+            ServerMsg::Busy { .. }
+        ) {
+            break;
+        }
+    }
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    child.kill().await.expect("kill");
+    let _ = child.wait().await;
+    drop(writer);
+
+    let mut child = spawn(&socket, &db);
+    let stream = connect(&socket).await;
+    let (read_half, mut writer) = stream.into_split();
+    let mut reader = BufReader::new(read_half);
+    let mut line = String::new();
+    send(
+        &mut writer,
+        &ClientMsg::Attach {
+            session: Some(session_id),
+        },
+    )
+    .await;
+    let _ = read_server(&mut reader, &mut line).await;
+    let recovered = read_until_recovered(&mut reader, &mut line).await;
+    assert!(matches!(recovered, SessionEvent::Recovered { .. }));
+    child.kill().await.expect("kill");
 }

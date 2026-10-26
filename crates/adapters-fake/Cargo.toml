@@ -8,3 +8,4 @@ license.workspace = true
 orexis-core.workspace = true
 orexis-ports.workspace = true
 async-trait.workspace = true
+tokio = { version = "1", features = ["time"] }

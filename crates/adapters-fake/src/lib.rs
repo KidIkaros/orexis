@@ -1,6 +1,7 @@
 //! Deterministic test adapters for the vertical slice. No I/O.
 
 use std::sync::Mutex;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use orexis_core::{
@@ -17,6 +18,34 @@ pub struct ScriptedProvider {
 impl ScriptedProvider {
     pub fn new(script: Vec<Vec<Action>>) -> Self {
         Self { script }
+    }
+}
+
+pub struct SlowProvider {
+    delay: Duration,
+}
+
+impl SlowProvider {
+    pub fn new(delay: Duration) -> Self {
+        Self { delay }
+    }
+}
+
+#[async_trait]
+impl Provider for SlowProvider {
+    async fn complete(
+        &self,
+        _messages: &[Message],
+        _tools: &[ToolSpec],
+        _step: usize,
+    ) -> PortResult<ProviderResponse> {
+        tokio::time::sleep(self.delay).await;
+        Ok(ProviderResponse {
+            actions: vec![Action::Done {
+                summary: "slow".to_string(),
+            }],
+            raw_text: "slow".to_string(),
+        })
     }
 }
 

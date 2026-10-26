@@ -2,7 +2,7 @@
 
 - **Blocked by:** M4-01 … M4-03
 - **Blocks:** —
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26) — automated; manual real-repo run remains
 
 ## Goal
 
@@ -10,8 +10,8 @@ Prove recovery, audit, and quarantine together.
 
 ## Acceptance
 
-- [ ] `scripts/m4-gate.sh`: fmt, clippy, tests, boundaries, seams, M4 suites.
-- [ ] SIGKILL mid-turn fixture.
-- [ ] Audit export fixture.
-- [ ] Tampered-skill quarantine fixture.
-- [ ] Manual: real repo kill/restart run.
+- [x] `scripts/m4-gate.sh`: M3 gate + SIGKILL, audit, and skills suites.
+- [x] SIGKILL mid-turn fixture (`kill_mid_turn_recovers`).
+- [x] Audit fixtures: approve + always, deny.
+- [x] Tampered-skill quarantine fixture (skills tests).
+- [ ] Manual: real repo kill/restart run. *(Not run here.)*
