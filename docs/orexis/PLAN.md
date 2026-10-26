@@ -287,6 +287,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M1 status (2026-10-26):** implemented; `scripts/m1-gate.sh` green. Manual: three live providers and one real repository task (needs credentials and the M3 tool surface).
 
+**Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
+
 **Cut rule:** if a milestone misses its gate twice, the previous milestone becomes the release candidate and the missed one moves to 1.1. No milestone silently absorbs another.
 
 ### 5.1 1.0 checklist

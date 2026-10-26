@@ -17,6 +17,8 @@ graph TD
   orexis-adapters-provider-openai --> orexis-ports
   orexis-adapters-codec --> orexis-core
   orexis-adapters-codec --> orexis-ports
+  orexis-adapters-tools --> orexis-core
+  orexis-adapters-tools --> orexis-ports
   orexis-adapters-tui --> orexis-core
   orexis-adapters-tui --> orexis-ports
   orexis-daemon --> orexis-adapters-codec
@@ -34,6 +36,7 @@ graph TD
   orexis-composition --> orexis-adapters-provider-catalog
   orexis-composition --> orexis-adapters-provider-openai
   orexis-composition --> orexis-adapters-session-sqlite
+  orexis-composition --> orexis-adapters-tools
   orexis-composition --> orexis-core
   orexis-composition --> orexis-ports
   orexis-composition --> orexis-usecases

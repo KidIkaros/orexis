@@ -13,9 +13,11 @@ use orexis_adapters_provider_catalog::{
 };
 use orexis_adapters_provider_openai::OpenAiCompatibleProvider;
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
+use orexis_adapters_tools::LocalTools;
 use orexis_core::{Action, ContextFile, ToolSpec};
 use orexis_ports::{
-    Codec, ContextSource, Provider, SessionAppend, SessionFactory, SessionRead, ToolExecutor,
+    Codec, ContextSource, PortError, Provider, SessionAppend, SessionFactory, SessionRead,
+    ToolExecutor,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -88,6 +90,8 @@ pub enum BuildError {
     Catalog(#[from] CatalogError),
     #[error("unknown profile/model: {0}/{1}")]
     Unknown(String, String),
+    #[error("tools: {0}")]
+    Tools(#[from] PortError),
     #[error("unsupported: {0}")]
     Unsupported(String),
 }
@@ -151,7 +155,7 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
 
     Ok(Runtime {
         provider,
-        tools: Arc::new(EchoTools),
+        tools: Arc::new(LocalTools::new(config.project_root.clone())?),
         codec,
         sessions: Arc::new(SqliteSessionFactory::new(config.db_path)),
         system_prompt: config.system_prompt,
