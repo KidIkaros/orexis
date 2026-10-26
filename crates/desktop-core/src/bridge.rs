@@ -57,6 +57,10 @@ impl DesktopBridge {
         self.client.approve(id, yes)
     }
 
+    pub fn diff(&mut self) -> io::Result<()> {
+        self.client.diff()
+    }
+
     pub fn undo(&mut self) -> io::Result<()> {
         self.client.undo()
     }

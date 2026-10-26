@@ -92,6 +92,7 @@ pub struct AppState {
     pub palette_open: bool,
     pub status: Status,
     pub live: Option<String>,
+    pub diff: Option<String>,
 }
 
 impl Default for AppState {
@@ -108,6 +109,7 @@ impl Default for AppState {
             palette_open: false,
             status: Status::Empty,
             live: None,
+            diff: None,
         }
     }
 }
@@ -136,6 +138,10 @@ impl AppState {
             ServerMsg::Busy { .. } => self.status = Status::Running,
             ServerMsg::Queued { .. } => self.status = Status::Queued,
             ServerMsg::Sessions { sessions } => self.sessions = sessions,
+            ServerMsg::Diff { diff } => {
+                self.diff = Some(diff);
+                self.right = RightTab::Diff;
+            }
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });
@@ -385,5 +391,15 @@ mod tests {
             .transcript
             .iter()
             .any(|entry| matches!(entry, DesktopEntry::Assistant { text } if text == "hello")));
+    }
+
+    #[test]
+    fn apply_diff_sets_the_right_tab() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Diff {
+            diff: "--- a/a.txt\n+++ b/a.txt\n-one\n+two\n".to_string(),
+        });
+        assert!(state.diff.as_deref().unwrap().contains("+two"));
+        assert_eq!(state.right, RightTab::Diff);
     }
 }

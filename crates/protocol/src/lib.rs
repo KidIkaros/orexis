@@ -22,6 +22,7 @@ pub enum ClientMsg {
     },
     Interrupt,
     Undo,
+    Diff,
     ListSessions,
     Detach,
 }
@@ -54,6 +55,9 @@ pub enum ServerMsg {
     },
     Sessions {
         sessions: Vec<SessionInfo>,
+    },
+    Diff {
+        diff: String,
     },
     Error {
         message: String,

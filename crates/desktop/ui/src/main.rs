@@ -72,6 +72,7 @@ struct Snapshot {
     pending: Option<Approval>,
     status: String,
     live: Option<String>,
+    diff: Option<String>,
 }
 
 impl Default for Snapshot {
@@ -84,6 +85,7 @@ impl Default for Snapshot {
             pending: None,
             status: "empty".to_string(),
             live: None,
+            diff: None,
         }
     }
 }
@@ -119,10 +121,11 @@ fn status_label(status: &str) -> &str {
     }
 }
 
-fn start_approval_keys(
+fn start_shortcuts(
     snapshot: ReadSignal<Snapshot>,
     decide: impl Fn(u64, bool, bool) + 'static,
-    set_preview: WriteSignal<Option<String>>,
+    diff: impl Fn() + 'static,
+    undo: impl Fn() + 'static,
 ) {
     let closure =
         Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |event: web_sys::KeyboardEvent| {
@@ -138,14 +141,32 @@ fn start_approval_keys(
             if typing {
                 return;
             }
+            if (event.ctrl_key() || event.meta_key()) && event.key().eq_ignore_ascii_case("z") {
+                event.prevent_default();
+                undo();
+                return;
+            }
+            if event.key() == "d" {
+                event.prevent_default();
+                diff();
+                return;
+            }
             let Some(approval) = snapshot.get().pending else {
                 return;
             };
             match event.key().as_str() {
-                "y" => decide(approval.id, true, false),
-                "n" => decide(approval.id, false, false),
-                "a" => decide(approval.id, true, true),
-                "d" => set_preview.set(Some(format!("diff preview\n{}", approval.args))),
+                "y" => {
+                    event.prevent_default();
+                    decide(approval.id, true, false);
+                }
+                "n" => {
+                    event.prevent_default();
+                    decide(approval.id, false, false);
+                }
+                "a" => {
+                    event.prevent_default();
+                    decide(approval.id, true, true);
+                }
                 _ => {}
             }
         });
@@ -154,6 +175,54 @@ fn start_approval_keys(
             window.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
     }
     closure.forget();
+}
+
+fn diff_class(line: &str) -> &'static str {
+    if line.starts_with("+++") || line.starts_with("---") {
+        "meta"
+    } else if line.starts_with('+') {
+        "add"
+    } else if line.starts_with('-') {
+        "del"
+    } else if line.starts_with("@@") {
+        "hunk"
+    } else {
+        "ctx"
+    }
+}
+
+fn unified_diff(text: String) -> AnyView {
+    let lines = text
+        .lines()
+        .map(|line| {
+            let class = diff_class(line);
+            let line = line.to_string();
+            view! { <span class=class>{line}"\n"</span> }
+        })
+        .collect_view();
+    view! { <pre class="diff">{lines}</pre> }.into_any()
+}
+
+fn split_diff(text: String) -> AnyView {
+    let left = text
+        .lines()
+        .filter(|line| !line.starts_with('+'))
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let right = text
+        .lines()
+        .filter(|line| !line.starts_with('-'))
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    view! {
+        <div class="diff-split">
+            <pre class="diff">{left}</pre>
+            <pre class="diff">{right}</pre>
+        </div>
+    }
+    .into_any()
 }
 
 #[component]
@@ -166,6 +235,8 @@ fn App() -> impl IntoView {
     let (preview, set_preview) = signal(Option::<String>::None);
     let (error, set_error) = signal(Option::<String>::None);
     let (deciding, set_deciding) = signal(false);
+    let (split, set_split) = signal(false);
+    let (expanded, set_expanded) = signal(false);
 
     let attach = move || {
         spawn_local(async move {
@@ -221,7 +292,18 @@ fn App() -> impl IntoView {
         });
     };
 
-    start_approval_keys(snapshot, decide, set_preview);
+    let diff = move || {
+        spawn_local(async move {
+            let _ = invoke("diff", JsValue::NULL).await;
+        });
+    };
+    let undo = move || {
+        spawn_local(async move {
+            let _ = invoke("undo", JsValue::NULL).await;
+        });
+    };
+
+    start_shortcuts(snapshot, decide, diff, undo);
 
     let auto_preview = move || {
         snapshot
@@ -262,6 +344,15 @@ fn App() -> impl IntoView {
                                 </button>
                             }
                         })
+                }}
+                {move || {
+                    snapshot.get().session.is_some().then(|| {
+                        view! {
+                            <button class="undo" on:click=move |_| undo()>
+                                "undo"
+                            </button>
+                        }
+                    })
                 }}
                 <span class="meta">
                     {move || snapshot.get().session.unwrap_or_else(|| "no session".to_string())}
@@ -510,7 +601,33 @@ fn App() -> impl IntoView {
                         None => view! { <p class="muted">"none"</p> }.into_any(),
                     }}
                     <h2>"DIFF"</h2>
-                    <p class="muted">"—"</p>
+                    {move || match snapshot.get().diff {
+                        Some(diff) => {
+                            let split_mode = split.get();
+                            let text = diff;
+                            view! {
+                                <div class="diff-panel" class:full=move || expanded.get()>
+                                    <div class="diff-tools">
+                                        <button
+                                            class="open"
+                                            on:click=move |_| set_split.update(|value| *value = !*value)
+                                        >
+                                            {if split_mode { "unified" } else { "split" }}
+                                        </button>
+                                        <button
+                                            class="open"
+                                            on:click=move |_| set_expanded.update(|value| *value = !*value)
+                                        >
+                                            {if expanded.get() { "close" } else { "expand" }}
+                                        </button>
+                                    </div>
+                                    {if split_mode { split_diff(text) } else { unified_diff(text) }}
+                                </div>
+                            }
+                                .into_any()
+                        }
+                        None => view! { <p class="muted">"no diff"</p> }.into_any(),
+                    }}
                     <h2>"PREVIEW"</h2>
                     {move || match preview.get().or_else(auto_preview) {
                         Some(text) => view! { <pre class="preview">{text}</pre> }.into_any(),
@@ -518,6 +635,20 @@ fn App() -> impl IntoView {
                     }}
                 </aside>
             </main>
+            {move || {
+                snapshot
+                    .get()
+                    .transcript
+                    .iter()
+                    .rev()
+                    .find_map(|entry| match entry {
+                        Entry::Info { message } if message.starts_with("restored checkpoint") => {
+                            Some(message.clone())
+                        }
+                        _ => None,
+                    })
+                    .map(|message| view! { <div class="toast">{message}</div> })
+            }}
         </div>
     }
 }

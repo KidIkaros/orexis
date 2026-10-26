@@ -230,6 +230,30 @@ async fn handle(
                             }
                         }
                     }
+                    ClientMsg::Diff => {
+                        let Some(rt) = &runtime else {
+                            write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
+                            continue;
+                        };
+                        let events = rt.read.events().await.map_err(io_err)?;
+                        let checkpoint = events.iter().rev().find_map(|stored| match &stored.event {
+                            SessionEvent::Checkpoint { id, .. } => Some(id.clone()),
+                            _ => None,
+                        });
+                        match (checkpoint, &config.checkpointer) {
+                            (Some(id), Some(checkpointer)) => match checkpointer.diff(&id) {
+                                Ok(diff) => {
+                                    write_msg(&mut write_half, &ServerMsg::Diff { diff }).await?;
+                                }
+                                Err(error) => {
+                                    write_msg(&mut write_half, &ServerMsg::Error { message: error.to_string() }).await?;
+                                }
+                            },
+                            _ => {
+                                write_msg(&mut write_half, &ServerMsg::Error { message: "no checkpoint to diff".into() }).await?;
+                            }
+                        }
+                    }
                     ClientMsg::ListSessions => {
                         write_msg(&mut write_half, &ServerMsg::Sessions { sessions: registry.list() }).await?;
                     }

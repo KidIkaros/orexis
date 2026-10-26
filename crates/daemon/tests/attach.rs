@@ -119,7 +119,17 @@ impl Checkpointer for RecordingCheckpointer {
     }
 
     fn diff(&self, _id: &str) -> PortResult<String> {
-        Ok(String::new())
+        Ok("--- a/a.txt\n+++ b/a.txt\n-one\n+two\n".to_string())
+    }
+}
+
+async fn read_until_diff(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -> String {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::Diff { diff } => return diff,
+            ServerMsg::Error { message } => panic!("diff error: {message}"),
+            _ => {}
+        }
     }
 }
 
@@ -461,4 +471,37 @@ async fn delta_messages_reach_the_client() {
         message,
         ServerMsg::Delta { text } if text == "hello"
     )));
+}
+
+#[tokio::test]
+async fn diff_returns_the_checkpoint_delta() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let recorder = Arc::new(RecordingCheckpointer::default());
+    let mut config = config(&socket, &db);
+    config.checkpointer = Some(recorder);
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "go".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+
+    send(&mut writer, &ClientMsg::Diff).await;
+    let diff = read_until_diff(&mut reader, &mut line).await;
+    assert!(diff.contains("+two"));
 }

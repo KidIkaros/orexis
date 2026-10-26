@@ -51,7 +51,7 @@ impl Checkpointer for GitCheckpointStore {
     }
 
     fn diff(&self, id: &str) -> PortResult<String> {
-        let diff = self.git(&["diff", "--stat", id])?;
+        let diff = self.git(&["diff", "--no-color", id])?;
         Ok(diff.chars().take(64 * 1024).collect())
     }
 }

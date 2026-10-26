@@ -91,6 +91,12 @@ fn approve(
 }
 
 #[tauri::command]
+fn diff(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.diff().map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
 fn undo(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
     state.with_mut(|bridge| bridge.undo().map_err(|error| error.to_string()))?;
     emit_state(&app)
@@ -122,6 +128,7 @@ fn main() {
             attach,
             prompt,
             approve,
+            diff,
             undo,
             interrupt,
             list_sessions,

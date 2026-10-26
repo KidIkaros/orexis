@@ -101,6 +101,10 @@ impl DaemonClient {
         self.send(&ClientMsg::Interrupt)
     }
 
+    pub fn diff(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::Diff)
+    }
+
     pub fn undo(&mut self) -> std::io::Result<()> {
         self.send(&ClientMsg::Undo)
     }
