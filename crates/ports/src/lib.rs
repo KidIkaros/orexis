@@ -1,7 +1,7 @@
 //! Ports declared by the consumer side. No concrete adapter is named here.
 
 use async_trait::async_trait;
-use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent};
+use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent, ToolSpec};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PortError(pub String);
@@ -18,7 +18,7 @@ pub type PortResult<T> = Result<T, PortError>;
 
 #[async_trait]
 pub trait Provider: Send + Sync {
-    async fn complete(&self, messages: &[Message], step: usize) -> Vec<Action>;
+    async fn complete(&self, messages: &[Message], tools: &[ToolSpec], step: usize) -> Vec<Action>;
 }
 
 #[async_trait]

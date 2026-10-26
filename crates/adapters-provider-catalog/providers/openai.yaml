@@ -1,0 +1,34 @@
+id: openai
+display_name: OpenAI
+kind: openai_compatible
+base_url: https://api.openai.com/v1
+auth:
+  kind: api_key
+  env: [OPENAI_API_KEY]
+  header: authorization
+  prefix: "Bearer "
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+cache:
+  dialect: open_ai
+  breakpoints: true
+thinking:
+  supported: true
+  param: reasoning_effort
+  levels: [low, medium, high]
+capabilities:
+  tools: true
+  parallel_tools: true
+  vision: true
+  json_mode: true
+  reasoning: true
+models:
+  - id: gpt-5
+    context: 400000
+    max_output: 128000
+    pricing: { input: 1.25, output: 10.0 }
+limits:
+  max_concurrency: 4
+fallbacks: []

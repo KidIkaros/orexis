@@ -1,0 +1,34 @@
+id: anthropic
+display_name: Anthropic
+kind: anthropic
+base_url: https://api.anthropic.com
+auth:
+  kind: api_key
+  env: [ANTHROPIC_API_KEY]
+  header: x-api-key
+  prefix: ""
+wire:
+  dialect: anthropic
+  tool_format: native
+  stream_format: sse
+cache:
+  dialect: anthropic
+  breakpoints: true
+thinking:
+  supported: true
+  param: thinking
+  levels: [low, medium, high]
+capabilities:
+  tools: true
+  parallel_tools: true
+  vision: true
+  json_mode: false
+  reasoning: true
+models:
+  - id: claude-sonnet-4-5
+    context: 200000
+    max_output: 64000
+    pricing: { input: 3.0, output: 15.0 }
+limits:
+  max_concurrency: 4
+fallbacks: [openai]

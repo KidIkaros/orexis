@@ -1,0 +1,33 @@
+id: llamacpp
+display_name: llama.cpp
+kind: llamacpp
+base_url: http://127.0.0.1:8080/v1
+auth:
+  kind: none
+  env: []
+  header: authorization
+  prefix: ""
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+cache:
+  dialect: none
+  breakpoints: false
+thinking:
+  supported: false
+  param: null
+  levels: []
+capabilities:
+  tools: true
+  parallel_tools: false
+  vision: false
+  json_mode: true
+  reasoning: false
+models:
+  - id: local
+    context: 32768
+    max_output: 4096
+limits:
+  max_concurrency: 1
+fallbacks: []

@@ -72,7 +72,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         )
         .await?;
 
-        let actions = provider.complete(&messages, step).await;
+        let actions = provider.complete(&messages, &[], step).await;
         let text = actions
             .iter()
             .filter_map(|action| match action {

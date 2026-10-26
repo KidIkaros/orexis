@@ -30,6 +30,14 @@ pub struct Observation {
     pub output: String,
 }
 
+/// A tool the model may call. `schema` is a JSON Schema object.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolSpec {
+    pub name: String,
+    pub description: String,
+    pub schema: serde_json::Value,
+}
+
 pub const FORMAT_VERSION: u32 = 1;
 
 /// A durable event reference returned by an append.

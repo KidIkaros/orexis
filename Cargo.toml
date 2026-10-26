@@ -5,6 +5,8 @@ members = [
     "crates/usecases",
     "crates/adapters-fake",
     "crates/adapters-session-sqlite",
+    "crates/adapters-provider-catalog",
+    "crates/adapters-provider-openai",
     "crates/composition",
     "crates/slice",
 ]
@@ -21,6 +23,8 @@ orexis-ports = { path = "crates/ports" }
 orexis-usecases = { path = "crates/usecases" }
 orexis-adapters-fake = { path = "crates/adapters-fake" }
 orexis-adapters-session-sqlite = { path = "crates/adapters-session-sqlite" }
+orexis-adapters-provider-catalog = { path = "crates/adapters-provider-catalog" }
+orexis-adapters-provider-openai = { path = "crates/adapters-provider-openai" }
 orexis-composition = { path = "crates/composition" }
 async-trait = "0.1"
 futures = "0.3"

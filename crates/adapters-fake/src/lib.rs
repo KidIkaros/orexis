@@ -3,7 +3,7 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent};
+use orexis_core::{Action, EventRef, Message, Observation, SessionEvent, StoredEvent, ToolSpec};
 use orexis_ports::{
     EventSink, PortError, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
 };
@@ -20,7 +20,12 @@ impl ScriptedProvider {
 
 #[async_trait]
 impl Provider for ScriptedProvider {
-    async fn complete(&self, _messages: &[Message], step: usize) -> Vec<Action> {
+    async fn complete(
+        &self,
+        _messages: &[Message],
+        _tools: &[ToolSpec],
+        step: usize,
+    ) -> Vec<Action> {
         self.script.get(step).cloned().unwrap_or_else(|| {
             vec![Action::Done {
                 summary: "script exhausted".to_string(),
