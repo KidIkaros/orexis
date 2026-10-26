@@ -162,6 +162,42 @@ pub trait Workspace: Send + Sync {
     fn changed(&self) -> PortResult<Vec<String>>;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkillTier {
+    Trusted,
+    Verified,
+    Community,
+    Quarantined,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkillStatus {
+    Allowed,
+    CommunityBlocked,
+    Quarantined,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkillSummary {
+    pub name: String,
+    pub version: String,
+    pub tier: SkillTier,
+    pub status: SkillStatus,
+    pub sha256: Option<String>,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkillContent {
+    pub name: String,
+    pub text: String,
+}
+
+pub trait Skills: Send + Sync {
+    fn list(&self) -> Vec<SkillSummary>;
+    fn load(&self, name: &str) -> PortResult<SkillContent>;
+}
+
 pub trait ContextSource: Send + Sync {
     fn load(&self) -> Vec<ContextFile>;
 }

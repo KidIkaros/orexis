@@ -14,6 +14,7 @@ members = [
     "crates/adapters-codec",
     "crates/adapters-tools",
     "crates/adapters-lsp",
+    "crates/adapters-skills",
     "crates/adapters-tui",
     "crates/daemon",
     "crates/adapters-context-fs",

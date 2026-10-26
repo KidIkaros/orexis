@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** M4-04
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -11,11 +11,11 @@ or untrusted skill is quarantined.
 
 ## Acceptance
 
-- [ ] Manifest: name, version, tier (`trusted`/`verified`/`community`/`quarantined`), sha256, permissions.
-- [ ] Hash of `SKILL.md` is verified; mismatch → quarantined.
-- [ ] `community` is not loaded by default; `quarantined` never loads.
-- [ ] Registry lists status; load returns the text only for allowed tiers.
-- [ ] Tests: valid verified, tampered quarantined, community blocked.
+- [x] Manifest: name, version, tier, sha256, permissions (`crates/adapters-skills`).
+- [x] SHA-256 of `SKILL.md` is verified; mismatch or missing hash → quarantined.
+- [x] `community` is blocked by default; `quarantined` never loads.
+- [x] `Skills::list` reports status; `load` returns text only for allowed tiers.
+- [x] Tests: verified loads, tampered quarantined, community blocked/opt-in, quarantined tier, missing hash.
 
 ## Notes
 

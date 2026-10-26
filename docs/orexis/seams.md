@@ -25,6 +25,7 @@ graph TD
   orexis-adapters-tools --> orexis-core
   orexis-adapters-tools --> orexis-ports
   orexis-adapters-lsp --> orexis-ports
+  orexis-adapters-skills --> orexis-ports
   orexis-adapters-tui --> orexis-client
   orexis-adapters-tui --> orexis-core
   orexis-adapters-tui --> orexis-ports

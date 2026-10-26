@@ -1351,6 +1351,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-skills"
+version = "0.0.0"
+dependencies = [
+ "orexis-ports",
+ "serde",
+ "serde_yaml",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "orexis-adapters-tools"
 version = "0.0.0"
 dependencies = [
