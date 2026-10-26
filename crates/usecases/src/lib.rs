@@ -6,6 +6,7 @@ mod codec;
 mod compaction;
 mod context;
 mod entity;
+mod memory;
 mod replay;
 mod session;
 mod turn;
@@ -16,5 +17,6 @@ pub use context::{
     assemble, estimate_tokens, AssembledContext, ContextConfig, COMPACTION_BUFFER_TOKENS,
 };
 pub use entity::{decay, modulated_drives, posture, proposals, record_affect, record_outcome};
+pub use memory::{forget, recall, remember};
 pub use replay::verify_replay;
 pub use turn::{run_turn, TurnDeps, TurnOutcome};
