@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use super::message::RequestId;
 
+#[derive(Debug)]
 pub struct Correlations<V> {
     pending: HashMap<RequestId, V>,
 }

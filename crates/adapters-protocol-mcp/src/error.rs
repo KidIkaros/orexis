@@ -12,4 +12,8 @@ pub enum McpError {
     Parse(#[from] ParseError),
     #[error("invalid initialize result: {0}")]
     Initialization(String),
+    #[error("transport: {0}")]
+    Transport(String),
+    #[error("timed out waiting for the server")]
+    Timeout,
 }

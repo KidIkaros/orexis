@@ -100,6 +100,7 @@ pub enum Event {
     Stray(Response),
 }
 
+#[derive(Debug)]
 pub struct McpCore {
     state: State,
     client_info: ClientInfo,

@@ -1412,7 +1412,9 @@ dependencies = [
  "orexis-adapters-jsonrpc",
  "orexis-core",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
