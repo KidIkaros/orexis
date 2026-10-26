@@ -19,6 +19,7 @@ graph TD
   orexis-adapters-codec --> orexis-ports
   orexis-adapters-tools --> orexis-core
   orexis-adapters-tools --> orexis-ports
+  orexis-adapters-lsp --> orexis-ports
   orexis-adapters-tui --> orexis-core
   orexis-adapters-tui --> orexis-ports
   orexis-daemon --> orexis-adapters-codec
@@ -33,6 +34,7 @@ graph TD
   orexis-composition --> orexis-adapters-context-fs
   orexis-composition --> orexis-adapters-fake
   orexis-composition --> orexis-adapters-http
+  orexis-composition --> orexis-adapters-lsp
   orexis-composition --> orexis-adapters-provider-anthropic
   orexis-composition --> orexis-adapters-provider-catalog
   orexis-composition --> orexis-adapters-provider-openai

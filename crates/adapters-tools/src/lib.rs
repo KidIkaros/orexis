@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use orexis_core::{Decision, Observation, PermissionPolicy, ToolSpec};
-use orexis_ports::{ApprovalGate, PortError, PortResult, ToolExecutor};
+use orexis_ports::{ApprovalGate, Diagnostic, Lsp, PortError, PortResult, ToolExecutor};
 use serde_json::{json, Value};
 
 const MAX_READ_BYTES: usize = 64 * 1024;
@@ -27,6 +27,7 @@ const MAX_SEARCH_DEPTH: usize = 20;
 
 pub struct LocalTools {
     root: PathBuf,
+    lsp: Option<Arc<dyn Lsp>>,
 }
 
 impl LocalTools {
@@ -34,7 +35,13 @@ impl LocalTools {
         let root = root.into();
         let root = fs::canonicalize(&root)
             .map_err(|error| PortError(format!("workspace root: {error}")))?;
-        Ok(Self { root })
+        Ok(Self { root, lsp: None })
+    }
+
+    pub fn with_lsp(root: impl Into<PathBuf>, lsp: Arc<dyn Lsp>) -> PortResult<Self> {
+        let mut tools = Self::new(root)?;
+        tools.lsp = Some(lsp);
+        Ok(tools)
     }
 
     pub fn specs() -> Vec<ToolSpec> {
@@ -196,22 +203,33 @@ impl LocalTools {
         })
     }
 
-    fn edit_file(&self, args: &Value) -> PortResult<Observation> {
+    async fn edit_file(&self, args: &Value) -> PortResult<Observation> {
         let path = self.resolve(arg_str(args, "path")?)?;
         let old = arg_str(args, "old")?;
         let new = arg_str(args, "new")?;
         let text = fs::read_to_string(&path)
             .map_err(|error| PortError(format!("read {}: {error}", path.display())))?;
         let (updated, outcome) = crate::edit::apply(&text, old, new)?;
-        fs::write(&path, updated)
+        fs::write(&path, &updated)
             .map_err(|error| PortError(format!("write {}: {error}", path.display())))?;
+        let mut output = format!(
+            "edited {} ({})",
+            path.strip_prefix(&self.root).unwrap_or(&path).display(),
+            outcome.description()
+        );
+        if let Some(lsp) = &self.lsp {
+            let relative = path
+                .strip_prefix(&self.root)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            if let Ok(diagnostics) = lsp.diagnostics(&relative, &updated).await {
+                append_diagnostics(&mut output, &diagnostics);
+            }
+        }
         Ok(Observation {
             name: "edit_file".to_string(),
-            output: format!(
-                "edited {} ({})",
-                path.strip_prefix(&self.root).unwrap_or(&path).display(),
-                outcome.description()
-            ),
+            output,
         })
     }
 
@@ -399,7 +417,7 @@ impl ToolExecutor for LocalTools {
         match name {
             "read_file" => self.read_file(&value),
             "write_file" => self.write_file(&value),
-            "edit_file" => self.edit_file(&value),
+            "edit_file" => self.edit_file(&value).await,
             "list_dir" => self.list_dir(&value),
             "search" => self.search(&value),
             "shell" => self.shell(&value).await,
@@ -549,6 +567,23 @@ fn kill_group(pid: u32) {
     #[cfg(not(unix))]
     {
         let _ = pid;
+    }
+}
+
+fn append_diagnostics(output: &mut String, diagnostics: &[Diagnostic]) {
+    if diagnostics.is_empty() {
+        return;
+    }
+    output.push_str("\n--- diagnostics ---");
+    for diagnostic in diagnostics {
+        output.push_str(&format!(
+            "\n{}:{}:{} {}: {}",
+            diagnostic.path,
+            diagnostic.line + 1,
+            diagnostic.column + 1,
+            diagnostic.severity,
+            diagnostic.message
+        ));
     }
 }
 
@@ -895,5 +930,35 @@ mod tests {
     fn git_status_fails_outside_a_repo() {
         let (_dir, tools) = setup();
         assert!(run(&tools, "git_status", "{}").is_err());
+    }
+
+    struct RecordingLsp;
+
+    #[async_trait]
+    impl Lsp for RecordingLsp {
+        async fn diagnostics(&self, path: &str, _content: &str) -> PortResult<Vec<Diagnostic>> {
+            Ok(vec![Diagnostic {
+                path: path.to_string(),
+                line: 0,
+                column: 0,
+                severity: "error".to_string(),
+                message: "boom".to_string(),
+            }])
+        }
+    }
+
+    #[tokio::test]
+    async fn edit_attaches_diagnostics() {
+        let (dir, _tools) = setup();
+        let tools = LocalTools::with_lsp(dir.path(), Arc::new(RecordingLsp)).expect("tools");
+        let out = tools
+            .execute(
+                "edit_file",
+                r#"{"path":"a.txt","old":"world","new":"there"}"#,
+            )
+            .await
+            .expect("edit");
+        assert!(out.output.contains("diagnostics"));
+        assert!(out.output.contains("boom"));
     }
 }

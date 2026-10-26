@@ -7,6 +7,7 @@ use orexis_adapters_codec::{codec_for, NativeCodec};
 use orexis_adapters_context_fs::FileContextSource;
 use orexis_adapters_fake::{EchoTools, InMemorySession, RecordingSink, ScriptedProvider};
 use orexis_adapters_http::ReqwestTransport;
+use orexis_adapters_lsp::StdioLsp;
 use orexis_adapters_provider_anthropic::AnthropicProvider;
 use orexis_adapters_provider_catalog::{
     Catalog, CatalogError, EnvSecrets, ProviderKind, SecretStore, ToolFormat,
@@ -16,7 +17,7 @@ use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, ContextSource, PortError, Provider, SessionAppend, SessionFactory,
+    Checkpointer, Codec, ContextSource, Lsp, PortError, Provider, SessionAppend, SessionFactory,
     SessionRead, ToolExecutor, Verifier,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
@@ -164,7 +165,8 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         None => None,
     };
 
-    let tools = Arc::new(LocalTools::new(config.project_root.clone())?);
+    let lsp: Arc<dyn Lsp> = Arc::new(StdioLsp::new(config.project_root.clone(), "rust-analyzer"));
+    let tools = Arc::new(LocalTools::with_lsp(config.project_root.clone(), lsp)?);
     let context_tools = LocalTools::specs();
 
     Ok(Runtime {

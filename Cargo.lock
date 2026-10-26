@@ -1278,6 +1278,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-lsp"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "orexis-ports",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "orexis-adapters-provider-anthropic"
 version = "0.0.0"
 dependencies = [
@@ -1373,6 +1384,7 @@ dependencies = [
  "orexis-adapters-context-fs",
  "orexis-adapters-fake",
  "orexis-adapters-http",
+ "orexis-adapters-lsp",
  "orexis-adapters-provider-anthropic",
  "orexis-adapters-provider-catalog",
  "orexis-adapters-provider-openai",

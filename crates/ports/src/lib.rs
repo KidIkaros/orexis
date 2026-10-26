@@ -80,6 +80,20 @@ pub trait SessionFork: Send + Sync {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub path: String,
+    pub line: u32,
+    pub column: u32,
+    pub severity: String,
+    pub message: String,
+}
+
+#[async_trait]
+pub trait Lsp: Send + Sync {
+    async fn diagnostics(&self, path: &str, content: &str) -> PortResult<Vec<Diagnostic>>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifyResult {
     pub command: String,
     pub passed: bool,
