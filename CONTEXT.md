@@ -34,7 +34,12 @@ Every document, ticket, and commit uses these words in exactly these senses. If 
 | **Port** | A trait declared by the consumer side | An adapter |
 | **Adapter** | A concrete implementation of a port (provider, store, sandbox, protocol, UI) | A port |
 | **ProviderProfile** | Provider data: endpoint, auth, dialect, cache, thinking, models | An adapter |
-| **Session event** | A durable fact in the event log; model-visible if the model saw it | Telemetry |
+| **Session event** | A durable fact in the session log; model-visible if the model saw it | Telemetry |
+| **Entity event** | A durable fact in the entity log (drives, affect, diary, traits, memory) | A session event |
+| **Memory lattice** | Episodic, semantic, procedural, and identity memory; lexical recall | A vector store |
+| **Trait** | An evidence-backed identity statement with confidence and decay | An agent-authored soul file |
+| **Diary** | The append-only identity narrative traits are distilled from | A prompt |
+| **Entity store** | The local append-only entity log and projections | A session store |
 | **Telemetry** | Non-truth analytics; never consulted for correctness | Session events |
 | **Sans-io** | A parser or state machine with no I/O and no runtime | An async module |
 
