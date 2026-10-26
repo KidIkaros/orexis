@@ -6,4 +6,6 @@ mod secrets;
 
 pub use catalog::{Catalog, CatalogError, ModelResolution};
 pub use profile::*;
-pub use secrets::{EnvSecrets, MemorySecrets, SecretStore};
+pub use secrets::{
+    EnvSecrets, KeyringBackend, KeyringSecrets, MemorySecrets, SecretStore, SecretToolBackend,
+};

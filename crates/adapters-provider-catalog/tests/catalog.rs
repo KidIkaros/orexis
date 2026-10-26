@@ -71,3 +71,45 @@ fn unknown_model_gets_conservative_defaults() {
     assert_eq!(resolution.model.context, 32768);
     assert!(resolution.warning.is_some());
 }
+
+#[derive(Default)]
+struct MemoryKeyring {
+    values: std::sync::Mutex<BTreeMap<(String, String), String>>,
+}
+
+impl KeyringBackend for MemoryKeyring {
+    fn get(&self, service: &str, account: &str) -> Result<Option<String>, String> {
+        Ok(self
+            .values
+            .lock()
+            .expect("values")
+            .get(&(service.to_string(), account.to_string()))
+            .cloned())
+    }
+
+    fn set(&self, service: &str, account: &str, secret: &str) -> Result<(), String> {
+        self.values.lock().expect("values").insert(
+            (service.to_string(), account.to_string()),
+            secret.to_string(),
+        );
+        Ok(())
+    }
+
+    fn delete(&self, service: &str, account: &str) -> Result<(), String> {
+        self.values
+            .lock()
+            .expect("values")
+            .remove(&(service.to_string(), account.to_string()));
+        Ok(())
+    }
+}
+
+#[test]
+fn keyring_store_and_forget() {
+    let store = KeyringSecrets::with_backend("dev.orexis", MemoryKeyring::default());
+    store.store("openai", "sk-test").expect("store");
+    let profile: ProviderProfile = serde_yaml::from_str(OPENAI).expect("profile");
+    assert_eq!(store.get(&profile), Some("sk-test".to_string()));
+    store.forget("openai").expect("forget");
+    assert_eq!(store.get(&profile), None);
+}

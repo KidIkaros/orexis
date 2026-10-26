@@ -10,7 +10,7 @@ use orexis_adapters_http::ReqwestTransport;
 use orexis_adapters_lsp::StdioLsp;
 use orexis_adapters_provider_anthropic::AnthropicProvider;
 use orexis_adapters_provider_catalog::{
-    Catalog, CatalogError, EnvSecrets, ProviderKind, SecretStore, ToolFormat,
+    Catalog, CatalogError, EnvSecrets, KeyringSecrets, ProviderKind, SecretStore, ToolFormat,
 };
 use orexis_adapters_provider_openai::OpenAiCompatibleProvider;
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
@@ -122,7 +122,9 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         warnings.push(warning);
     }
 
-    let secret = EnvSecrets.get(&profile);
+    let secret = KeyringSecrets::new("dev.orexis")
+        .get(&profile)
+        .or_else(|| EnvSecrets.get(&profile));
     let provider: Arc<dyn Provider> = match profile.kind {
         ProviderKind::Anthropic => Arc::new(AnthropicProvider::new(
             profile.clone(),
