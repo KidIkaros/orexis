@@ -15,6 +15,6 @@ pub use compaction::{plan_compaction, ExtractiveSummarizer};
 pub use context::{
     assemble, estimate_tokens, AssembledContext, ContextConfig, COMPACTION_BUFFER_TOKENS,
 };
-pub use entity::{decay, proposals, record_outcome};
+pub use entity::{decay, modulated_drives, posture, proposals, record_affect, record_outcome};
 pub use replay::verify_replay;
 pub use turn::{run_turn, TurnDeps, TurnOutcome};
