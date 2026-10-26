@@ -1,0 +1,10 @@
+[package]
+name = "orexis-adapters-codec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true
+serde_json = "1"

@@ -21,6 +21,24 @@ pub trait Provider: Send + Sync {
     async fn complete(&self, messages: &[Message], tools: &[ToolSpec], step: usize) -> Vec<Action>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Decoded {
+    pub actions: Vec<Action>,
+    pub errors: Vec<String>,
+}
+
+pub trait Codec: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn prompt_fragment(&self, tools: &[ToolSpec]) -> String;
+    fn decode(&self, output: &str, tools: &[ToolSpec]) -> Decoded;
+    fn uses_native_tools(&self) -> bool {
+        false
+    }
+    fn grammar(&self, _tools: &[ToolSpec]) -> Option<String> {
+        None
+    }
+}
+
 #[async_trait]
 pub trait ToolExecutor: Send + Sync {
     async fn execute(&self, name: &str, args: &str) -> Observation;

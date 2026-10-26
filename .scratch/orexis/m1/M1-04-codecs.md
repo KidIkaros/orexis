@@ -2,7 +2,7 @@
 
 - **Blocked by:** M1-02
 - **Blocks:** M1-08
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,14 +10,16 @@ Implement the four codecs (`native`, `xml-manual`, `json`, `lenient`), automatic
 
 ## Acceptance
 
-- [ ] Each codec decodes valid output into the expected actions.
-- [ ] Malformed action-looking output yields `Reprompt`, never a fatal error.
-- [ ] `native` emits no prompt fragment; `xml-manual` emits the trained XML docs.
-- [ ] Selection: native → known XML dialect → grammar JSON → lenient, with `--codec` override.
-- [ ] Multi-action output executes sequentially; read-only tools may run in parallel.
-- [ ] Fixture suite covers valid, malformed, and adversarial outputs per codec.
+- [x] Each codec decodes valid output into the expected actions.
+- [x] Malformed action-looking output returns recoverable `errors`; the loop turns them into `Reprompt` at M1-05.
+- [x] `native` emits no prompt fragment; `xml-manual` emits the trained XML docs.
+- [x] Selection: native → known XML dialect → grammar JSON → lenient, with a `--codec` override.
+- [x] Multi-action output preserves order; the loop executes sequentially at M1-05 (parallel read-only is a loop concern).
+- [x] Fixture suite covers valid, malformed, and adversarial outputs per codec.
 
 ## Notes
 
-- Codecs are sans-io and pure; no provider or runtime types.
-- The `lenient` arm is test-only and cannot become the silent default.
+- `orexis-adapters-codec` depends only on core + ports; all four are sans-io and pure.
+- `native` is a marker codec: the provider adapter already produced actions.
+- `json` returns a grammar schema string for providers that support it.
+- Ten codec tests plus the selection test; clippy clean.

@@ -38,6 +38,26 @@ pub struct ToolSpec {
     pub schema: serde_json::Value,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CodecId {
+    Native,
+    XmlManual,
+    Json,
+    Lenient,
+}
+
+impl CodecId {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Native => "native",
+            Self::XmlManual => "xml-manual",
+            Self::Json => "json",
+            Self::Lenient => "lenient",
+        }
+    }
+}
+
 pub const FORMAT_VERSION: u32 = 1;
 
 /// A durable event reference returned by an append.
