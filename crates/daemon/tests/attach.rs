@@ -1,7 +1,7 @@
 //! Integration: attach, prompt, detach, reattach, replay, and two sessions.
 
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use orexis_adapters_codec::NativeCodec;
@@ -9,6 +9,7 @@ use orexis_adapters_fake::{EchoTools, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_core::{Action, PermissionPolicy, SessionEvent};
 use orexis_daemon::{ClientMsg, Daemon, DaemonConfig, ServerMsg};
+use orexis_ports::{Checkpointer, PortResult};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::UnixStream;
@@ -39,6 +40,7 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         tools: Arc::new(EchoTools),
         codec: Arc::new(NativeCodec),
         policy: Arc::new(PermissionPolicy::standard()),
+        checkpointer: None,
         system_prompt: String::new(),
         context_tools: Vec::new(),
         context_files: Vec::new(),
@@ -92,6 +94,43 @@ async fn read_until_done(
         messages.push(message);
         if done {
             return messages;
+        }
+    }
+}
+
+#[derive(Default)]
+struct RecordingCheckpointer {
+    created: Mutex<Vec<String>>,
+    restored: Mutex<Vec<String>>,
+}
+
+impl Checkpointer for RecordingCheckpointer {
+    fn create(&self, _label: &str) -> PortResult<String> {
+        let mut created = self.created.lock().expect("created");
+        let id = format!("cp-{}", created.len() + 1);
+        created.push(id.clone());
+        Ok(id)
+    }
+
+    fn restore(&self, id: &str) -> PortResult<()> {
+        self.restored.lock().expect("restored").push(id.to_string());
+        Ok(())
+    }
+
+    fn diff(&self, _id: &str) -> PortResult<String> {
+        Ok(String::new())
+    }
+}
+
+async fn read_until_info(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -> String {
+    loop {
+        let message = read_server(reader, line).await;
+        if let ServerMsg::Event {
+            event: SessionEvent::Info { message },
+            ..
+        } = message
+        {
+            return message;
         }
     }
 }
@@ -334,4 +373,38 @@ async fn approval_required_tool_blocks_until_approved() {
             ..
         }
     )));
+}
+
+#[tokio::test]
+async fn undo_restores_the_latest_checkpoint() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let recorder = Arc::new(RecordingCheckpointer::default());
+    let mut config = config(&socket, &db);
+    config.checkpointer = Some(recorder.clone());
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "go".to_string(),
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+
+    send(&mut writer, &ClientMsg::Undo).await;
+    let info = read_until_info(&mut reader, &mut line).await;
+    assert!(info.contains("restored checkpoint"));
+    assert!(!recorder.created.lock().expect("created").is_empty());
+    assert_eq!(recorder.restored.lock().expect("restored").len(), 1);
 }

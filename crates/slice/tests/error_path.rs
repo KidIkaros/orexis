@@ -39,6 +39,7 @@ fn tool_failure_is_persisted_and_returned() {
         prompt: "go",
         max_steps: 2,
         codec: &NativeCodec,
+        checkpointer: None,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

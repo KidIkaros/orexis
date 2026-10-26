@@ -20,6 +20,7 @@ fn main() {
         prompt: "read src/lib.rs and summarize",
         max_steps: 8,
         codec: &NativeCodec,
+        checkpointer: None,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

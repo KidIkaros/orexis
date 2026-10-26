@@ -13,11 +13,11 @@ use orexis_adapters_provider_catalog::{
 };
 use orexis_adapters_provider_openai::OpenAiCompatibleProvider;
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
-use orexis_adapters_tools::LocalTools;
+use orexis_adapters_tools::{GitCheckpointStore, LocalTools};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Codec, ContextSource, PortError, Provider, SessionAppend, SessionFactory, SessionRead,
-    ToolExecutor,
+    Checkpointer, Codec, ContextSource, PortError, Provider, SessionAppend, SessionFactory,
+    SessionRead, ToolExecutor,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -76,6 +76,7 @@ pub struct Runtime {
     pub tools: Arc<dyn ToolExecutor>,
     pub codec: Arc<dyn Codec>,
     pub policy: Arc<PermissionPolicy>,
+    pub checkpointer: Option<Arc<dyn Checkpointer>>,
     pub sessions: Arc<dyn SessionFactory>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
@@ -162,6 +163,9 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         tools,
         codec,
         policy: Arc::new(PermissionPolicy::standard()),
+        checkpointer: Some(Arc::new(GitCheckpointStore::new(
+            config.project_root.clone(),
+        )?)),
         sessions: Arc::new(SqliteSessionFactory::new(config.db_path)),
         system_prompt: config.system_prompt,
         context_tools,
@@ -182,6 +186,7 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
         tools: Arc::new(EchoTools),
         codec: Arc::new(NativeCodec),
         policy: Arc::new(PermissionPolicy::standard()),
+        checkpointer: None,
         sessions: Arc::new(SqliteSessionFactory::new(db_path)),
         system_prompt: String::new(),
         context_tools: Vec::new(),

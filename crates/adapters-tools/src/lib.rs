@@ -1,5 +1,9 @@
 //! Local coding tools with a path sandbox.
 
+pub mod checkpoints;
+
+pub use checkpoints::GitCheckpointStore;
+
 use std::fs;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
@@ -69,6 +73,19 @@ impl LocalTools {
             ToolSpec {
                 name: "list_dir".to_string(),
                 description: "List a directory inside the workspace".to_string(),
+                schema: json!({
+                    "type": "object",
+                    "properties": { "path": { "type": "string" } }
+                }),
+            },
+            ToolSpec {
+                name: "git_status".to_string(),
+                description: "Read-only git status for the workspace".to_string(),
+                schema: json!({ "type": "object", "properties": {} }),
+            },
+            ToolSpec {
+                name: "git_diff".to_string(),
+                description: "Read-only git diff for the workspace".to_string(),
                 schema: json!({
                     "type": "object",
                     "properties": { "path": { "type": "string" } }
@@ -318,6 +335,52 @@ impl LocalTools {
         Ok(())
     }
 
+    fn git_status(&self, _args: &Value) -> PortResult<Observation> {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(&self.root)
+            .arg("status")
+            .arg("--porcelain")
+            .output()
+            .map_err(|error| PortError(format!("git status: {error}")))?;
+        if !output.status.success() {
+            return Err(PortError(format!(
+                "git status: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            )));
+        }
+        Ok(Observation {
+            name: "git_status".to_string(),
+            output: String::from_utf8_lossy(&output.stdout).to_string(),
+        })
+    }
+
+    fn git_diff(&self, args: &Value) -> PortResult<Observation> {
+        let mut command = Command::new("git");
+        command.arg("-C").arg(&self.root).arg("diff");
+        if let Some(path) = args.get("path").and_then(Value::as_str) {
+            command.arg("--").arg(path);
+        }
+        let output = command
+            .output()
+            .map_err(|error| PortError(format!("git diff: {error}")))?;
+        if !output.status.success() {
+            return Err(PortError(format!(
+                "git diff: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            )));
+        }
+        let text = String::from_utf8_lossy(&output.stdout).to_string();
+        let mut output_text = text.chars().take(SHELL_OUTPUT_CAP).collect::<String>();
+        if output_text.chars().count() >= SHELL_OUTPUT_CAP {
+            output_text.push_str("\n[truncated at 64KB]");
+        }
+        Ok(Observation {
+            name: "git_diff".to_string(),
+            output: output_text,
+        })
+    }
+
     async fn shell(&self, args: &Value) -> PortResult<Observation> {
         let command = arg_str(args, "command")?.to_string();
         let timeout = Duration::from_secs(
@@ -352,6 +415,8 @@ impl ToolExecutor for LocalTools {
             "list_dir" => self.list_dir(&value),
             "search" => self.search(&value),
             "shell" => self.shell(&value).await,
+            "git_status" => self.git_status(&value),
+            "git_diff" => self.git_diff(&value),
             other => Err(PortError(format!("unknown tool '{other}'"))),
         }
     }
@@ -797,5 +862,50 @@ mod tests {
             .execute("shell", r#"{"command":"pwd","cwd":"../"}"#)
             .await
             .is_err());
+    }
+
+    fn git_repo(dir: &std::path::Path) {
+        let run_git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir)
+                .args(args)
+                .env("GIT_CONFIG_NOSYSTEM", "1")
+                .env("GIT_AUTHOR_NAME", "test")
+                .env("GIT_AUTHOR_EMAIL", "test@localhost")
+                .env("GIT_COMMITTER_NAME", "test")
+                .env("GIT_COMMITTER_EMAIL", "test@localhost")
+                .output()
+                .expect("git");
+            assert!(
+                output.status.success(),
+                "git {:?}: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        run_git(&["init", "-q"]);
+        run_git(&["add", "-A"]);
+        run_git(&["commit", "-q", "-m", "init"]);
+    }
+
+    #[test]
+    fn git_status_and_diff_are_read_only() {
+        let (dir, tools) = setup();
+        git_repo(dir.path());
+        std::fs::write(dir.path().join("a.txt"), "hello\nthere\n").expect("write");
+
+        let status = run(&tools, "git_status", "{}").expect("status");
+        assert!(status.output.contains("a.txt"));
+
+        let diff = run(&tools, "git_diff", "{}").expect("diff");
+        assert!(diff.output.contains("-world"));
+        assert!(diff.output.contains("+there"));
+    }
+
+    #[test]
+    fn git_status_fails_outside_a_repo() {
+        let (_dir, tools) = setup();
+        assert!(run(&tools, "git_status", "{}").is_err());
     }
 }

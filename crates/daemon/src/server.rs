@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use orexis_adapters_tools::GatedTools;
 use orexis_core::{ContextFile, PermissionPolicy, SessionEvent, ToolSpec};
-use orexis_ports::{Codec, Provider, SessionFactory, ToolExecutor};
+use orexis_ports::{Checkpointer, Codec, Provider, SessionFactory, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::io::BufReader;
 use tokio::net::{UnixListener, UnixStream};
@@ -22,6 +22,7 @@ pub struct DaemonConfig {
     pub tools: Arc<dyn ToolExecutor>,
     pub codec: Arc<dyn Codec>,
     pub policy: Arc<PermissionPolicy>,
+    pub checkpointer: Option<Arc<dyn Checkpointer>>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
     pub context_files: Vec<ContextFile>,
@@ -159,6 +160,7 @@ async fn handle(
                                 max_steps: config.max_steps,
                                 context,
                                 codec: config.codec.as_ref(),
+                                checkpointer: config.checkpointer.as_deref(),
                             }).await;
                             if let Ok(mut turn) = rt_for_task.turn.lock() {
                                 *turn = None;
@@ -189,6 +191,39 @@ async fn handle(
                     }
                     ClientMsg::Approve { id, yes } => {
                         hub.resolve(id, yes);
+                    }
+                    ClientMsg::Undo => {
+                        let Some(rt) = &runtime else {
+                            write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
+                            continue;
+                        };
+                        let events = rt.read.events().await.map_err(io_err)?;
+                        let checkpoint = events.iter().rev().find_map(|stored| match &stored.event {
+                            SessionEvent::Checkpoint { id, .. } => Some(id.clone()),
+                            _ => None,
+                        });
+                        match (checkpoint, &config.checkpointer) {
+                            (Some(id), Some(checkpointer)) => match checkpointer.restore(&id) {
+                                Ok(()) => {
+                                    let event = SessionEvent::Info {
+                                        message: format!("restored checkpoint {id}"),
+                                    };
+                                    if let Ok(event_ref) = rt.append.append(event.clone()).await {
+                                        let _ = rt.tx.send(ServerMsg::Event {
+                                            seq: event_ref.seq,
+                                            replay: false,
+                                            event,
+                                        });
+                                    }
+                                }
+                                Err(error) => {
+                                    write_msg(&mut write_half, &ServerMsg::Error { message: error.to_string() }).await?;
+                                }
+                            },
+                            _ => {
+                                write_msg(&mut write_half, &ServerMsg::Error { message: "no checkpoint to undo".into() }).await?;
+                            }
+                        }
                     }
                     ClientMsg::ListSessions => {
                         write_msg(&mut write_half, &ServerMsg::Sessions { sessions: registry.list() }).await?;

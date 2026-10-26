@@ -79,6 +79,12 @@ pub trait SessionFork: Send + Sync {
     async fn fork(&self, at_seq: u64) -> PortResult<String>;
 }
 
+pub trait Checkpointer: Send + Sync {
+    fn create(&self, label: &str) -> PortResult<String>;
+    fn restore(&self, id: &str) -> PortResult<()>;
+    fn diff(&self, id: &str) -> PortResult<String>;
+}
+
 pub trait ContextSource: Send + Sync {
     fn load(&self) -> Vec<ContextFile>;
 }

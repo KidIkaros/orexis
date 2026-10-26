@@ -37,6 +37,7 @@ fn sqlite_store_replays_the_turn() {
         prompt: "go",
         max_steps: 4,
         codec: &NativeCodec,
+        checkpointer: None,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

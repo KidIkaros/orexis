@@ -2,7 +2,7 @@
 
 use orexis_core::{hash_messages, Action, SessionEvent, FORMAT_VERSION};
 use orexis_ports::{
-    Codec, EventSink, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
+    Checkpointer, Codec, EventSink, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
 };
 
 use crate::actions::execute_actions;
@@ -21,6 +21,7 @@ pub struct TurnDeps<'a> {
     pub max_steps: usize,
     pub context: ContextConfig<'a>,
     pub codec: &'a dyn Codec,
+    pub checkpointer: Option<&'a dyn Checkpointer>,
 }
 
 pub struct TurnOutcome {
@@ -40,6 +41,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         max_steps,
         context,
         codec,
+        checkpointer,
     } = deps;
 
     append(
@@ -59,6 +61,32 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         },
     )
     .await?;
+
+    if let Some(checkpointer) = checkpointer {
+        match checkpointer.create("turn") {
+            Ok(id) => {
+                append(
+                    session,
+                    sink,
+                    SessionEvent::Checkpoint {
+                        id,
+                        label: "turn".to_string(),
+                    },
+                )
+                .await?;
+            }
+            Err(error) => {
+                append(
+                    session,
+                    sink,
+                    SessionEvent::Error {
+                        message: error.to_string(),
+                    },
+                )
+                .await?;
+            }
+        }
+    }
 
     let mut done = false;
     let mut steps = 0;

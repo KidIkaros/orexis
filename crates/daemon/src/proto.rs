@@ -11,6 +11,7 @@ pub enum ClientMsg {
     Prompt { text: String },
     Approve { id: u64, yes: bool },
     Interrupt,
+    Undo,
     ListSessions,
     Detach,
 }

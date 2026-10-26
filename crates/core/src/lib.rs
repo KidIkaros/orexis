@@ -282,6 +282,13 @@ pub enum SessionEvent {
     Interrupted {
         reason: String,
     },
+    Checkpoint {
+        id: String,
+        label: String,
+    },
+    Info {
+        message: String,
+    },
     Compaction {
         range_start_seq: u64,
         range_end_seq: u64,
@@ -302,6 +309,8 @@ impl SessionEvent {
             Self::Error { .. } => "error",
             Self::Reprompt { .. } => "reprompt",
             Self::Interrupted { .. } => "interrupted",
+            Self::Checkpoint { .. } => "checkpoint",
+            Self::Info { .. } => "info",
             Self::Compaction { .. } => "compaction",
         }
     }
@@ -468,6 +477,13 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         },
         SessionEvent::Interrupted { reason } => SessionEvent::Interrupted {
             reason: redact_text(reason),
+        },
+        SessionEvent::Checkpoint { id, label } => SessionEvent::Checkpoint {
+            id: id.clone(),
+            label: redact_text(label),
+        },
+        SessionEvent::Info { message } => SessionEvent::Info {
+            message: redact_text(message),
         },
         SessionEvent::Compaction {
             range_start_seq,

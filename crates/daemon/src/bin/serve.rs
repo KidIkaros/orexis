@@ -46,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tools: runtime.tools,
         codec: runtime.codec,
         policy: runtime.policy,
+        checkpointer: runtime.checkpointer,
         system_prompt: runtime.system_prompt,
         context_tools: runtime.context_tools,
         context_files: runtime.context_files,
