@@ -153,13 +153,16 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
     let context_files =
         FileContextSource::new(config.project_root.clone(), config.cwd.clone()).load();
 
+    let tools = Arc::new(LocalTools::new(config.project_root.clone())?);
+    let context_tools = LocalTools::specs();
+
     Ok(Runtime {
         provider,
-        tools: Arc::new(LocalTools::new(config.project_root.clone())?),
+        tools,
         codec,
         sessions: Arc::new(SqliteSessionFactory::new(config.db_path)),
         system_prompt: config.system_prompt,
-        context_tools: Vec::new(),
+        context_tools,
         context_files,
         context_limit: config.context_limit,
         generation_slots: profile.limits.max_concurrency.max(1) as usize,

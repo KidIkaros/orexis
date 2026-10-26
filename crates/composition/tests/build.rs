@@ -52,6 +52,10 @@ fn xml_profiles_select_xml_manual() {
         build_runtime(config(&dir, providers.path().to_path_buf(), "known")).expect("build");
     assert_eq!(runtime.codec.name(), "xml-manual");
     assert_eq!(runtime.generation_slots, 3);
+    assert!(runtime
+        .context_tools
+        .iter()
+        .any(|tool| tool.name == "read_file"));
     assert!(runtime.warnings.is_empty());
 }
 
