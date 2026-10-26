@@ -66,7 +66,10 @@ pub fn load(path: &Path) -> Result<ModelsDev, CatalogError> {
         let capabilities = aggregate_capabilities(&converted);
         models.insert(id.clone(), converted.clone());
 
-        let Some(api) = provider.api.filter(|api| !api.is_empty()) else {
+        let Some(api) = provider
+            .api
+            .filter(|api| api.starts_with("http") && !api.contains('{'))
+        else {
             continue;
         };
 
@@ -94,7 +97,10 @@ pub fn load(path: &Path) -> Result<ModelsDev, CatalogError> {
 
         profiles.push(ProviderProfile {
             id: id.clone(),
-            display_name: provider.name.unwrap_or_else(|| id.clone()),
+            display_name: provider
+                .name
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| id.clone()),
             kind: ProviderKind::OpenAiCompatible,
             base_url: api,
             auth,

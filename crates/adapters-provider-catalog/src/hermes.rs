@@ -111,7 +111,10 @@ pub fn load(path: &Path) -> Result<Vec<ProviderProfile>, CatalogError> {
 
         profiles.push(ProviderProfile {
             id: raw.name.clone(),
-            display_name: raw.display_name.unwrap_or_else(|| raw.name.clone()),
+            display_name: raw
+                .display_name
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| raw.name.clone()),
             kind,
             base_url: raw.base_url,
             auth,
