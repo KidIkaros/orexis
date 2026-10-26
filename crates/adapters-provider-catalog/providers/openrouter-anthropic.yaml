@@ -24,6 +24,9 @@ models:
   - id: anthropic/claude-haiku-5.5
     context: 1000000
     max_output: 1024
+  - id: openrouter/free
+    context: 200000
+    max_output: 1024
 limits:
   max_concurrency: 2
 fallbacks: []

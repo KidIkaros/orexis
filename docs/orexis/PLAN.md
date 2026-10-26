@@ -286,7 +286,7 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 | **M8** | Team mode (opt-in): workers, strategies, board, bus, blackboard, scheduler | The breadth engine | Team beats serial on a breadth task at acceptable token cost |
 | **M9** | Hardening and 1.0 | Shipping | Stranger installs and completes a multi-tool task |
 
-**M1 status (2026-10-26):** implemented; `scripts/m1-gate.sh` green. Manual: three live providers and one real repository task (needs credentials and the M3 tool surface).
+**M1 status (2026-10-26):** implemented; `scripts/m1-gate.sh` green. Providers verified via OpenRouter free, Refuseless, and local llama.cpp; direct Anthropic and a live-model repository task remain manual.
 
 **M2 status (2026-10-26):** specified; ticket 006 resolved (ADR-0008); M2-01 in progress (bridge/state complete, Leptos UI wasm check passes, Tauri shell build pending system libraries).
 

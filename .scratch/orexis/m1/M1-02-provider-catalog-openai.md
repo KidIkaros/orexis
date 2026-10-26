@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** M1-03, M1-04, M1-05, M1-06, M1-07, M1-08
-- **Status:** in progress (devin, 2026-10-26) — core + keyring complete; live endpoint run pending
+- **Status:** resolved (devin, 2026-10-26) — core, keyring, and live OpenAI-compatible verified; direct Anthropic remains manual
 
 ## Goal
 
@@ -15,12 +15,12 @@ Implement the ADR-0002 profile schema, the vendored catalog, precedence resoluti
 - [x] The catalog loads offline from the vendored snapshot (openai, anthropic, llamacpp).
 - [x] Env, memory, and OS keyring secret stores work (`secret-tool` backend; live smoke test passed).
 - [x] OpenAI-compatible `chat/completions` streams deltas and tool calls against a mock transport.
-- [ ] One real OpenAI-compatible endpoint completes a scripted tool-call task (manual; needs credentials).
+- [x] One real OpenAI-compatible endpoint completes a scripted tool-call task (OpenRouter `openrouter/free` and Refuseless `glm-5.3-abliterated`; local llama.cpp also passed).
 - [x] Unknown models get conservative defaults and a warning.
 
 ## Remaining
 
-- One live endpoint run (manual; needs credentials).
+- Direct Anthropic API (`api.anthropic.com`) auth/version remains manual; the Anthropic schema is verified through OpenRouter's `/v1/messages`.
 - `providers show` CLI (M1-07).
 - Native macOS Keychain / Windows Credential Manager backends behind the same `KeyringBackend` seam.
 
@@ -30,4 +30,5 @@ Implement the ADR-0002 profile schema, the vendored catalog, precedence resoluti
 - `Provider::complete` now carries `&[ToolSpec]`; native tool calls need the schema.
 - The keyring uses the freedesktop `secret-tool` CLI because the `keyring` crate's Secret Service backend needs libdbus headers, which are not installed here. The `KeyringBackend` seam allows a native adapter later; the smoke test stored, looked up, and cleared a throwaway entry.
 - Composition resolves the keyring first, then environment variables.
+- Live results (2026-10-26): OpenRouter free dry + tool passed; Refuseless dry + tool passed; local llama.cpp (MiniCPM5-2B) dry + tool passed; Anthropic schema via OpenRouter `/v1/messages` + `openrouter/free` dry + tool passed. No OpenAI/Anthropic purchase was required.
 - Request hashes and redaction are already in the session store (M1-01).
