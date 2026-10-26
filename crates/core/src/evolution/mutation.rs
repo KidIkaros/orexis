@@ -66,6 +66,12 @@ impl Mutation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Candidate {
+    pub manifest: CandidateManifest,
+    pub mutation: Mutation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CandidateManifest {
     pub id: String,
     pub kind: MutationKind,

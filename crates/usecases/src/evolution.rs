@@ -34,7 +34,7 @@ mod tests {
 
     use async_trait::async_trait;
     use futures::executor::block_on;
-    use orexis_core::{CandidateManifest, Drives, MutationKind};
+    use orexis_core::{Candidate, CandidateManifest, Drives, MutationKind};
     use orexis_ports::PortResult;
 
     #[derive(Default)]
@@ -78,6 +78,10 @@ mod tests {
         }
 
         async fn get(&self, _id: &str) -> PortResult<Option<CandidateManifest>> {
+            Ok(None)
+        }
+
+        async fn candidate(&self, _id: &str) -> PortResult<Option<Candidate>> {
             Ok(None)
         }
     }

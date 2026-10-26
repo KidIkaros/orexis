@@ -2,7 +2,7 @@
 
 - **Blocked by:** M6-01
 - **Blocks:** M6-04, M6-05
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,13 +10,15 @@ A deterministic ladder that rejects unsafe or regressive candidates.
 
 ## Acceptance
 
-- [ ] Schema, seal, and static-safety checks.
-- [ ] Deterministic mutation-specific tests.
-- [ ] Behavioral evaluation: paired baseline/candidate with a noise band.
-- [ ] 24h quarantine soak; human review for `quarantine`/`core`.
-- [ ] `ValidationReport` records each stage and the rejection reason.
-- [ ] Tests: sealed change, capability addition, regression, pass.
+- [x] Schema, seal, and static-safety stages (sealed targets rejected).
+- [x] Deterministic stage requires non-empty tests and all passing.
+- [x] Behavioral stage uses paired baseline/candidate and a configurable noise band.
+- [x] Soak and human stages are policy-driven (24h, human required).
+- [x] `ValidationReport` records every stage, detail, and overall pass/fail.
+- [x] Tests: full pass, sealed target/seal change, regression, human pending, executable, missing tests.
 
 ## Notes
 
 - No apply in this ticket.
+- The behavioral result is supplied by the caller; the eval runner is M6-05.
+- Soak/human are inputs to the ladder; M6-04 enforces them before apply.

@@ -2,9 +2,9 @@
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, CandidateManifest, CandidateRef, ContextFile, EntityEvent, EntitySnapshot, EventRef,
-    LedgerEntry, Message, Mutation, Observation, ProviderResponse, Seal, SessionEvent, StoredEvent,
-    ToolSpec,
+    Action, Candidate, CandidateManifest, CandidateRef, ContextFile, EntityEvent, EntitySnapshot,
+    EventRef, LedgerEntry, Message, Mutation, Observation, ProviderResponse, Seal, SessionEvent,
+    StoredEvent, ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,6 +254,7 @@ pub trait MutationQueue: Send + Sync {
     ) -> PortResult<Proposal>;
     async fn list(&self) -> PortResult<Vec<CandidateManifest>>;
     async fn get(&self, id: &str) -> PortResult<Option<CandidateManifest>>;
+    async fn candidate(&self, id: &str) -> PortResult<Option<Candidate>>;
 }
 
 pub trait Signer: Send + Sync {

@@ -5,15 +5,8 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use orexis_core::{CandidateManifest, Mutation};
+use orexis_core::{Candidate, CandidateManifest, Mutation};
 use orexis_ports::{MutationQueue, PortError, PortResult, Proposal, ProposalContext};
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-struct Stored {
-    manifest: CandidateManifest,
-    mutation: Mutation,
-}
 
 pub struct Quarantine {
     root: PathBuf,
@@ -42,9 +35,9 @@ impl Quarantine {
             }
             let text = fs::read_to_string(&path)
                 .map_err(|error| PortError(format!("candidate {}: {error}", path.display())))?;
-            let stored: Stored =
+            let candidate: Candidate =
                 serde_json::from_str(&text).map_err(|error| PortError(error.to_string()))?;
-            manifests.push(stored.manifest);
+            manifests.push(candidate.manifest);
         }
         manifests.sort_by(|left, right| left.id.cmp(&right.id));
         Ok(manifests)
@@ -101,13 +94,13 @@ impl MutationQueue for Quarantine {
         let dir = self.root.join(&manifest.id);
         fs::create_dir_all(&dir)
             .map_err(|error| PortError(format!("candidate {}: {error}", dir.display())))?;
-        let stored = Stored {
+        let candidate = Candidate {
             manifest: manifest.clone(),
             mutation,
         };
         fs::write(
             dir.join("candidate.json"),
-            serde_json::to_vec_pretty(&stored).map_err(|error| PortError(error.to_string()))?,
+            serde_json::to_vec_pretty(&candidate).map_err(|error| PortError(error.to_string()))?,
         )
         .map_err(|error| PortError(error.to_string()))?;
         Ok(Proposal {
@@ -127,8 +120,20 @@ impl MutationQueue for Quarantine {
         }
         let text = fs::read_to_string(&path)
             .map_err(|error| PortError(format!("candidate {}: {error}", path.display())))?;
-        let stored: Stored =
+        let candidate: Candidate =
             serde_json::from_str(&text).map_err(|error| PortError(error.to_string()))?;
-        Ok(Some(stored.manifest))
+        Ok(Some(candidate.manifest))
+    }
+
+    async fn candidate(&self, id: &str) -> PortResult<Option<Candidate>> {
+        let path = self.root.join(id).join("candidate.json");
+        if !path.exists() {
+            return Ok(None);
+        }
+        let text = fs::read_to_string(&path)
+            .map_err(|error| PortError(format!("candidate {}: {error}", path.display())))?;
+        let candidate: Candidate =
+            serde_json::from_str(&text).map_err(|error| PortError(error.to_string()))?;
+        Ok(Some(candidate))
     }
 }
