@@ -6,6 +6,7 @@ mod codec;
 mod compaction;
 mod context;
 mod entity;
+mod evolution;
 mod identity;
 mod memory;
 mod replay;
@@ -18,6 +19,7 @@ pub use context::{
     assemble, estimate_tokens, AssembledContext, ContextConfig, COMPACTION_BUFFER_TOKENS,
 };
 pub use entity::{decay, modulated_drives, posture, proposals, record_affect, record_outcome};
+pub use evolution::{growth_allows, propose_growth, GROWTH_THRESHOLD};
 pub use identity::{append_diary, decay_traits, distill_trait, identity, self_view};
 pub use memory::{forget, recall, remember};
 pub use replay::verify_replay;

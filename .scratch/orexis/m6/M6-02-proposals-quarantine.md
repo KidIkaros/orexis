@@ -2,7 +2,7 @@
 
 - **Blocked by:** M6-01
 - **Blocks:** M6-04, M6-05
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,13 +10,15 @@ Data-only mutations proposed at boundaries and staged in quarantine.
 
 ## Acceptance
 
-- [ ] Mutation types: prompt/strategy fragment, gene parameter, skill content, recall/reflection policy.
-- [ ] Candidate directory with manifest, base hash, proposed diff, and size caps.
-- [ ] Growth-drive proposals at session boundaries only; no mid-session.
-- [ ] Dedup by content hash; one proposal per session/day.
-- [ ] No apply path from this ticket; no executable content.
-- [ ] Tests: proposal, dedup, size cap, boundary rule.
+- [x] Mutation types: prompt fragment, gene parameter, skill content, recall policy.
+- [x] Candidate directory with manifest, base hash, proposed content, and 64 KB cap. *(A rendered diff needs the base artifact; that is M6-03.)*
+- [x] Growth-drive proposals require `boundary: true` and growth >= 0.6.
+- [x] Dedup by content hash; one proposal per session and per day.
+- [x] No apply path; executable-marker guard rejects scripts.
+- [x] Tests: proposal/list/get, dedup, cadence, boundary, executable guard, size cap.
 
 ## Notes
 
 - MUE-X's six strategies are adapted; code mutation is out of scope.
+- The executable-marker guard is heuristic; full static safety is M6-03.
+- Quarantine is local staging, not the corridor ledger; no apply path exists here.

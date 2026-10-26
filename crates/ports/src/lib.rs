@@ -2,8 +2,9 @@
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, CandidateRef, ContextFile, EntityEvent, EntitySnapshot, EventRef, LedgerEntry, Message,
-    Observation, ProviderResponse, Seal, SessionEvent, StoredEvent, ToolSpec,
+    Action, CandidateManifest, CandidateRef, ContextFile, EntityEvent, EntitySnapshot, EventRef,
+    LedgerEntry, Message, Mutation, Observation, ProviderResponse, Seal, SessionEvent, StoredEvent,
+    ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -228,6 +229,31 @@ pub trait EvolutionStore: Send + Sync {
     async fn entries(&self) -> PortResult<Vec<LedgerEntry>>;
     async fn verify(&self) -> PortResult<()>;
     fn export_jsonl(&self) -> PortResult<String>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProposalContext {
+    pub session_id: String,
+    pub day: u64,
+    pub boundary: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proposal {
+    pub manifest: CandidateManifest,
+    pub deduplicated: bool,
+}
+
+#[async_trait]
+pub trait MutationQueue: Send + Sync {
+    async fn propose(
+        &self,
+        mutation: Mutation,
+        context: ProposalContext,
+        source: &str,
+    ) -> PortResult<Proposal>;
+    async fn list(&self) -> PortResult<Vec<CandidateManifest>>;
+    async fn get(&self, id: &str) -> PortResult<Option<CandidateManifest>>;
 }
 
 pub trait Signer: Send + Sync {

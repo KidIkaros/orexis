@@ -1359,8 +1359,10 @@ dependencies = [
  "futures",
  "orexis-core",
  "orexis-ports",
+ "serde",
  "serde_json",
  "tempfile",
+ "ulid",
 ]
 
 [[package]]
