@@ -22,6 +22,7 @@ pub(crate) async fn attach(
     mut last_seq: u64,
 ) -> std::io::Result<(Arc<SessionRuntime>, broadcast::Receiver<ServerMsg>, u64)> {
     let rt = registry.get_or_create(session).map_err(io_err)?;
+    recover_if_unfinished(&rt).await?;
     let receiver = rt.tx.subscribe();
     write_msg(
         write,
@@ -245,4 +246,79 @@ pub(crate) async fn latest_checkpoint(rt: &SessionRuntime) -> std::io::Result<Op
         SessionEvent::Checkpoint { id, .. } => Some(id.clone()),
         _ => None,
     }))
+}
+
+async fn recover_if_unfinished(rt: &Arc<SessionRuntime>) -> std::io::Result<()> {
+    let active = rt.turn.lock().map(|turn| turn.is_some()).unwrap_or(false);
+    if active {
+        return Ok(());
+    }
+    let events = rt.read.events().await.map_err(io_err)?;
+    let last = events.iter().rev().find(|stored| {
+        !matches!(
+            stored.event,
+            SessionEvent::Info { .. } | SessionEvent::Compaction { .. }
+        )
+    });
+    let unfinished = last.is_some_and(|stored| {
+        !matches!(
+            stored.event,
+            SessionEvent::Done { .. }
+                | SessionEvent::Error { .. }
+                | SessionEvent::Interrupted { .. }
+                | SessionEvent::Recovered { .. }
+        )
+    });
+    if !unfinished {
+        return Ok(());
+    }
+    let event = SessionEvent::Recovered {
+        reason: "daemon restarted with an unfinished turn".to_string(),
+    };
+    if let Ok(event_ref) = rt.append.append(event.clone()).await {
+        let _ = rt.tx.send(ServerMsg::Event {
+            seq: event_ref.seq,
+            replay: false,
+            event,
+        });
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use orexis_adapters_session_sqlite::SqliteSessionFactory;
+
+    #[tokio::test]
+    async fn recovery_marks_an_unfinished_turn_once() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let registry =
+            SessionRegistry::new(Arc::new(SqliteSessionFactory::new(dir.path().join("s.db"))));
+        let rt = registry.get_or_create(None).expect("session");
+        rt.append
+            .append(SessionEvent::UserMessage {
+                text: "start".to_string(),
+            })
+            .await
+            .expect("user");
+        rt.append
+            .append(SessionEvent::ModelRequest {
+                profile_id: "test".to_string(),
+                request_hash: "hash".to_string(),
+            })
+            .await
+            .expect("request");
+
+        recover_if_unfinished(&rt).await.expect("recover");
+        let events = rt.read.events().await.expect("events");
+        assert!(matches!(
+            events.last().map(|stored| &stored.event),
+            Some(SessionEvent::Recovered { .. })
+        ));
+        let len = events.len();
+
+        recover_if_unfinished(&rt).await.expect("recover again");
+        assert_eq!(rt.read.events().await.expect("events").len(), len);
+    }
 }

@@ -282,6 +282,9 @@ pub enum SessionEvent {
     Interrupted {
         reason: String,
     },
+    Recovered {
+        reason: String,
+    },
     Checkpoint {
         id: String,
         label: String,
@@ -313,6 +316,7 @@ impl SessionEvent {
             Self::Error { .. } => "error",
             Self::Reprompt { .. } => "reprompt",
             Self::Interrupted { .. } => "interrupted",
+            Self::Recovered { .. } => "recovered",
             Self::Checkpoint { .. } => "checkpoint",
             Self::Info { .. } => "info",
             Self::Verify { .. } => "verify",
@@ -481,6 +485,9 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
             note: redact_text(note),
         },
         SessionEvent::Interrupted { reason } => SessionEvent::Interrupted {
+            reason: redact_text(reason),
+        },
+        SessionEvent::Recovered { reason } => SessionEvent::Recovered {
             reason: redact_text(reason),
         },
         SessionEvent::Checkpoint { id, label } => SessionEvent::Checkpoint {

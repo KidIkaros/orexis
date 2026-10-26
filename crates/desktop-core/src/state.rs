@@ -274,6 +274,13 @@ impl AppState {
                     },
                 });
             }
+            SessionEvent::Recovered { reason } => {
+                self.live = None;
+                self.status = Status::Empty;
+                self.transcript.push(DesktopEntry::Info {
+                    message: format!("recovered: {reason}"),
+                });
+            }
             SessionEvent::Interrupted { reason } => {
                 self.live = None;
                 self.transcript.push(DesktopEntry::Info {
@@ -557,5 +564,22 @@ mod tests {
             .privacy
             .iter()
             .any(|line| line.contains("no telemetry")));
+    }
+
+    #[test]
+    fn recovered_clears_live_and_sets_ready() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Delta {
+            text: "partial".to_string(),
+        });
+        state.apply(event(SessionEvent::Recovered {
+            reason: "daemon restarted".to_string(),
+        }));
+        assert!(state.live.is_none());
+        assert_eq!(state.status, Status::Empty);
+        assert!(state.transcript.iter().any(|entry| matches!(
+            entry,
+            DesktopEntry::Info { message } if message.contains("recovered")
+        )));
     }
 }

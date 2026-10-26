@@ -290,6 +290,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M2 status (2026-10-26):** implemented in source; M2-01 … M2-06 wired; fleet/board/changes are session projections per ADR-0012; `scripts/m2-gate.sh` green for automated checks. Tauri shell build, evaluation cycles, and usability measurement remain manual.
 
+**M4 status (2026-10-26):** in progress; M4-01 crash recovery resolved; audit trail, skill trust, and gate open.
+
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 
 **Cut rule:** if a milestone misses its gate twice, the previous milestone becomes the release candidate and the missed one moves to 1.1. No milestone silently absorbs another.
