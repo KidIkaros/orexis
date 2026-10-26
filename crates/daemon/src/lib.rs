@@ -1,6 +1,8 @@
 //! The Orexis daemon: sessions over a Unix-socket NDJSON protocol.
 
 mod approvals;
+mod connection;
+mod handlers;
 mod proto;
 mod server;
 mod session;

@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** —
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,9 +10,9 @@
 
 ## Acceptance
 
-- [ ] `server.rs` under 250 lines; connection loop delegates to handlers.
-- [ ] No behaviour change; daemon tests stay green.
-- [ ] Boundary lint and seam graph stay clean.
+- [x] `server.rs` 87, `connection.rs` 139, `handlers.rs` 219; the loop delegates.
+- [x] No behaviour change; daemon tests stay green.
+- [x] Boundary lint and seam graph stay clean.
 
 ## Notes
 
