@@ -52,6 +52,11 @@ Every document, ticket, and commit uses these words in exactly these senses. If 
 | Term | Means | Never means |
 |---|---|---|
 | **Tier** | Evolution scope: `off`, `skills`, `quarantine`, `core` | A pricing tier |
+| **Mutation** | A data-only proposed change to genes, skills, or policy | A code patch |
+| **Candidate** | A mutation staged in quarantine for validation | An applied change |
+| **Corridor** | The git-backed, signed evolution ledger | The entity log |
+| **Seal** | A hash of the protected configuration a mutation may not change | A signature |
+| **Evolution** | Tiered, sealed, signed mutation of data | An identity rewrite |
 | **Milestone** | A staged deliverable with its own exit gate (M1–M9) | A release |
 | **Release candidate** | The milestone that ships when the next one misses its gate twice | A preview |
 | **Frontier** | The open, unblocked decisions in the map, in order | The roadmap |
