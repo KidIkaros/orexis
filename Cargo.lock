@@ -1409,6 +1409,7 @@ dependencies = [
  "orexis-usecases",
  "tempfile",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
