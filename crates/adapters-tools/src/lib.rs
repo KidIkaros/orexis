@@ -8,6 +8,7 @@ mod git;
 mod search;
 mod shell;
 pub mod verify;
+mod workspace;
 
 pub use checkpoints::GitCheckpointStore;
 pub use gate::{AutoApprove, DenyAll, GatedTools};
@@ -126,7 +127,7 @@ impl LocalTools {
         ]
     }
 
-    fn resolve(&self, path: &str) -> PortResult<PathBuf> {
+    pub(crate) fn resolve(&self, path: &str) -> PortResult<PathBuf> {
         let candidate = if Path::new(path).is_absolute() {
             PathBuf::from(path)
         } else {

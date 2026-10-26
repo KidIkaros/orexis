@@ -1,7 +1,7 @@
 //! The desktop state model and daemon bridge, independent of Tauri.
 
 use orexis_core::SessionEvent;
-use orexis_protocol::{ServerMsg, SessionInfo};
+use orexis_protocol::{Artifact, FileEntry, ServerMsg, SessionInfo};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -80,7 +80,13 @@ pub enum DesktopEntry {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FilePreview {
+    pub path: String,
+    pub content: String,
+    pub truncated: bool,
+}
+
 pub struct AppState {
     pub connection: Connection,
     pub session: Option<String>,
@@ -94,6 +100,10 @@ pub struct AppState {
     pub status: Status,
     pub live: Option<String>,
     pub diff: Option<String>,
+    pub files: Vec<FileEntry>,
+    pub files_path: String,
+    pub preview: Option<FilePreview>,
+    pub artifacts: Vec<Artifact>,
 }
 
 impl Default for AppState {
@@ -111,6 +121,10 @@ impl Default for AppState {
             status: Status::Empty,
             live: None,
             diff: None,
+            files: Vec::new(),
+            files_path: ".".to_string(),
+            preview: None,
+            artifacts: Vec::new(),
         }
     }
 }
@@ -143,6 +157,23 @@ impl AppState {
                 self.diff = Some(diff);
                 self.right = RightTab::Diff;
             }
+            ServerMsg::Dir { path, entries } => {
+                self.files = entries;
+                self.files_path = path;
+            }
+            ServerMsg::File {
+                path,
+                content,
+                truncated,
+            } => {
+                self.preview = Some(FilePreview {
+                    path,
+                    content,
+                    truncated,
+                });
+                self.right = RightTab::Preview;
+            }
+            ServerMsg::Artifacts { items } => self.artifacts = items,
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });
@@ -463,5 +494,45 @@ mod tests {
             serde_json::to_value(Connection::Disconnected).expect("connection"),
             "disconnected"
         );
+    }
+
+    #[test]
+    fn file_messages_update_state() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Dir {
+            path: "src".to_string(),
+            entries: vec![FileEntry {
+                name: "lib.rs".to_string(),
+                path: "src/lib.rs".to_string(),
+                is_dir: false,
+                size: 12,
+            }],
+        });
+        assert_eq!(state.files_path, "src");
+        assert_eq!(state.files.len(), 1);
+
+        state.apply(ServerMsg::File {
+            path: "src/lib.rs".to_string(),
+            content: "hello".to_string(),
+            truncated: false,
+        });
+        assert_eq!(
+            state
+                .preview
+                .as_ref()
+                .map(|preview| preview.content.as_str()),
+            Some("hello")
+        );
+        assert_eq!(state.right, RightTab::Preview);
+
+        state.apply(ServerMsg::Artifacts {
+            items: vec![Artifact {
+                id: "a".to_string(),
+                kind: "file".to_string(),
+                title: "a".to_string(),
+                detail: String::new(),
+            }],
+        });
+        assert_eq!(state.artifacts.len(), 1);
     }
 }

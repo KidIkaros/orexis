@@ -4,14 +4,14 @@ use std::sync::Arc;
 
 use orexis_adapters_tools::GatedTools;
 use orexis_core::SessionEvent;
-use orexis_ports::{Checkpointer, ToolExecutor};
+use orexis_ports::{Checkpointer, ToolExecutor, Workspace};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::sync::{broadcast, Semaphore};
 
 use crate::approvals::{ApprovalHub, HubGate};
 use crate::connection::io_err;
-use crate::proto::{write_msg, ServerMsg};
+use crate::proto::{write_msg, Artifact, FileEntry, ServerMsg};
 use crate::server::DaemonConfig;
 use crate::session::{BroadcastDeltaSink, BroadcastSink, SessionRegistry, SessionRuntime};
 
@@ -128,6 +128,107 @@ pub(crate) async fn prompt(
         *turn = Some(handle);
     }
     Ok(())
+}
+
+pub(crate) async fn list_dir(
+    workspace: &Arc<dyn Workspace>,
+    path: String,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let entries = match workspace.list(&path) {
+        Ok(entries) => entries
+            .into_iter()
+            .map(|entry| FileEntry {
+                name: entry.name,
+                path: entry.path,
+                is_dir: entry.is_dir,
+                size: entry.size,
+            })
+            .collect(),
+        Err(error) => {
+            write_msg(
+                write,
+                &ServerMsg::Error {
+                    message: error.to_string(),
+                },
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+    write_msg(write, &ServerMsg::Dir { path, entries }).await
+}
+
+pub(crate) async fn read_file(
+    workspace: &Arc<dyn Workspace>,
+    path: String,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let preview = match workspace.read(&path, 64 * 1024) {
+        Ok(preview) => preview,
+        Err(error) => {
+            write_msg(
+                write,
+                &ServerMsg::Error {
+                    message: error.to_string(),
+                },
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+    write_msg(
+        write,
+        &ServerMsg::File {
+            path: preview.path,
+            content: preview.content,
+            truncated: preview.truncated,
+        },
+    )
+    .await
+}
+
+pub(crate) async fn artifacts(
+    rt: &Arc<SessionRuntime>,
+    workspace: &Arc<dyn Workspace>,
+    checkpointer: Option<&Arc<dyn Checkpointer>>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let changed = match workspace.changed() {
+        Ok(changed) => changed,
+        Err(error) => {
+            write_msg(
+                write,
+                &ServerMsg::Error {
+                    message: error.to_string(),
+                },
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+    let mut items = Vec::new();
+    for path in changed {
+        items.push(Artifact {
+            id: path.clone(),
+            kind: "file".to_string(),
+            title: path,
+            detail: String::new(),
+        });
+    }
+    if let Some(id) = latest_checkpoint(rt).await? {
+        if let Some(checkpointer) = checkpointer {
+            if let Ok(diff) = checkpointer.diff(&id) {
+                items.push(Artifact {
+                    id: format!("checkpoint:{id}"),
+                    kind: "diff".to_string(),
+                    title: format!("checkpoint {id}"),
+                    detail: diff,
+                });
+            }
+        }
+    }
+    write_msg(write, &ServerMsg::Artifacts { items }).await
 }
 
 pub(crate) async fn clear_overrides(rt: &Arc<SessionRuntime>, hub: &Arc<ApprovalHub>) {

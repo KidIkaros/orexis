@@ -200,6 +200,9 @@ impl TuiApp {
             ServerMsg::Busy { .. } => self.set_state(TuiState::Streaming),
             ServerMsg::Queued { position, .. } => self.set_queued(position),
             ServerMsg::Diff { .. } => {}
+            ServerMsg::Dir { .. } => {}
+            ServerMsg::File { .. } => {}
+            ServerMsg::Artifacts { .. } => {}
             ServerMsg::Sessions { sessions } => {
                 self.entries
                     .push(Entry::Info(format!("{} sessions", sessions.len())));

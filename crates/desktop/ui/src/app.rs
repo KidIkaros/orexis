@@ -31,7 +31,11 @@ pub fn App() -> impl IntoView {
             )
             .await
             {
-                Ok(_) => set_error.set(None),
+                Ok(_) => {
+                    set_error.set(None);
+                    let _ = invoke("artifacts", JsValue::NULL).await;
+                    let _ = invoke("list_dir", args(serde_json::json!({"path": "."}))).await;
+                }
                 Err(err) => set_error.set(Some(
                     err.as_string()
                         .unwrap_or_else(|| "daemon unavailable".to_string()),
@@ -76,6 +80,35 @@ pub fn App() -> impl IntoView {
         });
     });
 
+    let list_dir = Callback::new(move |path: String| {
+        spawn_local(async move {
+            let _ = invoke("list_dir", args(serde_json::json!({"path": path}))).await;
+        });
+    });
+    let read_file = Callback::new(move |path: String| {
+        set_preview.set(None);
+        spawn_local(async move {
+            let _ = invoke("read_file", args(serde_json::json!({"path": path}))).await;
+        });
+    });
+    let artifacts = Callback::new(move |_: ()| {
+        spawn_local(async move {
+            let _ = invoke("artifacts", JsValue::NULL).await;
+        });
+    });
+    let on_tab = Callback::new({
+        let list_dir = list_dir.clone();
+        let artifacts = artifacts.clone();
+        move |tab: LeftTab| match tab {
+            LeftTab::Files => {
+                list_dir.run(".".to_string());
+                artifacts.run(());
+            }
+            LeftTab::Artifacts => artifacts.run(()),
+            _ => {}
+        }
+    });
+
     let diff = Callback::new(move |_: ()| {
         spawn_local(async move {
             let _ = invoke("diff", JsValue::NULL).await;
@@ -112,7 +145,11 @@ pub fn App() -> impl IntoView {
                     snapshot
                     active=left
                     set_active=set_left
+                    on_tab=on_tab
                     on_open_session=open_session
+                    on_list_dir=list_dir
+                    on_read_file=read_file
+                    set_preview
                 />
                 <section class="center">
                     {move || {

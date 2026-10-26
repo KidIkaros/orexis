@@ -43,6 +43,29 @@ pub enum Entry {
 }
 
 #[derive(Clone, Deserialize)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct FilePreview {
+    pub path: String,
+    pub content: String,
+    pub truncated: bool,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Artifact {
+    pub id: String,
+    pub kind: String,
+    pub title: String,
+    pub detail: String,
+}
+
+#[derive(Clone, Deserialize)]
 pub struct Snapshot {
     pub connection: String,
     pub session: Option<String>,
@@ -52,6 +75,10 @@ pub struct Snapshot {
     pub status: String,
     pub live: Option<String>,
     pub diff: Option<String>,
+    pub files: Vec<FileEntry>,
+    pub files_path: String,
+    pub preview: Option<FilePreview>,
+    pub artifacts: Vec<Artifact>,
 }
 
 impl Default for Snapshot {
@@ -65,6 +92,10 @@ impl Default for Snapshot {
             status: "empty".to_string(),
             live: None,
             diff: None,
+            files: Vec::new(),
+            files_path: ".".to_string(),
+            preview: None,
+            artifacts: Vec::new(),
         }
     }
 }

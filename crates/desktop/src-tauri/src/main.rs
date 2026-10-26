@@ -91,6 +91,32 @@ fn approve(
 }
 
 #[tauri::command]
+fn list_dir(
+    app: tauri::AppHandle,
+    state: State<DesktopState>,
+    path: String,
+) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.list_dir(&path).map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
+fn read_file(
+    app: tauri::AppHandle,
+    state: State<DesktopState>,
+    path: String,
+) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.read_file(&path).map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
+fn artifacts(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.artifacts().map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
 fn diff(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
     state.with_mut(|bridge| bridge.diff().map_err(|error| error.to_string()))?;
     emit_state(&app)
@@ -129,6 +155,9 @@ fn main() {
             prompt,
             approve,
             diff,
+            list_dir,
+            read_file,
+            artifacts,
             undo,
             interrupt,
             list_sessions,

@@ -118,9 +118,30 @@ pub fn RightPanel(
                 None => view! { <p class="muted">"no diff"</p> }.into_any(),
             }}
             <h2>"PREVIEW"</h2>
-            {move || match preview.get().or_else(auto_preview) {
-                Some(text) => view! { <pre class="preview">{text}</pre> }.into_any(),
-                None => view! { <p class="muted">"—"</p> }.into_any(),
+            {move || {
+                if let Some(text) = preview.get() {
+                    return view! { <pre class="preview">{text}</pre> }.into_any();
+                }
+                if let Some(file) = snapshot.get().preview {
+                    let mut body = String::new();
+                    for (index, line) in file.content.lines().enumerate() {
+                        body.push_str(&format!("{:>4}  {line}\n", index + 1));
+                    }
+                    if file.truncated {
+                        body.push_str("\n[truncated]\n");
+                    }
+                    return view! {
+                        <div class="file-preview">
+                            <p class="muted">{file.path}</p>
+                            <pre class="preview">{body}</pre>
+                        </div>
+                    }
+                        .into_any();
+                }
+                match auto_preview() {
+                    Some(text) => view! { <pre class="preview">{text}</pre> }.into_any(),
+                    None => view! { <p class="muted">"—"</p> }.into_any(),
+                }
             }}
         </aside>
     }

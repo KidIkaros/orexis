@@ -575,3 +575,61 @@ button:disabled {
 .table-row:hover {
   background: var(--panel-2);
 }
+
+.path-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.path {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter {
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--control);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.file-row {
+  justify-content: space-between;
+}
+
+.file-dir {
+  color: var(--accent);
+}
+
+.file-name {
+  color: var(--text);
+}
+
+.file-size {
+  font-size: 11px;
+}
+
+.artifact-row {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.artifact-kind {
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.file-preview .muted {
+  margin: 0 0 6px;
+}

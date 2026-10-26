@@ -7,8 +7,9 @@ use std::time::Duration;
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{EchoTools, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
+use orexis_adapters_tools::LocalTools;
 use orexis_core::{Action, PermissionPolicy, SessionEvent};
-use orexis_daemon::{ClientMsg, Daemon, DaemonConfig, ServerMsg};
+use orexis_daemon::{Artifact, ClientMsg, Daemon, DaemonConfig, FileEntry, ServerMsg};
 use orexis_ports::{Checkpointer, PortResult};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
@@ -38,6 +39,9 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         sessions: Arc::new(SqliteSessionFactory::new(db.to_path_buf())),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
+        workspace: Arc::new(
+            LocalTools::new(socket.parent().unwrap_or(Path::new("."))).expect("workspace"),
+        ),
         codec: Arc::new(NativeCodec),
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: None,
@@ -120,6 +124,49 @@ impl Checkpointer for RecordingCheckpointer {
 
     fn diff(&self, _id: &str) -> PortResult<String> {
         Ok("--- a/a.txt\n+++ b/a.txt\n-one\n+two\n".to_string())
+    }
+}
+
+async fn read_until_dir(
+    reader: &mut BufReader<OwnedReadHalf>,
+    line: &mut String,
+) -> (String, Vec<FileEntry>) {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::Dir { path, entries } => return (path, entries),
+            ServerMsg::Error { message } => panic!("dir error: {message}"),
+            _ => {}
+        }
+    }
+}
+
+async fn read_until_file(
+    reader: &mut BufReader<OwnedReadHalf>,
+    line: &mut String,
+) -> (String, String, bool) {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::File {
+                path,
+                content,
+                truncated,
+            } => return (path, content, truncated),
+            ServerMsg::Error { message } => panic!("file error: {message}"),
+            _ => {}
+        }
+    }
+}
+
+async fn read_until_artifacts(
+    reader: &mut BufReader<OwnedReadHalf>,
+    line: &mut String,
+) -> Vec<Artifact> {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::Artifacts { items } => return items,
+            ServerMsg::Error { message } => panic!("artifacts error: {message}"),
+            _ => {}
+        }
     }
 }
 
@@ -504,4 +551,92 @@ async fn diff_returns_the_checkpoint_delta() {
     send(&mut writer, &ClientMsg::Diff).await;
     let diff = read_until_diff(&mut reader, &mut line).await;
     assert!(diff.contains("+two"));
+}
+
+#[tokio::test]
+async fn lists_and_reads_workspace_files() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    std::fs::write(dir.path().join("hello.txt"), "hi").expect("write");
+    let daemon = Daemon::new(config_with(
+        &socket,
+        &db,
+        vec![vec![Action::Done {
+            summary: "done".to_string(),
+        }]],
+    ));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+
+    send(
+        &mut writer,
+        &ClientMsg::ListDir {
+            path: ".".to_string(),
+        },
+    )
+    .await;
+    let (path, entries) = read_until_dir(&mut reader, &mut line).await;
+    assert_eq!(path, ".");
+    assert!(entries.iter().any(|entry| entry.name == "hello.txt"));
+
+    send(
+        &mut writer,
+        &ClientMsg::ReadFile {
+            path: "hello.txt".to_string(),
+        },
+    )
+    .await;
+    let (path, content, truncated) = read_until_file(&mut reader, &mut line).await;
+    assert_eq!(path, "hello.txt");
+    assert_eq!(content, "hi");
+    assert!(!truncated);
+}
+
+#[tokio::test]
+async fn artifacts_include_the_checkpoint_diff() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let recorder = Arc::new(RecordingCheckpointer::default());
+    let mut config = config_with(
+        &socket,
+        &db,
+        vec![vec![Action::Done {
+            summary: "done".to_string(),
+        }]],
+    );
+    config.checkpointer = Some(recorder);
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "go".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+
+    send(&mut writer, &ClientMsg::Artifacts).await;
+    let items = read_until_artifacts(&mut reader, &mut line).await;
+    assert!(items
+        .iter()
+        .any(|item| item.kind == "diff" && item.detail.contains("+two")));
 }

@@ -70,6 +70,25 @@ pub(crate) async fn handle(
                             handlers::interrupt(rt).await;
                         }
                     }
+                    ClientMsg::ListDir { path } => {
+                        handlers::list_dir(&config.workspace, path, &mut write_half).await?;
+                    }
+                    ClientMsg::ReadFile { path } => {
+                        handlers::read_file(&config.workspace, path, &mut write_half).await?;
+                    }
+                    ClientMsg::Artifacts => {
+                        let Some(rt) = &runtime else {
+                            write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
+                            continue;
+                        };
+                        handlers::artifacts(
+                            rt,
+                            &config.workspace,
+                            config.checkpointer.as_ref(),
+                            &mut write_half,
+                        )
+                        .await?;
+                    }
                     ClientMsg::Approve { id, yes, always } => {
                         hub.resolve(id, yes, always);
                     }

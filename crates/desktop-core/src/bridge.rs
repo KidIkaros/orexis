@@ -57,6 +57,18 @@ impl DesktopBridge {
         self.client.approve(id, yes)
     }
 
+    pub fn list_dir(&mut self, path: &str) -> io::Result<()> {
+        self.client.list_dir(path)
+    }
+
+    pub fn read_file(&mut self, path: &str) -> io::Result<()> {
+        self.client.read_file(path)
+    }
+
+    pub fn artifacts(&mut self) -> io::Result<()> {
+        self.client.artifacts()
+    }
+
     pub fn diff(&mut self) -> io::Result<()> {
         self.client.diff()
     }

@@ -2,7 +2,7 @@
 
 - **Blocked by:** M2-01
 - **Blocks:** M2-06
-- **Status:** open
+- **Status:** in progress (devin, 2026-10-26) — files/artifacts wired; session-log artifacts remain
 
 ## Goal
 
@@ -10,7 +10,7 @@ Browse files and artifacts inside the workspace without a separate editor.
 
 ## Acceptance
 
-- [ ] File tree rooted at the project; path escapes rejected.
-- [ ] File preview with line numbers; large files capped.
-- [ ] Artifacts list and preview (diffs, logs, generated files).
-- [ ] Keyboard navigation; search/filter.
+- [x] Workspace browsing is rooted at the project; traversal, absolute-outside, and symlink escapes use the existing sandbox. Tests cover escapes.
+- [x] Preview with line numbers; 64 KB cap with a truncated marker.
+- [x] Artifacts list changed files and the latest checkpoint diff; file artifacts open, diffs preview. *(Session-log artifacts remain.)*
+- [x] `1`–`5` rail tabs; rows tabbable; file filter input.

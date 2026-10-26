@@ -45,6 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sessions: runtime.sessions,
         provider: runtime.provider,
         tools: runtime.tools,
+        workspace: runtime.workspace,
         codec: runtime.codec,
         policy: runtime.policy,
         checkpointer: runtime.checkpointer,

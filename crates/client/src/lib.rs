@@ -101,6 +101,22 @@ impl DaemonClient {
         self.send(&ClientMsg::Interrupt)
     }
 
+    pub fn list_dir(&mut self, path: &str) -> std::io::Result<()> {
+        self.send(&ClientMsg::ListDir {
+            path: path.to_string(),
+        })
+    }
+
+    pub fn read_file(&mut self, path: &str) -> std::io::Result<()> {
+        self.send(&ClientMsg::ReadFile {
+            path: path.to_string(),
+        })
+    }
+
+    pub fn artifacts(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::Artifacts)
+    }
+
     pub fn clear_overrides(&mut self) -> std::io::Result<()> {
         self.send(&ClientMsg::ClearOverrides)
     }

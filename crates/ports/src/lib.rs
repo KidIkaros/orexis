@@ -141,6 +141,27 @@ pub trait Checkpointer: Send + Sync {
     fn diff(&self, id: &str) -> PortResult<String>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilePreview {
+    pub path: String,
+    pub content: String,
+    pub truncated: bool,
+}
+
+pub trait Workspace: Send + Sync {
+    fn list(&self, path: &str) -> PortResult<Vec<FileEntry>>;
+    fn read(&self, path: &str, max_bytes: usize) -> PortResult<FilePreview>;
+    fn changed(&self) -> PortResult<Vec<String>>;
+}
+
 pub trait ContextSource: Send + Sync {
     fn load(&self) -> Vec<ContextFile>;
 }

@@ -21,6 +21,13 @@ pub enum ClientMsg {
         always: bool,
     },
     ClearOverrides,
+    ListDir {
+        path: String,
+    },
+    ReadFile {
+        path: String,
+    },
+    Artifacts,
     Interrupt,
     Undo,
     Diff,
@@ -59,6 +66,18 @@ pub enum ServerMsg {
     Sessions {
         sessions: Vec<SessionInfo>,
     },
+    Dir {
+        path: String,
+        entries: Vec<FileEntry>,
+    },
+    File {
+        path: String,
+        content: String,
+        truncated: bool,
+    },
+    Artifacts {
+        items: Vec<Artifact>,
+    },
     Diff {
         diff: String,
     },
@@ -71,4 +90,20 @@ pub enum ServerMsg {
 pub struct SessionInfo {
     pub id: String,
     pub status: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Artifact {
+    pub id: String,
+    pub kind: String,
+    pub title: String,
+    pub detail: String,
 }

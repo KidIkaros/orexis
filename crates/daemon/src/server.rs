@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use orexis_core::{ContextFile, PermissionPolicy, ToolSpec};
-use orexis_ports::{Checkpointer, Codec, Provider, SessionFactory, ToolExecutor, Verifier};
+use orexis_ports::{
+    Checkpointer, Codec, Provider, SessionFactory, ToolExecutor, Verifier, Workspace,
+};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
 
@@ -17,6 +19,7 @@ pub struct DaemonConfig {
     pub sessions: Arc<dyn SessionFactory>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
+    pub workspace: Arc<dyn Workspace>,
     pub codec: Arc<dyn Codec>,
     pub policy: Arc<PermissionPolicy>,
     pub checkpointer: Option<Arc<dyn Checkpointer>>,

@@ -156,6 +156,7 @@ async fn a_real_repository_task_reads_edits_tests_and_diffs() {
         sessions: Arc::new(SqliteSessionFactory::new(db)),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(LocalTools::new(project).expect("tools")),
+        workspace: Arc::new(LocalTools::new(project).expect("workspace")),
         codec: Arc::new(NativeCodec),
         policy: Arc::new(policy),
         checkpointer: Some(Arc::new(

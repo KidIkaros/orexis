@@ -18,7 +18,7 @@ use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
     Checkpointer, Codec, ContextSource, Lsp, PortError, Provider, SessionAppend, SessionFactory,
-    SessionRead, ToolExecutor, Verifier,
+    SessionRead, ToolExecutor, Verifier, Workspace,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -76,6 +76,7 @@ pub struct BuildConfig {
 pub struct Runtime {
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
+    pub workspace: Arc<dyn Workspace>,
     pub codec: Arc<dyn Codec>,
     pub policy: Arc<PermissionPolicy>,
     pub checkpointer: Option<Arc<dyn Checkpointer>>,
@@ -169,11 +170,13 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
 
     let lsp: Arc<dyn Lsp> = Arc::new(StdioLsp::new(config.project_root.clone(), "rust-analyzer"));
     let tools = Arc::new(LocalTools::with_lsp(config.project_root.clone(), lsp)?);
+    let workspace: Arc<dyn Workspace> = Arc::new(LocalTools::new(config.project_root.clone())?);
     let context_tools = LocalTools::specs();
 
     Ok(Runtime {
         provider,
         tools,
+        workspace,
         codec,
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: Some(Arc::new(GitCheckpointStore::new(
@@ -198,6 +201,7 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
     Runtime {
         provider,
         tools: Arc::new(EchoTools),
+        workspace: Arc::new(NoWorkspace),
         codec: Arc::new(NativeCodec),
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: None,
@@ -236,4 +240,20 @@ fn providers_dir() -> Result<PathBuf, BuildError> {
     Err(BuildError::Unsupported(
         "providers directory not found; set OREXIS_PROVIDERS".to_string(),
     ))
+}
+
+struct NoWorkspace;
+
+impl Workspace for NoWorkspace {
+    fn list(&self, _path: &str) -> Result<Vec<orexis_ports::FileEntry>, PortError> {
+        Ok(Vec::new())
+    }
+
+    fn read(&self, path: &str, _max_bytes: usize) -> Result<orexis_ports::FilePreview, PortError> {
+        Err(PortError(format!("no workspace file: {path}")))
+    }
+
+    fn changed(&self) -> Result<Vec<String>, PortError> {
+        Ok(Vec::new())
+    }
 }

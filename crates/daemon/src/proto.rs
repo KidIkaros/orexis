@@ -1,6 +1,6 @@
 //! NDJSON helpers over the shared protocol types.
 
-pub use orexis_protocol::{ClientMsg, ServerMsg, SessionInfo};
+pub use orexis_protocol::{Artifact, ClientMsg, FileEntry, ServerMsg, SessionInfo};
 
 use tokio::io::{AsyncBufRead, AsyncWrite, AsyncWriteExt};
 
