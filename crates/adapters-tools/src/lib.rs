@@ -1,8 +1,11 @@
 //! Local coding tools with a path sandbox.
 
 use std::fs;
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use orexis_core::{Decision, Observation, PermissionPolicy, ToolSpec};
@@ -69,6 +72,19 @@ impl LocalTools {
                 schema: json!({
                     "type": "object",
                     "properties": { "path": { "type": "string" } }
+                }),
+            },
+            ToolSpec {
+                name: "shell".to_string(),
+                description: "Run a shell command at the workspace root".to_string(),
+                schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "command": { "type": "string" },
+                        "timeout_secs": { "type": "integer" },
+                        "cwd": { "type": "string" }
+                    },
+                    "required": ["command"]
                 }),
             },
             ToolSpec {
@@ -301,6 +317,27 @@ impl LocalTools {
         }
         Ok(())
     }
+
+    async fn shell(&self, args: &Value) -> PortResult<Observation> {
+        let command = arg_str(args, "command")?.to_string();
+        let timeout = Duration::from_secs(
+            args.get("timeout_secs")
+                .and_then(Value::as_u64)
+                .unwrap_or(120)
+                .clamp(1, 600),
+        );
+        let cwd = self.resolve(args.get("cwd").and_then(Value::as_str).unwrap_or("."))?;
+        if let Some(reason) = hardline_reason(&command) {
+            return Err(PortError(format!("blocked command: {reason}")));
+        }
+        let output = tokio::task::spawn_blocking(move || run_shell(&cwd, &command, timeout))
+            .await
+            .map_err(|error| PortError(error.to_string()))??;
+        Ok(Observation {
+            name: "shell".to_string(),
+            output,
+        })
+    }
 }
 
 #[async_trait]
@@ -314,8 +351,151 @@ impl ToolExecutor for LocalTools {
             "edit_file" => self.edit_file(&value),
             "list_dir" => self.list_dir(&value),
             "search" => self.search(&value),
+            "shell" => self.shell(&value).await,
             other => Err(PortError(format!("unknown tool '{other}'"))),
         }
+    }
+}
+
+const SHELL_OUTPUT_CAP: usize = 64 * 1024;
+
+fn hardline_reason(command: &str) -> Option<&'static str> {
+    const PATTERNS: &[(&str, &str)] = &[
+        ("sudo ", "privilege escalation"),
+        ("rm -rf /", "root deletion"),
+        ("mkfs", "filesystem format"),
+        ("dd if=/dev/", "raw device write"),
+        (":(){", "fork bomb"),
+        ("shutdown", "shutdown"),
+        ("reboot", "reboot"),
+    ];
+    PATTERNS
+        .iter()
+        .find(|(pattern, _)| command.contains(pattern))
+        .map(|(_, reason)| *reason)
+}
+
+fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortResult<String> {
+    let mut process = Command::new("sh");
+    process
+        .arg("-c")
+        .arg(command)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    process.env_clear();
+    for key in [
+        "PATH",
+        "HOME",
+        "USER",
+        "SHELL",
+        "TERM",
+        "LANG",
+        "LC_ALL",
+        "TMPDIR",
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+    ] {
+        if let Ok(value) = std::env::var(key) {
+            process.env(key, value);
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        process.process_group(0);
+    }
+
+    let mut child = process
+        .spawn()
+        .map_err(|error| PortError(format!("spawn shell: {error}")))?;
+    let pid = child.id();
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let out_thread = std::thread::spawn(move || read_capped(stdout));
+    let err_thread = std::thread::spawn(move || read_capped(stderr));
+
+    let timed_out = wait_timeout(&mut child, timeout, pid);
+    let stdout = out_thread.join().unwrap_or_default();
+    let stderr = err_thread.join().unwrap_or_default();
+    let code = child
+        .try_wait()
+        .ok()
+        .flatten()
+        .and_then(|status| status.code())
+        .map(|code| code.to_string())
+        .unwrap_or_else(|| "signal".to_string());
+
+    let mut output = format!("exit {code}\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}");
+    if timed_out {
+        output.push_str(&format!(
+            "\n[timed out after {}s; process group killed]",
+            timeout.as_secs()
+        ));
+    }
+    Ok(output)
+}
+
+fn read_capped<R: Read>(reader: Option<R>) -> String {
+    let Some(mut reader) = reader else {
+        return String::new();
+    };
+    let mut kept = Vec::new();
+    let mut buffer = [0u8; 8192];
+    let mut truncated = false;
+    loop {
+        match reader.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => {
+                if kept.len() < SHELL_OUTPUT_CAP {
+                    let take = (SHELL_OUTPUT_CAP - kept.len()).min(read);
+                    kept.extend_from_slice(&buffer[..take]);
+                    if take < read {
+                        truncated = true;
+                    }
+                } else {
+                    truncated = true;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    let mut text = String::from_utf8_lossy(&kept).to_string();
+    if truncated {
+        text.push_str("\n[truncated at 64KB]");
+    }
+    text
+}
+
+fn wait_timeout(child: &mut Child, timeout: Duration, pid: u32) -> bool {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return false,
+            Ok(None) => {}
+            Err(_) => return false,
+        }
+        if Instant::now() >= deadline {
+            kill_group(pid);
+            let _ = child.wait();
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn kill_group(pid: u32) {
+    #[cfg(unix)]
+    {
+        // SAFETY: kill(2) with a negative pid signals the child's process group.
+        unsafe {
+            libc::kill(-(pid as i32), libc::SIGKILL);
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
     }
 }
 
@@ -544,5 +724,78 @@ mod tests {
     fn unknown_tool_is_an_error() {
         let (_dir, tools) = setup();
         assert!(run(&tools, "nope", "{}").is_err());
+    }
+
+    #[tokio::test]
+    async fn shell_runs_in_the_root() {
+        let (_dir, tools) = setup();
+        let out = tools
+            .execute("shell", r#"{"command":"echo hello"}"#)
+            .await
+            .expect("shell");
+        assert!(out.output.contains("hello"));
+        assert!(out.output.contains("exit 0"));
+    }
+
+    #[tokio::test]
+    async fn shell_reports_nonzero_exit() {
+        let (_dir, tools) = setup();
+        let out = tools
+            .execute("shell", r#"{"command":"exit 3"}"#)
+            .await
+            .expect("shell");
+        assert!(out.output.contains("exit 3"));
+    }
+
+    #[tokio::test]
+    async fn shell_times_out_and_kills_the_group() {
+        let (_dir, tools) = setup();
+        let start = std::time::Instant::now();
+        let out = tools
+            .execute("shell", r#"{"command":"sleep 5","timeout_secs":1}"#)
+            .await
+            .expect("shell");
+        assert!(out.output.contains("timed out"));
+        assert!(start.elapsed() < std::time::Duration::from_secs(4));
+    }
+
+    #[tokio::test]
+    async fn shell_caps_output() {
+        let (_dir, tools) = setup();
+        let out = tools
+            .execute("shell", r#"{"command":"python3 -c 'print(\"x\"*100000)'"}"#)
+            .await
+            .expect("shell");
+        assert!(out.output.contains("[truncated at 64KB]"));
+    }
+
+    #[tokio::test]
+    async fn shell_blocks_hardline_commands() {
+        let (_dir, tools) = setup();
+        assert!(tools
+            .execute("shell", r#"{"command":"sudo rm -rf /"}"#)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn shell_scrubs_the_environment() {
+        std::env::set_var("OREXIS_TEST_SECRET", "leak");
+        let (_dir, tools) = setup();
+        let out = tools
+            .execute("shell", r#"{"command":"env"}"#)
+            .await
+            .expect("shell");
+        std::env::remove_var("OREXIS_TEST_SECRET");
+        assert!(!out.output.contains("OREXIS_TEST_SECRET"));
+    }
+
+    #[tokio::test]
+    async fn shell_rejects_cwd_escape() {
+        let (_dir, tools) = setup();
+        assert!(tools
+            .execute("shell", r#"{"command":"pwd","cwd":"../"}"#)
+            .await
+            .is_err());
     }
 }
