@@ -215,3 +215,59 @@ async fn two_sessions_complete_under_one_generation_slot() {
         }
     )));
 }
+
+#[tokio::test]
+async fn a_second_client_attaches_to_the_same_session() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let daemon = Daemon::new(config(&socket, &db));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader_a, mut writer_a) = connect(&socket).await;
+    let (mut reader_b, mut writer_b) = connect(&socket).await;
+    let mut line_a = String::new();
+    let mut line_b = String::new();
+
+    send(&mut writer_a, &ClientMsg::Attach { session: None }).await;
+    let ServerMsg::Attached { session_id } = read_server(&mut reader_a, &mut line_a).await else {
+        panic!("expected attached");
+    };
+    send(
+        &mut writer_b,
+        &ClientMsg::Attach {
+            session: Some(session_id),
+        },
+    )
+    .await;
+    let _ = read_server(&mut reader_b, &mut line_b).await;
+
+    send(
+        &mut writer_a,
+        &ClientMsg::Prompt {
+            text: "shared".to_string(),
+        },
+    )
+    .await;
+    let (a, b) = tokio::join!(
+        read_until_done(&mut reader_a, &mut line_a),
+        read_until_done(&mut reader_b, &mut line_b)
+    );
+    assert!(a.iter().any(|m| matches!(
+        m,
+        ServerMsg::Event {
+            event: SessionEvent::Done { .. },
+            ..
+        }
+    )));
+    assert!(b.iter().any(|m| matches!(
+        m,
+        ServerMsg::Event {
+            event: SessionEvent::Done { .. },
+            ..
+        }
+    )));
+}

@@ -45,6 +45,19 @@ impl Daemon {
     }
 
     pub async fn run(self) -> std::io::Result<()> {
+        if self.config.socket.exists() {
+            match UnixStream::connect(&self.config.socket).await {
+                Ok(_) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::AddrInUse,
+                        "daemon already running",
+                    ))
+                }
+                Err(_) => {
+                    let _ = std::fs::remove_file(&self.config.socket);
+                }
+            }
+        }
         let listener = UnixListener::bind(&self.config.socket)?;
         loop {
             let (stream, _) = listener.accept().await?;

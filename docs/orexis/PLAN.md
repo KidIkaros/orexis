@@ -285,6 +285,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 | **M8** | Team mode (opt-in): workers, strategies, board, bus, blackboard, scheduler | The breadth engine | Team beats serial on a breadth task at acceptable token cost |
 | **M9** | Hardening and 1.0 | Shipping | Stranger installs and completes a multi-tool task |
 
+**M1 status (2026-10-26):** implemented; `scripts/m1-gate.sh` green. Manual: three live providers and one real repository task (needs credentials and the M3 tool surface).
+
 **Cut rule:** if a milestone misses its gate twice, the previous milestone becomes the release candidate and the missed one moves to 1.1. No milestone silently absorbs another.
 
 ### 5.1 1.0 checklist

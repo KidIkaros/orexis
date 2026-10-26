@@ -7,4 +7,14 @@ license.workspace = true
 [dependencies]
 orexis-core.workspace = true
 orexis-ports.workspace = true
+orexis-usecases.workspace = true
 orexis-adapters-fake.workspace = true
+orexis-adapters-session-sqlite.workspace = true
+orexis-adapters-provider-catalog.workspace = true
+orexis-adapters-provider-openai.workspace = true
+orexis-adapters-provider-anthropic.workspace = true
+orexis-adapters-http.workspace = true
+orexis-adapters-codec.workspace = true
+orexis-adapters-context-fs.workspace = true
+dirs = "5"
+thiserror = "2"
