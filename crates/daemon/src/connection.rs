@@ -52,10 +52,12 @@ pub(crate) async fn handle(
                             continue;
                         };
                         handlers::prompt(
-                            &config,
-                            &base_tools,
-                            &hub,
-                            &generation,
+                            handlers::PromptContext {
+                                config: &config,
+                                base_tools: &base_tools,
+                                hub: &hub,
+                                generation: &generation,
+                            },
                             rt,
                             text,
                             skip_verify,

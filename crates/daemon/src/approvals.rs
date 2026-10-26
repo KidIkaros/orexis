@@ -45,9 +45,15 @@ impl ApprovalOverrides for MemoryOverrides {
     }
 }
 
+struct PendingApproval {
+    session: String,
+    tool: String,
+    sender: oneshot::Sender<bool>,
+}
+
 pub struct ApprovalHub {
     next: AtomicU64,
-    pending: Mutex<HashMap<u64, (String, String, oneshot::Sender<bool>)>>,
+    pending: Mutex<HashMap<u64, PendingApproval>>,
     overrides: Arc<dyn ApprovalOverrides>,
     tx: broadcast::Sender<ServerMsg>,
 }
@@ -87,11 +93,11 @@ impl ApprovalHub {
 
     pub fn resolve(&self, id: u64, yes: bool, always: bool) {
         if let Ok(mut pending) = self.pending.lock() {
-            if let Some((session, tool, sender)) = pending.remove(&id) {
+            if let Some(pending) = pending.remove(&id) {
                 if yes && always {
-                    self.overrides.remember(&session, &tool);
+                    self.overrides.remember(&pending.session, &pending.tool);
                 }
-                let _ = sender.send(yes);
+                let _ = pending.sender.send(yes);
             }
         }
     }
@@ -139,7 +145,14 @@ impl ApprovalGate for HubGate {
             .pending
             .lock()
             .map_err(|_| PortError("approval lock poisoned".into()))?
-            .insert(id, (self.session.clone(), tool.to_string(), sender));
+            .insert(
+                id,
+                PendingApproval {
+                    session: self.session.clone(),
+                    tool: tool.to_string(),
+                    sender,
+                },
+            );
         let _ = self.hub.tx.send(ServerMsg::ApprovalRequest {
             id,
             session_id: self.session.clone(),

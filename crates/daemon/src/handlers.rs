@@ -46,16 +46,24 @@ pub(crate) async fn attach(
     Ok((rt, receiver, last_seq))
 }
 
+pub(crate) struct PromptContext<'a> {
+    pub config: &'a Arc<DaemonConfig>,
+    pub base_tools: &'a Arc<dyn ToolExecutor>,
+    pub hub: &'a Arc<ApprovalHub>,
+    pub generation: &'a Arc<Semaphore>,
+}
+
 pub(crate) async fn prompt(
-    config: &Arc<DaemonConfig>,
-    base_tools: &Arc<dyn ToolExecutor>,
-    hub: &Arc<ApprovalHub>,
-    generation: &Arc<Semaphore>,
+    context: PromptContext<'_>,
     rt: Arc<SessionRuntime>,
     text: String,
     skip_verify: bool,
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
+    let config = context.config;
+    let base_tools = context.base_tools;
+    let hub = context.hub;
+    let generation = context.generation;
     let permit = match generation.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
