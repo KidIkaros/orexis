@@ -901,6 +901,15 @@ async fn identity_is_injected_only_on_the_first_turn() {
         )
         .await;
         let _ = read_until_done(&mut reader, &mut line).await;
+        if prompt == "first" {
+            futures::executor::block_on(store.append(EntityEvent::TraitUpdate {
+                trait_id: "t2".to_string(),
+                statement: "mid-session trait".to_string(),
+                evidence: vec![2],
+                confidence: 0.9,
+            }))
+            .expect("mid-session trait");
+        }
     }
 
     let calls = calls.lock().expect("calls");
@@ -914,4 +923,5 @@ async fn identity_is_injected_only_on_the_first_turn() {
     };
     assert!(system(0).contains("prefers tests first"));
     assert!(!system(1).contains("prefers tests first"));
+    assert!(!system(1).contains("mid-session trait"));
 }

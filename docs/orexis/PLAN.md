@@ -294,7 +294,7 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M4 status (2026-10-26):** automated gate green; M4-01 … M4-04 resolved. Manual: SIGKILL a real repository turn and restart.
 
-**M5 status (2026-10-26):** M5-01 … M5-05 resolved; M5-06 gate open; decision 007 resolved (ADR-0013); neuron alignment is a separate research track (ADR-0014).
+**M5 status (2026-10-26):** automated gate green; M5-01 … M5-06 resolved. Manual: `/self` against a real repo and a live model switch. Decision 007 resolved (ADR-0013); neuron alignment is a separate research track (ADR-0014, M5-R01).
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 

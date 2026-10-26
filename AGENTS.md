@@ -73,15 +73,13 @@ M1 implemented. The workspace builds and `scripts/m1-gate.sh` is the gate. Live-
 
 ## Commands
 
-Once the workspace exists:
-
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-Until then, documentation changes only.
+Milestone gates: `scripts/m1-gate.sh` … `scripts/m5-gate.sh`.
 
 ## Where things live
 

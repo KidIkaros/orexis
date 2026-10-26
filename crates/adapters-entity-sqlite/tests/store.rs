@@ -1,9 +1,9 @@
 //! Entity store, projection, restart, export/import, and redaction tests.
 
 use futures::executor::block_on;
-use orexis_adapters_entity_sqlite::{import_jsonl, SqliteEntityStore};
+use orexis_adapters_entity_sqlite::{import_jsonl, SqliteEntityFactory, SqliteEntityStore};
 use orexis_core::{Drive, EntityEvent, MemoryKind};
-use orexis_ports::{EntityAppend, EntityRead};
+use orexis_ports::{EntityAppend, EntityFactory, EntityRead};
 
 #[test]
 fn append_and_project() {
@@ -91,4 +91,22 @@ fn redacts_at_write() {
     let text = &snapshot.diary[0].text;
     assert!(text.contains("[REDACTED:"));
     assert!(!text.contains("sk-abcdefghijklmnopqrstuvwx"));
+}
+
+#[test]
+fn entity_is_shared_across_handles() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let factory = SqliteEntityFactory::new(dir.path().join("entity.db"));
+    let first = factory.open().expect("first");
+    let second = factory.open().expect("second");
+    assert_eq!(first.id, second.id);
+    block_on(first.append.append(EntityEvent::TraitUpdate {
+        trait_id: "t1".to_string(),
+        statement: "model-agnostic".to_string(),
+        evidence: vec![1],
+        confidence: 0.8,
+    }))
+    .expect("trait");
+    let snapshot = block_on(second.read.snapshot()).expect("snapshot");
+    assert_eq!(snapshot.traits["t1"].statement, "model-agnostic");
 }
