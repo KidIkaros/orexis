@@ -24,4 +24,6 @@ thiserror = "2"
 
 [dev-dependencies]
 tempfile = "3"
+futures = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+orexis-adapters-evolution-git = { path = "../adapters-evolution-git" }

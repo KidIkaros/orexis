@@ -2,6 +2,7 @@
 //! selection, and replay verification. Depends only on core + ports.
 
 mod actions;
+mod apply;
 mod codec;
 mod compaction;
 mod context;
@@ -13,6 +14,7 @@ mod replay;
 mod session;
 mod turn;
 
+pub use apply::{apply_candidate, rollback, should_rollback, ApplyRequest};
 pub use codec::{select_codec, CodecCapabilities};
 pub use compaction::{plan_compaction, ExtractiveSummarizer};
 pub use context::{

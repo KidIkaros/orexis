@@ -1515,9 +1515,11 @@ name = "orexis-composition"
 version = "0.0.0"
 dependencies = [
  "dirs",
+ "futures",
  "orexis-adapters-codec",
  "orexis-adapters-context-fs",
  "orexis-adapters-entity-sqlite",
+ "orexis-adapters-evolution-git",
  "orexis-adapters-fake",
  "orexis-adapters-http",
  "orexis-adapters-lsp",
