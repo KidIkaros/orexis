@@ -42,6 +42,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Coding surface: exact + fuzzy edits, shell, search, git, verify, diffs/checkpoints, LSP | §5, M3 |
 | Safety floor: policy-as-code, untrusted-content delimiting, OS sandbox, skill trust tiers | §5, M3/M4 |
 | Single-agent default; team opt-in; strategies are use cases; workers share identity; provider-bounded concurrency | §9 |
+| Desktop: three-zone oversight workspace; task-driven panels; inline approvals; two evaluation cycles | ADR-0008; ticket 006 |
 | MCP + ACP in v1; A2A/UTCP in M7 | §5, M7 |
 | Lexical memory; no code RAG | §7 |
 | Tiered, git-backed, signed evolution | §4.5 |
@@ -62,7 +63,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 3. ~~**Codec set beyond the ported four**~~ — resolved; ADR-0003.
 4. ~~**TUI layout and keymap**~~ — resolved; ADR-0004.
 5. **Edit-tool contract per model tier** — blocks M3.
-6. **Desktop panel layout in Leptos** — blocks M2.
+6. ~~**Desktop panel layout in Leptos**~~ — resolved; ADR-0008.
 7. **Entity model: five vs six drives, affect dimensions** — blocks M5.
 8. **Evolution tier defaults and validation ladder** — blocks M6.
 9. **Native adapter timing: Gemini / Bedrock / Vertex** — blocks M7.
@@ -286,6 +287,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 | **M9** | Hardening and 1.0 | Shipping | Stranger installs and completes a multi-tool task |
 
 **M1 status (2026-10-26):** implemented; `scripts/m1-gate.sh` green. Manual: three live providers and one real repository task (needs credentials and the M3 tool surface).
+
+**M2 status (2026-10-26):** specified; ticket 006 resolved (ADR-0008); implementation starts at M2-01.
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 
