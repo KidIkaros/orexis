@@ -15,5 +15,7 @@ Contract: [`ADR-0008`](../../../docs/orexis/adr/0008-desktop-surface.md).
 | [M2-08](M2-08-split-desktop-ui.md) | Split the desktop UI | — |
 | [M2-09](M2-09-split-daemon-server.md) | Split the daemon connection handler | — |
 | [M2-10](M2-10-approval-overrides.md) | Approval overrides as policy | M2-02 |
+| [M2-11](M2-11-split-daemon-handlers.md) | Split daemon handlers again | — |
+| [M2-12](M2-12-split-left-rail.md) | Split left rail again | — |
 
 M2-01 is in progress: bridge/state complete, shell source added, build pending system libraries.

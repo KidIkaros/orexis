@@ -16,4 +16,5 @@
 
 ## Notes
 
+- Line-count regression after M2-05/M2-06 (`handlers.rs` 386) was closed by M2-11.
 - Clean-code finding from the M2-02/03 audit.

@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** M2
-- **Status:** in progress
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 

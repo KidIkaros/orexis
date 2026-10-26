@@ -2,7 +2,7 @@
 
 - **Type:** prototype
 - **Blocks:** M3
-- **Status:** open
+- **Status:** resolved
 - **Claimed by:** —
 
 ## Question
@@ -18,8 +18,13 @@ What is the edit contract per model tier — exact unique-substring replacement 
 
 ## Resolution
 
-<filled when resolved>
+Exact unique-substring replacement first. If it does not match, compare
+line windows after whitespace collapse and Unicode NFC, then a bounded
+Levenshtein window (>= 0.65, at most 200 lines). Ambiguity at any stage fails
+loudly; line numbers are never used. The trailing newline is preserved when
+`old` omits it, and the observation reports which strategy repaired the match.
+Implemented in M3-04.
 
 ## Follow-ups
 
-<new tickets or fog this resolution creates>
+None.

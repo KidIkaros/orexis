@@ -51,3 +51,4 @@ What else was on the table, and why it lost.
 | [0009](0009-secrets-crypto.md) | Secrets and crypto boundary | accepted |
 | [0010](0010-shared-outer-layer.md) | Shared outer-layer crates | accepted |
 | [0011](0011-approval-overrides.md) | Approval overrides as session-scoped policy data | accepted |
+| [0012](0012-oversight-projections.md) | M2 oversight projections vs the M8 team domain | accepted |

@@ -19,5 +19,6 @@
 
 ## Notes
 
+- Line-count regression after M2-04/M2-05 (`left.rs` 314) was closed by M2-12.
 - The DTO mirrors `desktop-core::AppState`; a serde shape test guards drift.
 - This is a clean-code finding from the M2-02/03 audit, not a behaviour change.

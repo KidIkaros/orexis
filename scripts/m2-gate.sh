@@ -14,10 +14,10 @@ if grep -RIn --include='*.rs' -E 'TcpListener|axum::serve|hyper::Server|warp::se
 fi
 
 for panel in status left transcript composer right settings; do
-  test -f "crates/desktop/ui/src/components/$panel.rs" || {
+  if ! test -f "crates/desktop/ui/src/components/$panel.rs" && ! test -f "crates/desktop/ui/src/components/$panel/mod.rs"; then
     echo "missing panel component: $panel" >&2
     exit 1
-  }
+  fi
 done
 
 echo
