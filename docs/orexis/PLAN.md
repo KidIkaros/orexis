@@ -50,6 +50,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Provider catalog: rich profile + `extra`, vendored snapshot + refresh, shipped < user < project < CLI, keyring + env, conservative unknown defaults, profile-declared capacity, per-profile fallbacks, adapter-owned OAuth | ADR-0002; ticket 002 |
 | Codec set: `native`, `xml-manual`, `json`, `lenient`; code-mode is a program surface, not a codec; automatic selection by capability with `--codec` override; sans-io fixtures | ADR-0003; ticket 003 |
 | TUI surface: four fixed regions, composer-first focus, inline tool expansion + bottom sheet for large diffs, adaptive overlays and status bar, virtualized transcript, full keymap, eleven states | ADR-0004; ticket 004 |
+| Study: eight repos read to adopt/adapt/reject; synthesis drafted with pattern catalog, resolved conflicts, ADR map, confidence, and remaining verification | `docs/orexis/study/synthesis.md`; ticket 011 |
 
 ### Frontier
 
@@ -65,7 +66,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 8. **Evolution tier defaults and validation ladder** — blocks M6.
 9. **Native adapter timing: Gemini / Bedrock / Vertex** — blocks M7.
 10. **Packaging and signing** — blocks M9.
-11. **Eight per-repo study decisions** — blocks synthesis.
+11. ~~**Eight per-repo study decisions**~~ — resolved; synthesis drafted.
 
 ### Not yet specified
 

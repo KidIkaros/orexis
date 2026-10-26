@@ -45,15 +45,32 @@
 
 ## Adopt
 
-- <to fill>
+- **Five drives** — connection, curiosity, mastery, coherence, rest — as the base model (`src/soul.rs:48-62`).
+- **Glial modulation** — `DriveMultipliers` and `modulate_drives` as the affect-to-drive bridge (`src/glial.rs:127,275`).
+- **Pulse** — `Pulse`, `PulseTick`, `PulseAction` as a scheduling heartbeat, not a hidden autonomy loop (`src/pulse.rs:60-76`).
+- **Immune system** — danger patterns, graded responses, cytokine-storm detection (`src/immune.rs:20-117,333`).
+- **Reflection tiers** — micro/macro/deep selection plus the metamorphic invariant check (`src/evolve.rs:38-48,346`).
+- **Immutable soul corridor** — encrypted, append-only identity records with reasoned redaction (`src/soul_corridor.rs:2-13,266,363`).
+- **Orchestration modes and gates** — `GraphFirst`/`ModelDriven`; `ApprovalGate` Auto/Inform/Confirm/Refuse (`src/orchestration.rs:29-45,69-96`).
+- **Planner → executor → verifier** — `TaskPlan`, `PlannerDecision::Clarify` instead of guess-calling (`src/tasks.rs:107-140`).
+- **MCP client** — connect, list tools/resources/prompts, call, read (`src/mcp.rs:202-453`).
+- **UTCP universal client** — HTTP/CLI/MCP transports, `search_tools`/`find_tool` (`src/utcp.rs:129,226,313,498,516`).
+- **Crypto and storage** — ChaCha20-BLAKE3 AEAD, Argon2id, rusqlite bundled (`src/crypto.rs`, `src/db.rs`).
 
 ## Adapt
 
-- <to fill>
+- The **soul corridor** becomes the identity store, separate from the mutable gene pool and from memory.
+- The **immune system** becomes the evolution safety layer, not a runtime affect.
+- **Orchestration gates** fold into the permission ruleset (`deny > ask > allow`) rather than a second policy system.
+- The **tasks pipeline** becomes the `build` strategy's internal plan → execute → verify loop.
+- The **TUI** contributes the ratatui/crossterm foundation and event-to-render discipline; the layout is rewritten (ADR-0004).
+- The **five-vs-six drives** question is deferred to ticket 007; growth is not assumed.
 
 ## Reject
 
-- <to fill>
+- **Companion product features**: `relationship.rs`, `people.rs`, `advocacy.rs`, `anti_dependency.rs`, `audition.rs`.
+- **Companion tone** in prompts and surfaces.
+- **Pulse as an always-on hidden autonomy loop**; it may schedule, but it must be visible and bounded.
 
 ## Open questions
 

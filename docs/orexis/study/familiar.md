@@ -41,13 +41,15 @@ That is the same shape Orexis would take if it chased Hermes's surface area: bre
 
 ## Adapt
 
-- <to fill>
+- **Event bus** becomes an `EventSink` fan-out with one durable log as truth — not a second source of truth.
+- **IPC** becomes the daemon protocol (`ClientMsg`/`ServerMsg`), not a bespoke bus.
+- **Skills/curator** become a plugin catalog with trust tiers and quarantine, only where Kindred lacks the capability.
 
 ## Reject
 
-- Package sprawl as a proxy for capability.
-- Bootstrap-directory startup dependency.
-- Multiple identity files.
+- Package sprawl as a proxy for capability (73 packages, 158k LOC).
+- A daemon that cannot start without a bootstrap directory.
+- Three identity files with no authority order.
 - Breadth-first imitation of competitor surfaces.
 
 ## Open questions

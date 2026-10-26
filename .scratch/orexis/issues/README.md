@@ -53,4 +53,4 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 8. [Evolution tier defaults and validation ladder](008-evolution-tier-defaults.md)
 9. [Native adapter timing: Gemini / Bedrock / Vertex](009-native-adapter-timing.md)
 10. [Packaging and signing](010-packaging-signing.md)
-11. [Eight per-repo study decisions](011-per-repo-study-decisions.md)
+11. ~~[Eight per-repo study decisions](011-per-repo-study-decisions.md)~~ — resolved; synthesis drafted.

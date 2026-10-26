@@ -42,15 +42,27 @@
 
 ## Adopt
 
-- <to fill>
+- **Four codec arms** — `native` (formerly `xml-native`), `xml-manual`, `json`, `lenient` (`crates/protocol/src/arm.rs`; ADR-0003).
+- **Pure effect step** — `Effect::{Say, CallTool, Done, Reprompt}` and `step()` as the loop's decision function (`crates/protocol/src/step.rs:7-20`).
+- **Bounded shell** — 120 s default, 64 KB per stream, process group, no orphans (`crates/tools/src/exec.rs:579-617`).
+- **Paired eval** — baseline-vs-candidate on task/arm/thinking/temp/seed, non-inferiority margin, McNemar counts (`crates/eval/src/compare.rs:19,89-105`).
+- **Genes seal** — SHA-256 over gate YAML and tool names, recorded in the ledger (`crates/genes/src/*.rs:250-263`).
+- **Transport-agnostic daemon protocol** — `ClientMsg`/`ServerMsg`, NDJSON over a Unix socket (`crates/cli/src/proto.rs`).
+- **One generation at a time** — daemon-wide `Semaphore(1)` for a local provider (`crates/cli/src/serve.rs:125`).
+- **Remote wire profile** — strips llama.cpp-only fields (`chat_template_kwargs`, `min_p`, `grammar`) and renders unpaired observations as user envelopes (`crates/providers/src/llama_server.rs:28,336-339`).
 
 ## Adapt
 
-- <to fill>
+- **Sync `ToolExecutor` + `block_in_place`** becomes an async port; the sandbox adapter owns `spawn_blocking` (invariant 13, ADR plan §4.2).
+- **SQLite sessions** become the ADR-0001 event schema with versioning and replay.
+- **REPL-first** becomes TUI + desktop; the REPL remains a headless mode.
+- **Manual arm selection** becomes automatic codec selection with an override (ADR-0003).
 
 ## Reject
 
-- <to fill>
+- **Single-model assumptions** in the core.
+- **`block_in_place`** in the turn loop.
+- **Probe-as-a-second-loop**; one loop only.
 
 ## Open questions
 
