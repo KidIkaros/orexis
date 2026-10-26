@@ -21,6 +21,7 @@ Work blockers-first. Claim a ticket before starting. Each ticket closes only whe
 | [M1-13](M1-13-split-sqlite.md) | Split the SQLite session store | — |
 | [M1-14](M1-14-compaction-range.md) | Correct the compaction range | — |
 | [M1-15](M1-15-adr-shared-http.md) | ADR: shared adapter infrastructure | — |
+| [M1-16](M1-16-tui-interactive.md) | TUI interactive loop and polish | M1-07 |
 
 ## Per-ticket loop
 
