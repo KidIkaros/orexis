@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** —
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,12 +10,12 @@
 
 ## Acceptance
 
-- [ ] `state.rs` — Snapshot/Entry/Approval/SessionInfo DTOs.
-- [ ] `ipc.rs` — invoke/listen/args.
-- [ ] `diff.rs` — diff classification and unified/split rendering.
-- [ ] `shortcuts.rs` — keyboard handling.
-- [ ] `components/` — status, left rail, transcript, composer, right panel.
-- [ ] No file over 250 lines; wasm check stays green.
+- [x] `state.rs` — Snapshot/Entry/Approval/SessionInfo DTOs (85).
+- [x] `ipc.rs` — invoke/listen/args (41).
+- [x] `diff.rs` — diff classification and unified/split rendering (51).
+- [x] `shortcuts.rs` — keyboard handling (63).
+- [x] `components/` — status 57, left 51, transcript 101, composer 44, right 126.
+- [x] No file over 250 lines; `app.rs` 160, `main.rs` 13; wasm check green.
 
 ## Notes
 
