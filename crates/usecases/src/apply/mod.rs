@@ -62,7 +62,7 @@ pub async fn handle_trigger(
     tier: Tier,
     trigger: RollbackTrigger,
 ) -> PortResult<Option<LedgerEntry>> {
-    if tier.auto_rollback(trigger) {
+    if should_rollback(tier, trigger) {
         Ok(Some(
             corridor
                 .revert(candidate_id, &format!("{trigger:?}"))

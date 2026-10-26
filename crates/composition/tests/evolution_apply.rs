@@ -71,3 +71,51 @@ fn skills_candidate_applies_and_rolls_back() {
     block_on(corridor.verify()).expect("verify rollback");
     assert_eq!(block_on(corridor.entries()).expect("entries").len(), 2);
 }
+
+#[test]
+fn core_candidate_applies_with_a_real_signature() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let queue = Quarantine::open(dir.path().join("quarantine")).expect("queue");
+    let corridor = GitCorridor::open(dir.path().join("corridor"), signer()).expect("corridor");
+
+    let mutation = Mutation {
+        kind: MutationKind::GeneParameter,
+        target: "drives.curiosity".to_string(),
+        base_hash: "base".to_string(),
+        content: "0.6".to_string(),
+    };
+    let proposal = block_on(queue.propose(
+        mutation,
+        ProposalContext {
+            session_id: "s1".to_string(),
+            day: 1,
+            boundary: true,
+        },
+        "growth",
+    ))
+    .expect("proposal");
+    let content_hash = proposal.manifest.content_hash.clone();
+    let signature = signer().sign(content_hash.as_bytes()).expect("sign");
+
+    let validation = ValidationReport {
+        candidate_id: proposal.manifest.id.clone(),
+        stages: Vec::new(),
+        passed: true,
+    };
+    let entry = block_on(apply_candidate(
+        &queue,
+        &corridor,
+        ApplyRequest {
+            candidate_id: proposal.manifest.id.clone(),
+            tier: Tier::Core,
+            human_approved: true,
+            candidate_signature: Some(signature),
+            signer: Some(signer()),
+            validation,
+            seal: seal(),
+        },
+    ))
+    .expect("signed core apply");
+    assert_eq!(entry.candidate_id, proposal.manifest.id);
+    block_on(corridor.verify()).expect("verify apply");
+}

@@ -139,6 +139,27 @@ impl Checkpointer for RecordingCheckpointer {
     }
 }
 
+async fn spawn_and_attach(
+    config: DaemonConfig,
+    socket: &Path,
+) -> (
+    tokio::task::JoinHandle<()>,
+    BufReader<OwnedReadHalf>,
+    OwnedWriteHalf,
+    String,
+) {
+    let daemon = Daemon::new(config);
+    let handle = tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(socket).await;
+    let (mut reader, mut writer) = connect(socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    (handle, reader, writer, line)
+}
+
 async fn read_until_evolution(
     reader: &mut BufReader<OwnedReadHalf>,
     line: &mut String,
@@ -962,21 +983,29 @@ async fn self_view_writes_identity_file() {
 
     let mut config = config(&socket, &db);
     config.identity_path = Some(identity_path.clone());
-    let daemon = Daemon::new(config);
-    tokio::spawn(async move {
-        let _ = daemon.run().await;
-    });
-    wait_for(&socket).await;
-
-    let (mut reader, mut writer) = connect(&socket).await;
-    let mut line = String::new();
-    send(&mut writer, &ClientMsg::Attach { session: None }).await;
-    let _ = read_server(&mut reader, &mut line).await;
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
     send(&mut writer, &ClientMsg::SelfView).await;
     let _ = read_until_self_view(&mut reader, &mut line).await;
 
     let identity = std::fs::read_to_string(identity_path).expect("identity file");
     assert!(identity.contains("prefers tests first"));
+}
+
+#[tokio::test]
+async fn self_view_reports_an_unwritable_identity_file() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let blocker = dir.path().join("blocker");
+    std::fs::write(&blocker, "not a directory").expect("blocker");
+    let identity_path = blocker.join("IDENTITY.md");
+
+    let mut config = config(&socket, &db);
+    config.identity_path = Some(identity_path);
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
+    send(&mut writer, &ClientMsg::SelfView).await;
+    let text = read_until_self_view(&mut reader, &mut line).await;
+    assert!(text.contains("identity file not written"), "text: {text}");
 }
 
 #[tokio::test]
@@ -998,15 +1027,7 @@ async fn entity_survives_model_switch() {
 
     let mut config_a = config(&socket_a, &db);
     config_a.model_id = "model-a".to_string();
-    let daemon_a = Daemon::new(config_a);
-    let handle = tokio::spawn(async move {
-        let _ = daemon_a.run().await;
-    });
-    wait_for(&socket_a).await;
-    let (mut reader, mut writer) = connect(&socket_a).await;
-    let mut line = String::new();
-    send(&mut writer, &ClientMsg::Attach { session: None }).await;
-    let _ = read_server(&mut reader, &mut line).await;
+    let (handle, mut reader, mut writer, mut line) = spawn_and_attach(config_a, &socket_a).await;
     send(&mut writer, &ClientMsg::SelfView).await;
     let first = read_until_self_view(&mut reader, &mut line).await;
     assert!(first.contains("model-agnostic trait"));
@@ -1015,15 +1036,7 @@ async fn entity_survives_model_switch() {
 
     let mut config_b = config(&socket_b, &db);
     config_b.model_id = "model-b".to_string();
-    let daemon_b = Daemon::new(config_b);
-    tokio::spawn(async move {
-        let _ = daemon_b.run().await;
-    });
-    wait_for(&socket_b).await;
-    let (mut reader, mut writer) = connect(&socket_b).await;
-    let mut line = String::new();
-    send(&mut writer, &ClientMsg::Attach { session: None }).await;
-    let _ = read_server(&mut reader, &mut line).await;
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config_b, &socket_b).await;
     send(&mut writer, &ClientMsg::SelfView).await;
     let second = read_until_self_view(&mut reader, &mut line).await;
     assert!(second.contains("model-agnostic trait"));
@@ -1038,16 +1051,7 @@ async fn evolution_returns_the_ledger() {
     std::fs::write(&ledger, "#1 apply\n#2 revert\n").expect("ledger");
     let mut config = config(&socket, &db);
     config.evolution_ledger = Some(ledger);
-    let daemon = Daemon::new(config);
-    tokio::spawn(async move {
-        let _ = daemon.run().await;
-    });
-    wait_for(&socket).await;
-
-    let (mut reader, mut writer) = connect(&socket).await;
-    let mut line = String::new();
-    send(&mut writer, &ClientMsg::Attach { session: None }).await;
-    let _ = read_server(&mut reader, &mut line).await;
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
     send(&mut writer, &ClientMsg::Evolution).await;
     let entries = read_until_evolution(&mut reader, &mut line).await;
     assert_eq!(entries, vec!["#1 apply", "#2 revert"]);

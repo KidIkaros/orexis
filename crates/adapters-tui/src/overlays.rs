@@ -39,6 +39,16 @@ pub(crate) fn draw_overlay(frame: &mut Frame, app: &TuiApp, overlay: Overlay, ar
     );
 }
 
+fn text_lines(text: &Option<String>, empty: &str) -> Vec<Line<'static>> {
+    match text {
+        Some(text) => text
+            .lines()
+            .map(|line| Line::from(line.to_string()))
+            .collect(),
+        None => vec![Line::from(empty.to_string())],
+    }
+}
+
 fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
     match overlay {
         Overlay::Fleet => vec![
@@ -52,20 +62,8 @@ fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
             Line::from("#13  review store      review   worker 2   blocked by #12"),
             Line::from("#14  migrate tests     build    —          queued"),
         ],
-        Overlay::Evolution => match &app.evolution_text {
-            Some(text) => text
-                .lines()
-                .map(|line| Line::from(line.to_string()))
-                .collect(),
-            None => vec![Line::from("no evolution ledger")],
-        },
-        Overlay::SelfState => match &app.self_text {
-            Some(text) => text
-                .lines()
-                .map(|line| Line::from(line.to_string()))
-                .collect(),
-            None => vec![Line::from("no entity state yet")],
-        },
+        Overlay::Evolution => text_lines(&app.evolution_text, "no evolution ledger"),
+        Overlay::SelfState => text_lines(&app.self_text, "no entity state yet"),
         Overlay::Palette => {
             let commands = app.palette_commands();
             if commands.is_empty() {

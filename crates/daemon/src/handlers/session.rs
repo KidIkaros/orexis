@@ -1,9 +1,10 @@
 //! Session handlers: attach, prompt, interrupt, undo, diff.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use orexis_adapters_tools::GatedTools;
-use orexis_core::SessionEvent;
+use orexis_core::{EntitySnapshot, SessionEvent};
 use orexis_ports::{Checkpointer, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::net::unix::OwnedWriteHalf;
@@ -177,19 +178,20 @@ pub(crate) async fn self_view(
 ) -> std::io::Result<()> {
     let refs = config.entity.open().map_err(io_err)?;
     let snapshot = refs.read.snapshot().await.map_err(io_err)?;
+    let mut text = orexis_usecases::self_view(&snapshot);
     if let Some(path) = &config.identity_path {
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+        if let Err(error) = write_identity_file(path, &snapshot) {
+            text.push_str(&format!("identity file not written: {error}\n"));
         }
-        let _ = std::fs::write(path, orexis_core::render_identity(&snapshot));
     }
-    write_msg(
-        write,
-        &ServerMsg::SelfView {
-            text: orexis_usecases::self_view(&snapshot),
-        },
-    )
-    .await
+    write_msg(write, &ServerMsg::SelfView { text }).await
+}
+
+fn write_identity_file(path: &Path, snapshot: &EntitySnapshot) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, orexis_core::render_identity(snapshot))
 }
 
 pub(crate) async fn approve(
