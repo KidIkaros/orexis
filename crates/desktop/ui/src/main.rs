@@ -127,14 +127,23 @@ fn App() -> impl IntoView {
     let (composer, set_composer) = signal(String::new());
     let (skip, set_skip) = signal(false);
     let (preview, set_preview) = signal(Option::<String>::None);
+    let (error, set_error) = signal(Option::<String>::None);
+    let (deciding, set_deciding) = signal(false);
 
     let attach = move || {
         spawn_local(async move {
-            let _ = invoke(
+            match invoke(
                 "attach",
                 args(serde_json::json!({"socket": "/tmp/orexis.sock", "session": null})),
             )
-            .await;
+            .await
+            {
+                Ok(_) => set_error.set(None),
+                Err(err) => set_error.set(Some(
+                    err.as_string()
+                        .unwrap_or_else(|| "daemon unavailable".to_string()),
+                )),
+            }
         });
     };
     attach();
@@ -155,9 +164,20 @@ fn App() -> impl IntoView {
         });
     };
 
+    Effect::new(move |_| {
+        let _ = snapshot.get().pending.as_ref().map(|approval| approval.id);
+        set_deciding.set(false);
+    });
+
     let decide = move |id: u64, yes: bool| {
+        set_deciding.set(true);
         spawn_local(async move {
-            let _ = invoke("approve", args(serde_json::json!({"id": id, "yes": yes}))).await;
+            if invoke("approve", args(serde_json::json!({"id": id, "yes": yes})))
+                .await
+                .is_err()
+            {
+                set_deciding.set(false);
+            }
         });
     };
 
@@ -167,11 +187,15 @@ fn App() -> impl IntoView {
                 <span class="brand">"orexis"</span>
                 <span class="chip">
                     {move || {
-                        format!(
-                            "{} · {}",
-                            snapshot.get().connection,
-                            status_label(&snapshot.get().status),
-                        )
+                        if error.get().is_some() {
+                            "daemon unavailable".to_string()
+                        } else {
+                            format!(
+                                "{} · {}",
+                                snapshot.get().connection,
+                                status_label(&snapshot.get().status),
+                            )
+                        }
                     }}
                 </span>
                 <span class="spacer"></span>
@@ -201,9 +225,17 @@ fn App() -> impl IntoView {
                             sessions
                                 .into_iter()
                                 .map(|session| {
+                                    let dot = if session.status.contains("error") {
+                                        "dot error"
+                                    } else if session.status.contains("running") {
+                                        "dot running"
+                                    } else {
+                                        "dot"
+                                    }
+                                    .to_string();
                                     view! {
                                         <p class="session">
-                                            <span class="dot"></span>
+                                            <span class=dot></span>
                                             {session.id}
                                             " · "
                                             {session.status}
@@ -225,6 +257,18 @@ fn App() -> impl IntoView {
                 </aside>
 
                 <section class="center">
+                    {move || {
+                        error.get().map(|message| {
+                            view! {
+                                <div class="banner error-banner">
+                                    <span>{message}</span>
+                                    <button class="send retry" on:click=move |_| attach()>
+                                        "retry"
+                                    </button>
+                                </div>
+                            }
+                        })
+                    }}
                     {move || {
                         let status = snapshot.get().status;
                         let label = status_label(&status).to_string();
@@ -370,10 +414,18 @@ fn App() -> impl IntoView {
                                     <pre class="approval-args">{approval.args.clone()}</pre>
                                     <p class="muted">"reversible: yes · undo available"</p>
                                     <div class="approval-actions">
-                                        <button class="approve" on:click=move |_| decide(id, true)>
+                                        <button
+                                            class="approve"
+                                            disabled=deciding
+                                            on:click=move |_| decide(id, true)
+                                        >
                                             "approve"
                                         </button>
-                                        <button class="deny" on:click=move |_| decide(id, false)>
+                                        <button
+                                            class="deny"
+                                            disabled=deciding
+                                            on:click=move |_| decide(id, false)
+                                        >
                                             "deny"
                                         </button>
                                     </div>

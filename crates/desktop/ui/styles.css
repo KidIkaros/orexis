@@ -332,7 +332,32 @@ body {
   height: 6px;
   margin-right: 6px;
   border-radius: 50%;
+  background: var(--muted);
+}
+
+.dot.running {
   background: var(--ok);
+}
+
+.dot.error {
+  background: var(--danger);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger);
+}
+
+.retry {
+  min-width: 80px;
 }
 
 @media (prefers-reduced-motion: reduce) {
