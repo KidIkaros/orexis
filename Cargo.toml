@@ -8,6 +8,9 @@ members = [
     "crates/adapters-provider-catalog",
     "crates/adapters-provider-openai",
     "crates/adapters-codec",
+    "crates/adapters-provider-llamacpp",
+    "crates/adapters-provider-anthropic",
+    "crates/adapters-http",
     "crates/composition",
     "crates/slice",
 ]
@@ -27,6 +30,9 @@ orexis-adapters-session-sqlite = { path = "crates/adapters-session-sqlite" }
 orexis-adapters-provider-catalog = { path = "crates/adapters-provider-catalog" }
 orexis-adapters-provider-openai = { path = "crates/adapters-provider-openai" }
 orexis-adapters-codec = { path = "crates/adapters-codec" }
+orexis-adapters-provider-llamacpp = { path = "crates/adapters-provider-llamacpp" }
+orexis-adapters-provider-anthropic = { path = "crates/adapters-provider-anthropic" }
+orexis-adapters-http = { path = "crates/adapters-http" }
 orexis-composition = { path = "crates/composition" }
 async-trait = "0.1"
 futures = "0.3"

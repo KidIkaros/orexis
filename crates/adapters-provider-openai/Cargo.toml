@@ -8,12 +8,10 @@ license.workspace = true
 orexis-core.workspace = true
 orexis-ports.workspace = true
 orexis-adapters-provider-catalog.workspace = true
+orexis-adapters-http.workspace = true
 async-trait.workspace = true
 futures.workspace = true
-bytes = "1"
 serde_json = "1"
-thiserror = "2"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 
 [dev-dependencies]
 serde_yaml = "0.9"

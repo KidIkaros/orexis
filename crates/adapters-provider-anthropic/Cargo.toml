@@ -1,0 +1,18 @@
+[package]
+name = "orexis-adapters-provider-anthropic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true
+orexis-adapters-provider-catalog.workspace = true
+orexis-adapters-http.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+serde_json = "1"
+
+[dev-dependencies]
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

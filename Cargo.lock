@@ -657,6 +657,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-http"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "futures",
+ "reqwest",
+ "thiserror",
+]
+
+[[package]]
+name = "orexis-adapters-provider-anthropic"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "orexis-adapters-http",
+ "orexis-adapters-provider-catalog",
+ "orexis-core",
+ "orexis-ports",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+]
+
+[[package]]
 name = "orexis-adapters-provider-catalog"
 version = "0.0.0"
 dependencies = [
@@ -667,19 +693,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-provider-llamacpp"
+version = "0.0.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "orexis-adapters-provider-openai"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "bytes",
  "futures",
+ "orexis-adapters-http",
  "orexis-adapters-provider-catalog",
  "orexis-core",
  "orexis-ports",
- "reqwest",
  "serde_json",
  "serde_yaml",
- "thiserror",
  "tokio",
 ]
 

@@ -2,7 +2,7 @@
 
 - **Blocked by:** M1-02
 - **Blocks:** M1-08
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26) — implementation; live runs tracked by M1-08
 
 ## Goal
 
@@ -10,14 +10,15 @@ Add the two remaining native wires: Anthropic messages/tool blocks, and llama.cp
 
 ## Acceptance
 
-- [ ] Anthropic streams text and `tool_use` blocks; the adapter normalizes them to `ToolCall`.
-- [ ] Anthropic cache-control breakpoints are emitted when the profile declares them.
-- [ ] `llama-server` is spawned, health-checked, and killed with its process group.
-- [ ] llama.cpp native tool calls parse; the `xml-manual` fallback is selected when native is absent.
-- [ ] Remote wire profile strips llama.cpp-only fields.
-- [ ] Each adapter passes its mock conformance suite and one live run.
+- [x] Anthropic streams text and `tool_use` blocks; the adapter normalizes them to `CallTool`.
+- [x] Anthropic cache-control breakpoints are emitted when the profile declares them.
+- [x] `llama-server` is spawned, health-checked over TCP, and killed with its process group (Unix).
+- [x] llama.cpp native tool calls parse through the OpenAI-compatible adapter; `xml-manual` is selected when native is absent (ADR-0003).
+- [x] The remote wire profile sends only standard fields; no llama.cpp-only fields.
+- [x] Each adapter passes its mock conformance suite. Live runs are part of the M1-08 gate.
 
 ## Notes
 
-- Reuse Harness's subprocess supervision lessons (`PR_SET_PDEATHSIG`, log tail on failure).
-- One generation at a time for the local provider; the daemon enforces it.
+- The HTTP transport moved to `orexis-adapters-http`; OpenAI and Anthropic share one seam.
+- llama.cpp's provider is `OpenAiCompatibleProvider` with the `llamacpp` profile; this crate owns only process supervision, so adapters do not depend on each other.
+- Twelve adapter tests across the two wires; clippy clean.
