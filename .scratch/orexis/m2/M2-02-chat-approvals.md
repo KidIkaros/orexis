@@ -15,3 +15,4 @@ The primary task surface: transcript, streaming, composer, and the inline approv
 - [ ] Approval card shows command, risk, reversibility; `y/n/d/a` work.
 - [ ] Approval never steals focus; a badge announces it.
 - [ ] Empty, running, error, budget, disconnected, queued, compacting states.
+- [ ] A disconnect shows `Disconnected` and offers reattach (the bridge currently stays dead until restart).

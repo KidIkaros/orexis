@@ -51,6 +51,7 @@ pub enum DesktopEntry {
     User(String),
     Assistant(String),
     Tool {
+        call_id: String,
         name: String,
         target: String,
         ok: bool,
@@ -128,8 +129,13 @@ impl AppState {
                 self.transcript.push(DesktopEntry::Assistant(text.clone()));
                 self.status = Status::Running;
             }
-            SessionEvent::ToolCall { name, args, .. } => {
+            SessionEvent::ToolCall {
+                call_id,
+                name,
+                args,
+            } => {
                 self.transcript.push(DesktopEntry::Tool {
+                    call_id: call_id.clone(),
                     name: name.clone(),
                     target: args.clone(),
                     ok: false,
@@ -272,5 +278,41 @@ mod tests {
         state.set_disconnected();
         assert_eq!(state.connection, Connection::Disconnected);
         assert_eq!(state.status, Status::Disconnected);
+    }
+
+    #[test]
+    fn same_name_tools_pair_by_call_id() {
+        let mut state = AppState::default();
+        state.apply(event(SessionEvent::ToolCall {
+            call_id: "c1".to_string(),
+            name: "read_file".to_string(),
+            args: "a".to_string(),
+        }));
+        state.apply(event(SessionEvent::ToolCall {
+            call_id: "c2".to_string(),
+            name: "read_file".to_string(),
+            args: "b".to_string(),
+        }));
+        state.apply(event(SessionEvent::Observation {
+            call_id: "c2".to_string(),
+            name: "read_file".to_string(),
+            output: "second".to_string(),
+        }));
+        let DesktopEntry::Tool {
+            call_id,
+            ok,
+            detail,
+            ..
+        } = &state.transcript[1]
+        else {
+            panic!("expected tool");
+        };
+        assert_eq!(call_id, "c2");
+        assert!(ok);
+        assert_eq!(detail, "second");
+        let DesktopEntry::Tool { ok, .. } = &state.transcript[0] else {
+            panic!("expected tool");
+        };
+        assert!(!ok);
     }
 }

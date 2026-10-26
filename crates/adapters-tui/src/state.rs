@@ -67,6 +67,7 @@ impl Overlay {
 
 #[derive(Debug, Clone)]
 pub struct ToolRow {
+    pub call_id: String,
     pub name: String,
     pub target: String,
     pub elapsed_ms: u64,

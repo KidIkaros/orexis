@@ -96,8 +96,13 @@ impl TuiApp {
                 self.entries.push(Entry::Assistant(text.clone()));
                 self.state = TuiState::Streaming;
             }
-            SessionEvent::ToolCall { name, args, .. } => {
+            SessionEvent::ToolCall {
+                call_id,
+                name,
+                args,
+            } => {
                 self.entries.push(Entry::Tool(ToolRow {
+                    call_id: call_id.clone(),
                     name: name.clone(),
                     target: args.clone(),
                     elapsed_ms: 0,
@@ -107,10 +112,12 @@ impl TuiApp {
                 }));
                 self.state = TuiState::ToolRunning;
             }
-            SessionEvent::Observation { name, output, .. } => {
+            SessionEvent::Observation {
+                call_id, output, ..
+            } => {
                 for entry in self.entries.iter_mut().rev() {
                     if let Entry::Tool(row) = entry {
-                        if row.name == *name && !row.ok {
+                        if row.call_id == *call_id && !row.ok {
                             row.ok = true;
                             row.detail = output.clone();
                             break;

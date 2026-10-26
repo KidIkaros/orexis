@@ -48,3 +48,5 @@ What else was on the table, and why it lost.
 | [0006](0006-daemon-app-layer.md) | The daemon is an app layer | accepted |
 | [0007](0007-shared-contract-crate.md) | Shared contract crate | accepted |
 | [0008](0008-desktop-surface.md) | Desktop surface contract | accepted |
+| [0009](0009-secrets-crypto.md) | Secrets and crypto boundary | accepted |
+| [0010](0010-shared-outer-layer.md) | Shared outer-layer crates | accepted |

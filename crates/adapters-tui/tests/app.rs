@@ -128,3 +128,32 @@ fn search_overlay_renders_matches() {
     let rendered = render(&app, 80, 24);
     assert!(rendered.contains("needle"));
 }
+
+#[test]
+fn same_name_tools_pair_by_call_id() {
+    let mut app = TuiApp::new();
+    app.push_event(&SessionEvent::ToolCall {
+        call_id: "c1".to_string(),
+        name: "read_file".to_string(),
+        args: "a".to_string(),
+    });
+    app.push_event(&SessionEvent::ToolCall {
+        call_id: "c2".to_string(),
+        name: "read_file".to_string(),
+        args: "b".to_string(),
+    });
+    app.push_event(&SessionEvent::Observation {
+        call_id: "c2".to_string(),
+        name: "read_file".to_string(),
+        output: "second".to_string(),
+    });
+    let Entry::Tool(first) = &app.entries[0] else {
+        panic!("expected tool");
+    };
+    let Entry::Tool(second) = &app.entries[1] else {
+        panic!("expected tool");
+    };
+    assert!(!first.ok);
+    assert!(second.ok);
+    assert_eq!(second.detail, "second");
+}

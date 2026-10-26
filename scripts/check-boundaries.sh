@@ -24,6 +24,9 @@ check_absent 'tokio' 'tokio inward of adapters' \
 check_absent 'orexis_adapters' 'adapter import inward of adapters' \
   "$root/crates/core" "$root/crates/ports" "$root/crates/usecases"
 
+check_absent 'orexis_client' 'shared client import inward' \
+  "$root/crates/core" "$root/crates/ports" "$root/crates/usecases"
+
 check_absent 'orexis_usecases' 'usecases import in an adapter' \
   "$root/crates/adapters-fake" \
   "$root/crates/adapters-session-sqlite" \
@@ -58,6 +61,12 @@ check_manifest_absent 'orexis-adapters' 'adapter dependency inward of adapters' 
 
 check_manifest_absent 'orexis-usecases' 'usecases dependency in an adapter' \
   "$root"/crates/adapters-*/Cargo.toml
+
+check_manifest_absent 'orexis-client' 'shared client dependency inward' \
+  "$root/crates/core/Cargo.toml" "$root/crates/ports/Cargo.toml" "$root/crates/usecases/Cargo.toml"
+
+check_manifest_absent 'orexis-desktop-core' 'desktop-core dependency inward' \
+  "$root/crates/core/Cargo.toml" "$root/crates/ports/Cargo.toml" "$root/crates/usecases/Cargo.toml"
 
 for manifest in "$root"/crates/adapters-provider-{openai,anthropic,llamacpp}/Cargo.toml; do
   [ -f "$manifest" ] || continue
