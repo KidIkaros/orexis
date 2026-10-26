@@ -224,6 +224,8 @@ body {
 .send,
 .approve,
 .deny,
+.always,
+.diff,
 .open {
   min-height: 40px;
   min-width: 72px;
@@ -264,6 +266,17 @@ body {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
+.always,
+.diff {
+  background: var(--panel-2);
+  color: var(--text);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.approval-actions {
+  flex-wrap: wrap;
+}
+
 .preview {
   white-space: pre-wrap;
   color: var(--muted);
@@ -273,6 +286,8 @@ body {
 .send:active,
 .approve:active,
 .deny:active,
+.always:active,
+.diff:active,
 .open:active {
   transform: scale(0.96);
 }

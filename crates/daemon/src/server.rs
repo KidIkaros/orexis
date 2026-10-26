@@ -194,8 +194,8 @@ async fn handle(
                             };
                         }
                     }
-                    ClientMsg::Approve { id, yes } => {
-                        hub.resolve(id, yes);
+                    ClientMsg::Approve { id, yes, always } => {
+                        hub.resolve(id, yes, always);
                     }
                     ClientMsg::Undo => {
                         let Some(rt) = &runtime else {

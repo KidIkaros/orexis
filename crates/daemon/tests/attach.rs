@@ -370,7 +370,15 @@ async fn approval_required_tool_blocks_until_approved() {
     .await;
 
     let id = read_until_approval(&mut reader, &mut line).await;
-    send(&mut writer, &ClientMsg::Approve { id, yes: true }).await;
+    send(
+        &mut writer,
+        &ClientMsg::Approve {
+            id,
+            yes: true,
+            always: false,
+        },
+    )
+    .await;
     let events = read_until_done(&mut reader, &mut line).await;
     assert!(events.iter().any(|message| matches!(
         message,

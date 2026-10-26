@@ -119,6 +119,43 @@ fn status_label(status: &str) -> &str {
     }
 }
 
+fn start_approval_keys(
+    snapshot: ReadSignal<Snapshot>,
+    decide: impl Fn(u64, bool, bool) + 'static,
+    set_preview: WriteSignal<Option<String>>,
+) {
+    let closure =
+        Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |event: web_sys::KeyboardEvent| {
+            let target = event.target();
+            let typing = target
+                .as_ref()
+                .and_then(|target| target.dyn_ref::<web_sys::HtmlTextAreaElement>())
+                .is_some()
+                || target
+                    .as_ref()
+                    .and_then(|target| target.dyn_ref::<web_sys::HtmlInputElement>())
+                    .is_some();
+            if typing {
+                return;
+            }
+            let Some(approval) = snapshot.get().pending else {
+                return;
+            };
+            match event.key().as_str() {
+                "y" => decide(approval.id, true, false),
+                "n" => decide(approval.id, false, false),
+                "a" => decide(approval.id, true, true),
+                "d" => set_preview.set(Some(format!("diff preview\n{}", approval.args))),
+                _ => {}
+            }
+        });
+    if let Some(window) = web_sys::window() {
+        let _ =
+            window.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
+    }
+    closure.forget();
+}
+
 #[component]
 fn App() -> impl IntoView {
     let (snapshot, set_snapshot) = signal(Snapshot::default());
@@ -169,16 +206,33 @@ fn App() -> impl IntoView {
         set_deciding.set(false);
     });
 
-    let decide = move |id: u64, yes: bool| {
+    let decide = move |id: u64, yes: bool, always: bool| {
         set_deciding.set(true);
         spawn_local(async move {
-            if invoke("approve", args(serde_json::json!({"id": id, "yes": yes})))
-                .await
-                .is_err()
+            if invoke(
+                "approve",
+                args(serde_json::json!({"id": id, "yes": yes, "always": always})),
+            )
+            .await
+            .is_err()
             {
                 set_deciding.set(false);
             }
         });
+    };
+
+    start_approval_keys(snapshot, decide, set_preview);
+
+    let auto_preview = move || {
+        snapshot
+            .get()
+            .transcript
+            .iter()
+            .rev()
+            .find_map(|entry| match entry {
+                Entry::Tool { detail, .. } if detail.len() > 2000 => Some(detail.clone()),
+                _ => None,
+            })
     };
 
     view! {
@@ -417,16 +471,36 @@ fn App() -> impl IntoView {
                                         <button
                                             class="approve"
                                             disabled=deciding
-                                            on:click=move |_| decide(id, true)
+                                            on:click=move |_| decide(id, true, false)
                                         >
-                                            "approve"
+                                            "approve (y)"
                                         </button>
                                         <button
                                             class="deny"
                                             disabled=deciding
-                                            on:click=move |_| decide(id, false)
+                                            on:click=move |_| decide(id, false, false)
                                         >
-                                            "deny"
+                                            "deny (n)"
+                                        </button>
+                                        <button
+                                            class="always"
+                                            disabled=deciding
+                                            on:click=move |_| decide(id, true, true)
+                                        >
+                                            "always (a)"
+                                        </button>
+                                        <button
+                                            class="diff"
+                                            on:click=move |_| {
+                                                set_preview
+                                                    .set(
+                                                        Some(
+                                                            format!("diff preview\n{}", approval.args.clone()),
+                                                        ),
+                                                    )
+                                            }
+                                        >
+                                            "diff (d)"
                                         </button>
                                     </div>
                                 </div>
@@ -438,7 +512,7 @@ fn App() -> impl IntoView {
                     <h2>"DIFF"</h2>
                     <p class="muted">"—"</p>
                     <h2>"PREVIEW"</h2>
-                    {move || match preview.get() {
+                    {move || match preview.get().or_else(auto_preview) {
                         Some(text) => view! { <pre class="preview">{text}</pre> }.into_any(),
                         None => view! { <p class="muted">"—"</p> }.into_any(),
                     }}

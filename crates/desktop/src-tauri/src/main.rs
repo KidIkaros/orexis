@@ -80,8 +80,13 @@ fn approve(
     state: State<DesktopState>,
     id: u64,
     yes: bool,
+    always: bool,
 ) -> Result<(), String> {
-    state.with_mut(|bridge| bridge.approve(id, yes).map_err(|error| error.to_string()))?;
+    state.with_mut(|bridge| {
+        bridge
+            .approve_with(id, yes, always)
+            .map_err(|error| error.to_string())
+    })?;
     emit_state(&app)
 }
 

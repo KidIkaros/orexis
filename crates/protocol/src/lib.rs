@@ -17,6 +17,8 @@ pub enum ClientMsg {
     Approve {
         id: u64,
         yes: bool,
+        #[serde(default)]
+        always: bool,
     },
     Interrupt,
     Undo,

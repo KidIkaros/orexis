@@ -90,7 +90,11 @@ impl DaemonClient {
     }
 
     pub fn approve(&mut self, id: u64, yes: bool) -> std::io::Result<()> {
-        self.send(&ClientMsg::Approve { id, yes })
+        self.send(&ClientMsg::Approve {
+            id,
+            yes,
+            always: false,
+        })
     }
 
     pub fn interrupt(&mut self) -> std::io::Result<()> {
