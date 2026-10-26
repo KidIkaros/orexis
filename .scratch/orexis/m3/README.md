@@ -17,4 +17,4 @@ Work blockers-first. Claim a ticket before starting. Each ticket closes only whe
 
 ## Start
 
-M3-01 and M3-02 are both unblocked. M3-01 shipped; M3-02 is next.
+All M3 tickets are resolved. `scripts/m3-gate.sh` is the gate.
