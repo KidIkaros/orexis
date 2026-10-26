@@ -4,7 +4,7 @@ Read `docs/orexis/PLAN.md` §Map and `CONTEXT.md` before changing anything.
 
 ## Status
 
-Pre-M1. This repo currently holds documentation only. The Rust workspace arrives with M1, after the frontier's blocking decisions are resolved.
+M1 implemented. The workspace builds and `scripts/m1-gate.sh` is the gate. Live-provider and real-repository-task checks remain manual.
 
 ## Architecture (enforced, not advisory)
 
@@ -18,6 +18,7 @@ Pre-M1. This repo currently holds documentation only. The Rust workspace arrives
 7. **No shared `utils` crate.** It is the zone-of-pain magnet.
 8. **CI enforces 1–7 with import-lint.** A violation fails the build.
 9. **Shared adapter infrastructure** may live in `orexis-adapters-<name>` (e.g. `orexis-adapters-http`): external libraries only, no domain types, depended on by adapters only. Provider adapters must not depend on each other. See ADR-0005.
+10. **`orexis-daemon` is an app layer**, not an adapter: it may depend on composition/adapters/usecases, but nothing inward may depend on it, and it constructs no adapters. Sessions arrive through `SessionFactory`. See ADR-0006.
 
 ## Async
 

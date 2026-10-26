@@ -146,6 +146,9 @@ pub enum SessionEvent {
     Reprompt {
         note: String,
     },
+    Interrupted {
+        reason: String,
+    },
     Compaction {
         range_start_seq: u64,
         range_end_seq: u64,
@@ -165,6 +168,7 @@ impl SessionEvent {
             Self::Done { .. } => "done",
             Self::Error { .. } => "error",
             Self::Reprompt { .. } => "reprompt",
+            Self::Interrupted { .. } => "interrupted",
             Self::Compaction { .. } => "compaction",
         }
     }
@@ -328,6 +332,9 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         },
         SessionEvent::Reprompt { note } => SessionEvent::Reprompt {
             note: redact_text(note),
+        },
+        SessionEvent::Interrupted { reason } => SessionEvent::Interrupted {
+            reason: redact_text(reason),
         },
         SessionEvent::Compaction {
             range_start_seq,

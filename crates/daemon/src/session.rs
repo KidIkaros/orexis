@@ -1,12 +1,12 @@
 //! Session registry and the broadcast sink.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use orexis_adapters_session_sqlite::SqliteSessionStore;
 use orexis_core::SessionEvent;
-use orexis_ports::{EventSink, PortResult};
+use orexis_ports::{
+    EventSink, PortError, PortResult, SessionAppend, SessionFactory, SessionRead, SessionRefs,
+};
 use tokio::sync::broadcast;
 
 use crate::proto::{ServerMsg, SessionInfo};
@@ -33,17 +33,19 @@ impl EventSink for BroadcastSink {
 
 pub struct SessionRuntime {
     pub id: String,
-    pub store: Arc<SqliteSessionStore>,
+    pub append: Arc<dyn SessionAppend>,
+    pub read: Arc<dyn SessionRead>,
     pub tx: broadcast::Sender<ServerMsg>,
     pub turn: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl SessionRuntime {
-    fn new(store: Arc<SqliteSessionStore>) -> Self {
+    fn new(refs: SessionRefs) -> Self {
         let (tx, _) = broadcast::channel(1024);
         Self {
-            id: store.session_id().to_string(),
-            store,
+            id: refs.id,
+            append: refs.append,
+            read: refs.read,
             tx,
             turn: Mutex::new(None),
         }
@@ -51,14 +53,14 @@ impl SessionRuntime {
 }
 
 pub struct SessionRegistry {
-    db: PathBuf,
+    factory: Arc<dyn SessionFactory>,
     sessions: Mutex<HashMap<String, Arc<SessionRuntime>>>,
 }
 
 impl SessionRegistry {
-    pub fn new(db: PathBuf) -> Self {
+    pub fn new(factory: Arc<dyn SessionFactory>) -> Self {
         Self {
-            db,
+            factory,
             sessions: Mutex::new(HashMap::new()),
         }
     }
@@ -67,43 +69,49 @@ impl SessionRegistry {
         let mut sessions = self
             .sessions
             .lock()
-            .map_err(|_| orexis_ports::PortError("registry lock poisoned".into()))?;
+            .map_err(|_| PortError("registry lock poisoned".into()))?;
         if let Some(id) = session {
             if let Some(runtime) = sessions.get(id) {
                 return Ok(runtime.clone());
             }
-            let store = Arc::new(SqliteSessionStore::open_session(&self.db, id)?);
-            let runtime = Arc::new(SessionRuntime::new(store));
-            sessions.insert(id.to_string(), runtime.clone());
-            return Ok(runtime);
         }
-        let store = Arc::new(SqliteSessionStore::open(&self.db)?);
-        let runtime = Arc::new(SessionRuntime::new(store));
+        let refs = self.factory.open(session)?;
+        let runtime = Arc::new(SessionRuntime::new(refs));
         sessions.insert(runtime.id.clone(), runtime.clone());
         Ok(runtime)
     }
 
     pub fn list(&self) -> Vec<SessionInfo> {
-        self.sessions
+        let mut ids = self.factory.list().unwrap_or_default();
+        let running: HashMap<String, bool> = self
+            .sessions
             .lock()
             .map(|sessions| {
                 sessions
-                    .values()
-                    .map(|runtime| SessionInfo {
-                        id: runtime.id.clone(),
-                        status: if runtime
+                    .iter()
+                    .map(|(id, runtime)| {
+                        let active = runtime
                             .turn
                             .lock()
                             .map(|turn| turn.is_some())
-                            .unwrap_or(false)
-                        {
-                            "running".to_string()
-                        } else {
-                            "idle".to_string()
-                        },
+                            .unwrap_or(false);
+                        (id.clone(), active)
                     })
                     .collect()
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+        ids.extend(running.keys().cloned());
+        ids.sort();
+        ids.dedup();
+        ids.into_iter()
+            .map(|id| SessionInfo {
+                status: if running.get(&id).copied().unwrap_or(false) {
+                    "running".to_string()
+                } else {
+                    "idle".to_string()
+                },
+                id,
+            })
+            .collect()
     }
 }

@@ -2,12 +2,8 @@
 //! `OREXIS_FAKE=1` uses deterministic fakes for tests.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
-use orexis_adapters_codec::NativeCodec;
-use orexis_adapters_fake::{EchoTools, ScriptedProvider};
-use orexis_composition::{build_runtime, BuildConfig};
-use orexis_core::Action;
+use orexis_composition::{build_fake_runtime, build_runtime, BuildConfig};
 use orexis_daemon::{Daemon, DaemonConfig};
 
 #[tokio::main]
@@ -18,50 +14,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = std::env::var("OREXIS_DB")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/tmp/orexis.db"));
+    let fake = std::env::var("OREXIS_FAKE").is_ok();
 
-    let config = if std::env::var("OREXIS_FAKE").is_ok() {
-        DaemonConfig {
-            socket,
-            db,
-            provider: Arc::new(ScriptedProvider::new(vec![vec![Action::Done {
-                summary: "fake provider".to_string(),
-            }]])),
-            tools: Arc::new(EchoTools),
-            codec: Arc::new(NativeCodec),
-            system_prompt: String::new(),
-            context_tools: Vec::new(),
-            context_files: Vec::new(),
-            context_limit: 32768,
-            max_steps: 8,
-            generation_slots: 1,
-        }
+    let runtime = if fake {
+        build_fake_runtime(db.clone())
     } else {
         let cwd = std::env::current_dir()?;
         let project_root = std::env::var("OREXIS_PROJECT")
             .map(PathBuf::from)
             .unwrap_or_else(|_| cwd.clone());
-        let runtime = build_runtime(BuildConfig {
+        build_runtime(BuildConfig {
             profile_id: std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string()),
             model_id: std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string()),
-            db_path: db.clone(),
+            db_path: db,
             project_root,
             cwd,
+            providers_dir: None,
             system_prompt: String::new(),
             context_limit: 32768,
-        })?;
-        DaemonConfig {
-            socket,
-            db,
-            provider: runtime.provider,
-            tools: runtime.tools,
-            codec: runtime.codec,
-            system_prompt: runtime.system_prompt,
-            context_tools: runtime.context_tools,
-            context_files: runtime.context_files,
-            context_limit: runtime.context_limit,
-            max_steps: 16,
-            generation_slots: 1,
-        }
+        })?
+    };
+
+    for warning in &runtime.warnings {
+        eprintln!("warning: {warning}");
+    }
+
+    let config = DaemonConfig {
+        socket,
+        sessions: runtime.sessions,
+        provider: runtime.provider,
+        tools: runtime.tools,
+        codec: runtime.codec,
+        system_prompt: runtime.system_prompt,
+        context_tools: runtime.context_tools,
+        context_files: runtime.context_files,
+        context_limit: runtime.context_limit,
+        max_steps: if fake { 8 } else { 16 },
+        generation_slots: runtime.generation_slots,
     };
 
     Daemon::new(config).run().await?;

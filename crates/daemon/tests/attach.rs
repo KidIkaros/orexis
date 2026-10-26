@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{EchoTools, ScriptedProvider};
+use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_core::{Action, SessionEvent};
 use orexis_daemon::{ClientMsg, Daemon, DaemonConfig, ServerMsg};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -16,7 +17,7 @@ use tokio::time::timeout;
 fn config(socket: &Path, db: &Path) -> DaemonConfig {
     DaemonConfig {
         socket: socket.to_path_buf(),
-        db: db.to_path_buf(),
+        sessions: Arc::new(SqliteSessionFactory::new(db.to_path_buf())),
         provider: Arc::new(ScriptedProvider::new(vec![
             vec![Action::CallTool {
                 call_id: "c1".to_string(),

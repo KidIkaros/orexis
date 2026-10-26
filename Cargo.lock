@@ -1364,6 +1364,7 @@ dependencies = [
  "orexis-core",
  "orexis-ports",
  "orexis-usecases",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

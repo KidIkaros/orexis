@@ -1,11 +1,13 @@
 //! SQLite session store implementing ADR-0001.
 
-use std::path::Path;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use orexis_core::{redact_event, EventRef, SessionEvent, StoredEvent, FORMAT_VERSION};
-use orexis_ports::{PortError, PortResult, SessionAppend, SessionFork, SessionRead};
+use orexis_ports::{
+    PortError, PortResult, SessionAppend, SessionFactory, SessionFork, SessionRead, SessionRefs,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 
 const CURRENT_SCHEMA: i64 = 2;
@@ -147,6 +149,21 @@ impl SqliteSessionStore {
             ));
         }
         Ok(out)
+    }
+
+    pub fn list_sessions(path: &Path) -> PortResult<Vec<String>> {
+        if !path.exists() {
+            return Ok(Vec::new());
+        }
+        let conn = Connection::open(path).map_err(err)?;
+        migrate(&conn)?;
+        let mut stmt = conn
+            .prepare("SELECT id FROM session ORDER BY created_at")
+            .map_err(err)?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(err)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(err)
     }
 
     pub fn migrate_now(&self) -> PortResult<()> {
@@ -321,6 +338,36 @@ fn err(error: rusqlite::Error) -> PortError {
 
 fn lock<T>(_: T) -> PortError {
     PortError("store lock poisoned".into())
+}
+
+pub struct SqliteSessionFactory {
+    db: PathBuf,
+}
+
+impl SqliteSessionFactory {
+    pub fn new(db: impl Into<PathBuf>) -> Self {
+        Self { db: db.into() }
+    }
+}
+
+impl SessionFactory for SqliteSessionFactory {
+    fn open(&self, session: Option<&str>) -> PortResult<SessionRefs> {
+        let store = match session {
+            Some(id) => Arc::new(SqliteSessionStore::open_session(&self.db, id)?),
+            None => Arc::new(SqliteSessionStore::open(&self.db)?),
+        };
+        let append: Arc<dyn SessionAppend> = store.clone();
+        let read: Arc<dyn SessionRead> = store.clone();
+        Ok(SessionRefs {
+            id: store.session_id().to_string(),
+            append,
+            read,
+        })
+    }
+
+    fn list(&self) -> PortResult<Vec<String>> {
+        SqliteSessionStore::list_sessions(&self.db)
+    }
 }
 
 #[cfg(test)]

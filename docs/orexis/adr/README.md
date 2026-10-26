@@ -45,3 +45,4 @@ What else was on the table, and why it lost.
 | [0003](0003-codec-set.md) | Codec set and selection | accepted |
 | [0004](0004-tui-surface.md) | TUI surface contract | accepted |
 | [0005](0005-shared-adapter-infrastructure.md) | Shared adapter infrastructure | accepted |
+| [0006](0006-daemon-app-layer.md) | The daemon is an app layer | accepted |

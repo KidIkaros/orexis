@@ -104,6 +104,13 @@ async fn kill_and_restart_preserves_the_session() {
     let mut reader = BufReader::new(read_half);
     let mut line = String::new();
 
+    send(&mut writer, &ClientMsg::ListSessions).await;
+    let listed = read_server(&mut reader, &mut line).await;
+    let ServerMsg::Sessions { sessions } = listed else {
+        panic!("expected sessions");
+    };
+    assert!(sessions.iter().any(|session| session.id == session_id));
+
     send(
         &mut writer,
         &ClientMsg::Attach {

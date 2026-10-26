@@ -22,6 +22,12 @@ Work blockers-first. Claim a ticket before starting. Each ticket closes only whe
 | [M1-14](M1-14-compaction-range.md) | Correct the compaction range | — |
 | [M1-15](M1-15-adr-shared-http.md) | ADR: shared adapter infrastructure | — |
 | [M1-16](M1-16-tui-interactive.md) | TUI interactive loop and polish | M1-07 |
+| [M1-17](M1-17-composition-correctness.md) | Composition correctness | — |
+| [M1-18](M1-18-daemon-boundary.md) | Daemon composition boundary | — |
+| [M1-19](M1-19-lint-hardening.md) | Boundary lint hardening | — |
+| [M1-20](M1-20-split-tui.md) | Split the TUI modules | — |
+| [M1-21](M1-21-split-catalog.md) | Split the provider catalog | M1-17 |
+| [M1-22](M1-22-docs-status.md) | Refresh README and AGENTS status | — |
 
 ## Per-ticket loop
 

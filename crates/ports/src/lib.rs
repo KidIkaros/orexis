@@ -19,6 +19,18 @@ impl std::error::Error for PortError {}
 
 pub type PortResult<T> = Result<T, PortError>;
 
+#[derive(Clone)]
+pub struct SessionRefs {
+    pub id: String,
+    pub append: std::sync::Arc<dyn SessionAppend>,
+    pub read: std::sync::Arc<dyn SessionRead>,
+}
+
+pub trait SessionFactory: Send + Sync {
+    fn open(&self, session: Option<&str>) -> PortResult<SessionRefs>;
+    fn list(&self) -> PortResult<Vec<String>>;
+}
+
 #[async_trait]
 pub trait Provider: Send + Sync {
     async fn complete(

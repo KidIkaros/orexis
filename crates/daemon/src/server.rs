@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use orexis_core::{ContextFile, ToolSpec};
-use orexis_ports::{Codec, Provider, SessionRead, ToolExecutor};
+use orexis_core::{ContextFile, SessionEvent, ToolSpec};
+use orexis_ports::{Codec, Provider, SessionFactory, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::io::BufReader;
 use tokio::net::{UnixListener, UnixStream};
@@ -15,7 +15,7 @@ use crate::session::{BroadcastSink, SessionRegistry, SessionRuntime};
 
 pub struct DaemonConfig {
     pub socket: PathBuf,
-    pub db: PathBuf,
+    pub sessions: Arc<dyn SessionFactory>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
     pub codec: Arc<dyn Codec>,
@@ -36,7 +36,7 @@ pub struct Daemon {
 impl Daemon {
     pub fn new(config: DaemonConfig) -> Self {
         let generation = Arc::new(Semaphore::new(config.generation_slots.max(1)));
-        let registry = Arc::new(SessionRegistry::new(config.db.clone()));
+        let registry = Arc::new(SessionRegistry::new(config.sessions.clone()));
         Self {
             config: Arc::new(config),
             registry,
@@ -93,7 +93,7 @@ async fn handle(
                         let rt = registry.get_or_create(session.as_deref()).map_err(io_err)?;
                         let receiver = rt.tx.subscribe();
                         write_msg(&mut write_half, &ServerMsg::Attached { session_id: rt.id.clone() }).await?;
-                        let stored = rt.store.events().await.map_err(io_err)?;
+                        let stored = rt.read.events().await.map_err(io_err)?;
                         for stored_event in stored {
                             write_msg(&mut write_half, &ServerMsg::Event {
                                 seq: stored_event.seq,
@@ -132,8 +132,8 @@ async fn handle(
                             let _ = run_turn(TurnDeps {
                                 provider: config.provider.as_ref(),
                                 tools: config.tools.as_ref(),
-                                session: rt_for_task.store.as_ref(),
-                                reader: rt_for_task.store.as_ref(),
+                                session: rt_for_task.append.as_ref(),
+                                reader: rt_for_task.read.as_ref(),
                                 sink: sink.as_ref(),
                                 session_id: &rt_for_task.id,
                                 prompt: &text,
@@ -151,6 +151,16 @@ async fn handle(
                     }
                     ClientMsg::Interrupt => {
                         if let Some(rt) = &runtime {
+                            let event = SessionEvent::Interrupted {
+                                reason: "client interrupt".to_string(),
+                            };
+                            if let Ok(event_ref) = rt.append.append(event.clone()).await {
+                                let _ = rt.tx.send(ServerMsg::Event {
+                                    seq: event_ref.seq,
+                                    replay: false,
+                                    event,
+                                });
+                            }
                             if let Ok(mut turn) = rt.turn.lock() {
                                 if let Some(handle) = turn.take() {
                                     handle.abort();

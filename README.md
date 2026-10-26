@@ -2,13 +2,15 @@
 
 A **sovereign, model-agnostic coding harness with a living entity**. Rust. TUI + desktop. Your state, identity, memory, sessions, and keys live on your machine; inference goes wherever you point it.
 
-**Status:** pre-M1. Day 0 — planning and study scaffolding. No Rust code yet.
+**Status:** M1 implemented. Run `scripts/m1-gate.sh` for the automated gate; live providers and a real repository task remain manual.
 
 ## What this repo is
 
 | Path | Holds |
 |---|---|
 | `docs/orexis/PLAN.md` | The map: destination, decisions, frontier, fog, out of scope — plus the reference material behind it |
+| `docs/orexis/specs/M1.md` | The M1 spec and acceptance gate |
+| `scripts/m1-gate.sh` | The automated M1 gate |
 | `docs/orexis/study/` | The eight-repo study: Kindred, Harness, Familiar, DeepSeek Harness, opencode, Hermes, MUE-X, Mercury |
 | `docs/orexis/adr/` | Architecture decision records |
 | `.scratch/orexis/issues/` | Decision tickets |
