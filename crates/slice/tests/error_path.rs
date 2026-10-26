@@ -1,6 +1,7 @@
 //! Integration: a tool failure is persisted as an `Error` event and returned.
 
 use futures::executor::block_on;
+use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{RecordingSink, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionStore;
 use orexis_core::{Action, Observation, SessionEvent};
@@ -37,6 +38,7 @@ fn tool_failure_is_persisted_and_returned() {
         session_id: store.session_id(),
         prompt: "go",
         max_steps: 2,
+        codec: &NativeCodec,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

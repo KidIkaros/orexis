@@ -143,6 +143,9 @@ pub enum SessionEvent {
     Error {
         message: String,
     },
+    Reprompt {
+        note: String,
+    },
     Compaction {
         range_start_seq: u64,
         range_end_seq: u64,
@@ -161,6 +164,7 @@ impl SessionEvent {
             Self::Observation { .. } => "observation",
             Self::Done { .. } => "done",
             Self::Error { .. } => "error",
+            Self::Reprompt { .. } => "reprompt",
             Self::Compaction { .. } => "compaction",
         }
     }
@@ -210,6 +214,12 @@ pub fn derive_messages(events: &[SessionEvent]) -> Vec<Message> {
                 role: Role::Tool,
                 text: format!("{name}: {output}"),
                 tool_call_id: Some(call_id.clone()),
+                tool_calls: Vec::new(),
+            }),
+            SessionEvent::Reprompt { note } => out.push(Message {
+                role: Role::User,
+                text: format!("[reprompt] {note}"),
+                tool_call_id: None,
                 tool_calls: Vec::new(),
             }),
             SessionEvent::Compaction { summary, .. } => {
@@ -315,6 +325,9 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         },
         SessionEvent::Error { message } => SessionEvent::Error {
             message: redact_text(message),
+        },
+        SessionEvent::Reprompt { note } => SessionEvent::Reprompt {
+            note: redact_text(note),
         },
         SessionEvent::Compaction {
             range_start_seq,

@@ -1,6 +1,7 @@
 //! Integration: the real SQLite store drives the turn loop, then replays.
 
 use futures::executor::block_on;
+use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{EchoTools, RecordingSink, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionStore;
 use orexis_core::{Action, SessionEvent};
@@ -35,6 +36,7 @@ fn sqlite_store_replays_the_turn() {
         session_id: store.session_id(),
         prompt: "go",
         max_steps: 4,
+        codec: &NativeCodec,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

@@ -1,6 +1,7 @@
 //! The vertical slice: prompt → tool call → session event → render → replay.
 
 use futures::executor::block_on;
+use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::render_transcript;
 use orexis_composition::build;
 use orexis_core::{derive_messages, SessionEvent};
@@ -18,6 +19,7 @@ fn main() {
         session_id: "slice-1",
         prompt: "read src/lib.rs and summarize",
         max_steps: 8,
+        codec: &NativeCodec,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

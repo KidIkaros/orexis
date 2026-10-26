@@ -769,6 +769,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "orexis-adapters-codec",
  "orexis-adapters-fake",
  "orexis-adapters-session-sqlite",
  "orexis-composition",

@@ -2,7 +2,7 @@
 
 - **Blocked by:** M1-10, M1-11
 - **Blocks:** M1-06
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,14 +10,16 @@ The loop selects a codec, uses its prompt fragment in assembly, and decodes text
 
 ## Acceptance
 
-- [ ] `TurnDeps` carries the selected codec and its capabilities.
-- [ ] `assemble` uses `codec.prompt_fragment(tools)` instead of a generic tool list.
-- [ ] A text-based provider (`xml-manual`, `json`, `lenient`) completes a scripted tool-call task end to end.
-- [ ] A native provider bypasses `decode`.
-- [ ] Decode errors produce a `Reprompt`/`Error` event and a bounded retry, never a fatal parse.
-- [ ] Tests cover native bypass, xml text, json text, and malformed → reprompt.
+- [x] `TurnDeps` carries the selected codec.
+- [x] `assemble` uses `codec.prompt_fragment(tools)` — the loop computes it and passes it.
+- [x] A text-based provider (`xml-manual`, `json`) completes a scripted tool-call task end to end.
+- [x] A native provider bypasses `decode`.
+- [x] Decode errors produce a `Reprompt` event and a bounded retry (two reprompts or `max_steps`), never a fatal parse.
+- [x] Tests cover native bypass, XML text, JSON text, and malformed → reprompt.
 
 ## Notes
 
-- The provider returns raw text alongside native actions (`ProviderResponse`), so the loop can choose.
-- Codec selection stays a use case; the codec instance is injected by composition.
+- `ProviderResponse.raw_text` is the decode input for non-native codecs; `ModelResponse` stores it.
+- `SessionEvent::Reprompt` maps to a user message in `derive_messages`, so the next turn sees the correction.
+- The loop assigns `call-{step}-{index}` when a codec leaves `call_id` empty.
+- Four integration tests in `crates/slice/tests/codec_loop.rs`.
