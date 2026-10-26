@@ -96,6 +96,9 @@ change a sealed field fails at validation; it is not merely discouraged.
 - Each applied ledger entry is signed with **Ed25519** (vetted primitive) over
   canonical JSON; the candidate hash, seal, and git commit hash are included.
 - Hybrid signatures wait for an independent audit (ADR-0009).
+- An opt-in experiment crate (`experiments/origin-hybrid-signer`) exists; it is
+  not a workspace member, not default, and is blocked by M6-R01. The default
+  remains Ed25519.
 - The evolution repository is a git repo; rollback is a revert commit plus a
   `Revert` ledger event.
 - A broken hash chain or bad signature blocks apply and quarantines the

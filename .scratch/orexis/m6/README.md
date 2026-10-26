@@ -7,3 +7,9 @@
 | [M6-03](M6-03-validation.md) | Validation ladder and evaluation | M6-01 |
 | [M6-04](M6-04-tiers-rollback.md) | Tiers, apply, rollback | M6-01 … M6-03 |
 | [M6-05](M6-05-gate.md) | 100-cycle gate | M6-01 … M6-04 |
+
+## Research (not gate)
+
+| Ticket | Goal | Blocks |
+|---|---|---|
+| [M6-R01](M6-R01-hybrid-signer.md) | Ed25519 + Falcon-1024 hybrid signer audit | — |
