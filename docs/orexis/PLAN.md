@@ -288,7 +288,7 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M1 status (2026-10-26):** implemented; `scripts/m1-gate.sh` green. Providers verified via OpenRouter free, Refuseless, and local llama.cpp; the live-model repository task passed. Direct Anthropic remains manual.
 
-**M2 status (2026-10-26):** specified; ticket 006 resolved (ADR-0008); M2-01 in progress (bridge/state complete, Leptos UI wasm check passes, Tauri shell build pending system libraries).
+**M2 status (2026-10-26):** implemented in source; M2-01 … M2-06 wired; `scripts/m2-gate.sh` green for automated checks. Tauri shell build, evaluation cycles, and usability measurement remain manual.
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 

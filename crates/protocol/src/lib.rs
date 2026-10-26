@@ -21,6 +21,7 @@ pub enum ClientMsg {
         always: bool,
     },
     ClearOverrides,
+    Settings,
     ListDir {
         path: String,
     },
@@ -78,6 +79,9 @@ pub enum ServerMsg {
     Artifacts {
         items: Vec<Artifact>,
     },
+    Settings {
+        settings: SettingsInfo,
+    },
     Diff {
         diff: String,
     },
@@ -106,4 +110,13 @@ pub struct Artifact {
     pub kind: String,
     pub title: String,
     pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SettingsInfo {
+    pub profile: String,
+    pub model: String,
+    pub plan_mode: bool,
+    pub permissions: Vec<String>,
+    pub privacy: Vec<String>,
 }

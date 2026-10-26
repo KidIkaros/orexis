@@ -66,6 +66,15 @@ pub struct Artifact {
 }
 
 #[derive(Clone, Deserialize)]
+pub struct SettingsInfo {
+    pub profile: String,
+    pub model: String,
+    pub plan_mode: bool,
+    pub permissions: Vec<String>,
+    pub privacy: Vec<String>,
+}
+
+#[derive(Clone, Deserialize)]
 pub struct Snapshot {
     pub connection: String,
     pub session: Option<String>,
@@ -79,6 +88,7 @@ pub struct Snapshot {
     pub files_path: String,
     pub preview: Option<FilePreview>,
     pub artifacts: Vec<Artifact>,
+    pub settings: Option<SettingsInfo>,
 }
 
 impl Default for Snapshot {
@@ -96,6 +106,7 @@ impl Default for Snapshot {
             files_path: ".".to_string(),
             preview: None,
             artifacts: Vec::new(),
+            settings: None,
         }
     }
 }

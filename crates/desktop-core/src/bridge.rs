@@ -57,6 +57,10 @@ impl DesktopBridge {
         self.client.approve(id, yes)
     }
 
+    pub fn settings(&mut self) -> io::Result<()> {
+        self.client.settings()
+    }
+
     pub fn list_dir(&mut self, path: &str) -> io::Result<()> {
         self.client.list_dir(path)
     }

@@ -101,6 +101,10 @@ impl DaemonClient {
         self.send(&ClientMsg::Interrupt)
     }
 
+    pub fn settings(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::Settings)
+    }
+
     pub fn list_dir(&mut self, path: &str) -> std::io::Result<()> {
         self.send(&ClientMsg::ListDir {
             path: path.to_string(),

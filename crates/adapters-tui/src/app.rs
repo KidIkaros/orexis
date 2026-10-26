@@ -203,6 +203,7 @@ impl TuiApp {
             ServerMsg::Dir { .. } => {}
             ServerMsg::File { .. } => {}
             ServerMsg::Artifacts { .. } => {}
+            ServerMsg::Settings { .. } => {}
             ServerMsg::Sessions { sessions } => {
                 self.entries
                     .push(Entry::Info(format!("{} sessions", sessions.len())));

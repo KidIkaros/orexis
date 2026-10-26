@@ -633,3 +633,73 @@ button:disabled {
 .file-preview .muted {
   margin: 0 0 6px;
 }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.settings-section {
+  margin-top: 14px;
+}
+
+.settings-section h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+.settings-section ul {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --bg: #000000;
+    --panel: #0b0d10;
+    --panel-2: #141820;
+    --text: #ffffff;
+    --muted: #c7ced8;
+    --accent: #9ad4ff;
+    --danger: #ff9a9a;
+    --ok: #9cf0bd;
+  }
+}

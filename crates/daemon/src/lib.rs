@@ -7,5 +7,5 @@ mod proto;
 mod server;
 mod session;
 
-pub use proto::{Artifact, ClientMsg, FileEntry, ServerMsg, SessionInfo};
+pub use proto::{Artifact, ClientMsg, FileEntry, ServerMsg, SessionInfo, SettingsInfo};
 pub use server::{Daemon, DaemonConfig};

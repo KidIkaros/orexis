@@ -91,6 +91,12 @@ fn approve(
 }
 
 #[tauri::command]
+fn settings(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.settings().map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
 fn list_dir(
     app: tauri::AppHandle,
     state: State<DesktopState>,
@@ -155,6 +161,7 @@ fn main() {
             prompt,
             approve,
             diff,
+            settings,
             list_dir,
             read_file,
             artifacts,

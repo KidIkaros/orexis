@@ -15,6 +15,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/tmp/orexis.db"));
     let fake = std::env::var("OREXIS_FAKE").is_ok();
+    let profile = std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string());
+    let model = std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string());
 
     let runtime = if fake {
         build_fake_runtime(db.clone())
@@ -24,8 +26,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(PathBuf::from)
             .unwrap_or_else(|_| cwd.clone());
         build_runtime(BuildConfig {
-            profile_id: std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string()),
-            model_id: std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string()),
+            profile_id: profile.clone(),
+            model_id: model.clone(),
             db_path: db,
             project_root,
             cwd,
@@ -42,6 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = DaemonConfig {
         socket,
+        profile_id: if fake { "fake".to_string() } else { profile },
+        model_id: if fake { "fake".to_string() } else { model },
         sessions: runtime.sessions,
         provider: runtime.provider,
         tools: runtime.tools,

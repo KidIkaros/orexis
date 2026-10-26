@@ -10,13 +10,15 @@ pub fn StatusBar(
     error: ReadSignal<Option<String>>,
     on_attach: Callback<()>,
     on_undo: Callback<()>,
+    on_settings: Callback<()>,
 ) -> impl IntoView {
     let retry = on_attach;
     let undo = on_undo;
+    let settings = on_settings;
     view! {
         <header class="status">
             <span class="brand">"orexis"</span>
-            <span class="chip">
+            <span class="chip" aria-live="polite">
                 {move || {
                     if error.get().is_some() {
                         "daemon unavailable".to_string()
@@ -30,6 +32,9 @@ pub fn StatusBar(
                 }}
             </span>
             <span class="spacer"></span>
+            <button class="undo" aria-label="settings" on:click=move |_| settings.run(())>
+                "settings"
+            </button>
             {move || {
                 (snapshot.get().connection == "disconnected")
                     .then(|| {

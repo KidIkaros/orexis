@@ -11,7 +11,7 @@ use tokio::sync::{broadcast, Semaphore};
 
 use crate::approvals::{ApprovalHub, HubGate};
 use crate::connection::io_err;
-use crate::proto::{write_msg, Artifact, FileEntry, ServerMsg};
+use crate::proto::{write_msg, Artifact, FileEntry, ServerMsg, SettingsInfo};
 use crate::server::DaemonConfig;
 use crate::session::{BroadcastDeltaSink, BroadcastSink, SessionRegistry, SessionRuntime};
 
@@ -128,6 +128,43 @@ pub(crate) async fn prompt(
         *turn = Some(handle);
     }
     Ok(())
+}
+
+pub(crate) async fn settings(
+    config: &Arc<DaemonConfig>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let permissions = [
+        "read_file",
+        "write_file",
+        "edit_file",
+        "shell",
+        "git_commit",
+        "verify",
+    ]
+    .into_iter()
+    .map(|tool| format!("{tool}: {:?}", config.policy.decide(tool)).to_lowercase())
+    .collect();
+    let privacy = vec![
+        format!("provider: {} ({})", config.profile_id, config.model_id),
+        "prompts and tool results go to the configured provider".to_string(),
+        "no telemetry; no remote UI; no HTTP server".to_string(),
+        "keys: OS keyring first, then environment".to_string(),
+        "sessions: local SQLite; checkpoints: local .orexis".to_string(),
+    ];
+    write_msg(
+        write,
+        &ServerMsg::Settings {
+            settings: SettingsInfo {
+                profile: config.profile_id.clone(),
+                model: config.model_id.clone(),
+                plan_mode: config.policy.plan_mode,
+                permissions,
+                privacy,
+            },
+        },
+    )
+    .await
 }
 
 pub(crate) async fn list_dir(

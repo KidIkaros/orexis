@@ -153,6 +153,8 @@ async fn a_real_repository_task_reads_edits_tests_and_diffs() {
 
     let config = DaemonConfig {
         socket: socket.clone(),
+        profile_id: "test".to_string(),
+        model_id: "test".to_string(),
         sessions: Arc::new(SqliteSessionFactory::new(db)),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(LocalTools::new(project).expect("tools")),

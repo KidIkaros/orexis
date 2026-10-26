@@ -16,6 +16,8 @@ use crate::session::SessionRegistry;
 
 pub struct DaemonConfig {
     pub socket: PathBuf,
+    pub profile_id: String,
+    pub model_id: String,
     pub sessions: Arc<dyn SessionFactory>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,

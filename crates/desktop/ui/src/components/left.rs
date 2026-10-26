@@ -33,6 +33,7 @@ pub fn LeftRail(
                             <button
                                 class="rail-tab"
                                 class:active=move || active.get() == tab
+                                aria-pressed=move || active.get() == tab
                                 on:click=move |_| {
                                     set_active.set(tab);
                                     on_tab.run(tab);
@@ -230,6 +231,7 @@ fn files_view(
             <span class="path">{path.clone()}</span>
             <button
                 class="open"
+                aria-label="parent directory"
                 disabled=path == "."
                 on:click=move |_| list.run(parent.clone())
             >
@@ -238,6 +240,7 @@ fn files_view(
         </div>
         <input
             class="filter"
+            aria-label="filter files"
             placeholder="filter…"
             prop:value=filter
             on:input=move |ev| set_filter.set(event_target_value(&ev))

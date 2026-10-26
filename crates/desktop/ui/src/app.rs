@@ -4,7 +4,7 @@ use leptos::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 
-use crate::components::{Composer, LeftRail, RightPanel, StatusBar, Transcript};
+use crate::components::{Composer, LeftRail, RightPanel, SettingsModal, StatusBar, Transcript};
 use crate::ipc::{args, invoke, start_listener};
 use crate::shortcuts::start_shortcuts;
 use crate::state::{Entry, LeftTab, Snapshot};
@@ -22,6 +22,7 @@ pub fn App() -> impl IntoView {
     let (split, set_split) = signal(false);
     let (expanded, set_expanded) = signal(false);
     let (left, set_left) = signal(LeftTab::Sessions);
+    let (settings_open, set_settings_open) = signal(false);
 
     let attach = Callback::new(move |session: Option<String>| {
         spawn_local(async move {
@@ -34,6 +35,7 @@ pub fn App() -> impl IntoView {
                 Ok(_) => {
                     set_error.set(None);
                     let _ = invoke("artifacts", JsValue::NULL).await;
+                    let _ = invoke("settings", JsValue::NULL).await;
                     let _ = invoke("list_dir", args(serde_json::json!({"path": "."}))).await;
                 }
                 Err(err) => set_error.set(Some(
@@ -79,6 +81,20 @@ pub fn App() -> impl IntoView {
             }
         });
     });
+
+    let settings = Callback::new(move |_: ()| {
+        spawn_local(async move {
+            let _ = invoke("settings", JsValue::NULL).await;
+        });
+    });
+    let open_settings = Callback::new({
+        let settings = settings.clone();
+        move |_: ()| {
+            settings.run(());
+            set_settings_open.set(true);
+        }
+    });
+    let close_settings = Callback::new(move |_: ()| set_settings_open.set(false));
 
     let list_dir = Callback::new(move |path: String| {
         spawn_local(async move {
@@ -139,6 +155,7 @@ pub fn App() -> impl IntoView {
                 error=error
                 on_attach=retry.clone()
                 on_undo=undo.clone()
+                on_settings=open_settings
             />
             <main class="zones">
                 <LeftRail
@@ -157,7 +174,7 @@ pub fn App() -> impl IntoView {
                             .get()
                             .map(|message| {
                                 view! {
-                                    <div class="banner error-banner">
+                                    <div class="banner error-banner" role="alert">
                                         <span>{message}</span>
                                         <button
                                             class="send retry"
@@ -191,6 +208,11 @@ pub fn App() -> impl IntoView {
                 />
             </main>
             {move || {
+                settings_open
+                    .get()
+                    .then(|| view! { <SettingsModal snapshot on_close=close_settings /> })
+            }}
+            {move || {
                 snapshot
                     .get()
                     .transcript
@@ -204,7 +226,7 @@ pub fn App() -> impl IntoView {
                         }
                         _ => None,
                     })
-                    .map(|message| view! { <div class="toast">{message}</div> })
+                    .map(|message| view! { <div class="toast" role="status" aria-live="polite">{message}</div> })
             }}
         </div>
     }

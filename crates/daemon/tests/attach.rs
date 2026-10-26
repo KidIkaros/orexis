@@ -9,7 +9,9 @@ use orexis_adapters_fake::{EchoTools, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::LocalTools;
 use orexis_core::{Action, PermissionPolicy, SessionEvent};
-use orexis_daemon::{Artifact, ClientMsg, Daemon, DaemonConfig, FileEntry, ServerMsg};
+use orexis_daemon::{
+    Artifact, ClientMsg, Daemon, DaemonConfig, FileEntry, ServerMsg, SettingsInfo,
+};
 use orexis_ports::{Checkpointer, PortResult};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
@@ -36,6 +38,8 @@ fn config(socket: &Path, db: &Path) -> DaemonConfig {
 fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConfig {
     DaemonConfig {
         socket: socket.to_path_buf(),
+        profile_id: "test".to_string(),
+        model_id: "test".to_string(),
         sessions: Arc::new(SqliteSessionFactory::new(db.to_path_buf())),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
@@ -124,6 +128,19 @@ impl Checkpointer for RecordingCheckpointer {
 
     fn diff(&self, _id: &str) -> PortResult<String> {
         Ok("--- a/a.txt\n+++ b/a.txt\n-one\n+two\n".to_string())
+    }
+}
+
+async fn read_until_settings(
+    reader: &mut BufReader<OwnedReadHalf>,
+    line: &mut String,
+) -> SettingsInfo {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::Settings { settings } => return settings,
+            ServerMsg::Error { message } => panic!("settings error: {message}"),
+            _ => {}
+        }
     }
 }
 
@@ -639,4 +656,33 @@ async fn artifacts_include_the_checkpoint_diff() {
     assert!(items
         .iter()
         .any(|item| item.kind == "diff" && item.detail.contains("+two")));
+}
+
+#[tokio::test]
+async fn settings_returns_profile_and_privacy() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let daemon = Daemon::new(config(&socket, &db));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::Settings).await;
+    let settings = read_until_settings(&mut reader, &mut line).await;
+    assert_eq!(settings.profile, "test");
+    assert_eq!(settings.model, "test");
+    assert!(settings
+        .permissions
+        .iter()
+        .any(|line| line.contains("shell")));
+    assert!(settings
+        .privacy
+        .iter()
+        .any(|line| line.contains("no telemetry")));
 }

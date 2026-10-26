@@ -1,7 +1,7 @@
 //! The desktop state model and daemon bridge, independent of Tauri.
 
 use orexis_core::SessionEvent;
-use orexis_protocol::{Artifact, FileEntry, ServerMsg, SessionInfo};
+use orexis_protocol::{Artifact, FileEntry, ServerMsg, SessionInfo, SettingsInfo};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -104,6 +104,7 @@ pub struct AppState {
     pub files_path: String,
     pub preview: Option<FilePreview>,
     pub artifacts: Vec<Artifact>,
+    pub settings: Option<SettingsInfo>,
 }
 
 impl Default for AppState {
@@ -125,6 +126,7 @@ impl Default for AppState {
             files_path: ".".to_string(),
             preview: None,
             artifacts: Vec::new(),
+            settings: None,
         }
     }
 }
@@ -174,6 +176,7 @@ impl AppState {
                 self.right = RightTab::Preview;
             }
             ServerMsg::Artifacts { items } => self.artifacts = items,
+            ServerMsg::Settings { settings } => self.settings = Some(settings),
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });
@@ -534,5 +537,25 @@ mod tests {
             }],
         });
         assert_eq!(state.artifacts.len(), 1);
+    }
+
+    #[test]
+    fn settings_update_state() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Settings {
+            settings: SettingsInfo {
+                profile: "openai".to_string(),
+                model: "gpt-5".to_string(),
+                plan_mode: false,
+                permissions: vec!["shell: ask".to_string()],
+                privacy: vec!["no telemetry".to_string()],
+            },
+        });
+        let settings = state.settings.expect("settings");
+        assert_eq!(settings.profile, "openai");
+        assert!(settings
+            .privacy
+            .iter()
+            .any(|line| line.contains("no telemetry")));
     }
 }

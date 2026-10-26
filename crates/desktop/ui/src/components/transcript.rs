@@ -10,7 +10,7 @@ pub fn Transcript(
     set_preview: WriteSignal<Option<String>>,
 ) -> impl IntoView {
     view! {
-        <div class="transcript">
+        <div class="transcript" role="log" aria-label="transcript">
             {move || {
                 snapshot
                     .get()

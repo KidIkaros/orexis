@@ -17,6 +17,7 @@ pub fn Composer(
                 class="composer"
                 autofocus=true
                 placeholder="ask orexis…"
+                aria-label="prompt"
                 prop:value=composer
                 on:input=move |ev| set_composer.set(event_target_value(&ev))
                 on:keydown=move |ev| {

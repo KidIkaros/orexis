@@ -70,6 +70,9 @@ pub(crate) async fn handle(
                             handlers::interrupt(rt).await;
                         }
                     }
+                    ClientMsg::Settings => {
+                        handlers::settings(&config, &mut write_half).await?;
+                    }
                     ClientMsg::ListDir { path } => {
                         handlers::list_dir(&config.workspace, path, &mut write_half).await?;
                     }
