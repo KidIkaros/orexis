@@ -4,9 +4,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crossterm::event::{
-    self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyEventKind,
-};
+use crossterm::event::{self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyEventKind};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -107,9 +105,7 @@ fn edit_external(
         DisableBracketedPaste
     )?;
     let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-    let status = std::process::Command::new(editor)
-        .arg(file.path())
-        .status();
+    let status = std::process::Command::new(editor).arg(file.path()).status();
     execute!(
         terminal.backend_mut(),
         EnterAlternateScreen,
