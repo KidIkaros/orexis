@@ -40,6 +40,8 @@ fn tool_failure_is_persisted_and_returned() {
         max_steps: 2,
         codec: &NativeCodec,
         checkpointer: None,
+        verifier: None,
+        skip_verify: false,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

@@ -21,6 +21,8 @@ fn main() {
         max_steps: 8,
         codec: &NativeCodec,
         checkpointer: None,
+        verifier: None,
+        skip_verify: false,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

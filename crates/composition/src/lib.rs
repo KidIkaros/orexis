@@ -13,11 +13,11 @@ use orexis_adapters_provider_catalog::{
 };
 use orexis_adapters_provider_openai::OpenAiCompatibleProvider;
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
-use orexis_adapters_tools::{GitCheckpointStore, LocalTools};
+use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
     Checkpointer, Codec, ContextSource, PortError, Provider, SessionAppend, SessionFactory,
-    SessionRead, ToolExecutor,
+    SessionRead, ToolExecutor, Verifier,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -67,6 +67,7 @@ pub struct BuildConfig {
     pub project_root: PathBuf,
     pub cwd: PathBuf,
     pub providers_dir: Option<PathBuf>,
+    pub verify_command: Option<String>,
     pub system_prompt: String,
     pub context_limit: usize,
 }
@@ -77,6 +78,7 @@ pub struct Runtime {
     pub codec: Arc<dyn Codec>,
     pub policy: Arc<PermissionPolicy>,
     pub checkpointer: Option<Arc<dyn Checkpointer>>,
+    pub verifier: Option<Arc<dyn Verifier>>,
     pub sessions: Arc<dyn SessionFactory>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
@@ -154,6 +156,13 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
 
     let context_files =
         FileContextSource::new(config.project_root.clone(), config.cwd.clone()).load();
+    let verifier: Option<Arc<dyn Verifier>> = match &config.verify_command {
+        Some(command) => Some(Arc::new(ShellVerifier::new(
+            config.project_root.clone(),
+            command.clone(),
+        )?)),
+        None => None,
+    };
 
     let tools = Arc::new(LocalTools::new(config.project_root.clone())?);
     let context_tools = LocalTools::specs();
@@ -166,6 +175,7 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         checkpointer: Some(Arc::new(GitCheckpointStore::new(
             config.project_root.clone(),
         )?)),
+        verifier,
         sessions: Arc::new(SqliteSessionFactory::new(config.db_path)),
         system_prompt: config.system_prompt,
         context_tools,
@@ -187,6 +197,7 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
         codec: Arc::new(NativeCodec),
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: None,
+        verifier: None,
         sessions: Arc::new(SqliteSessionFactory::new(db_path)),
         system_prompt: String::new(),
         context_tools: Vec::new(),

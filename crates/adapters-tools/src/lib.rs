@@ -1,8 +1,10 @@
 //! Local coding tools with a path sandbox.
 
 pub mod checkpoints;
+pub mod verify;
 
 pub use checkpoints::GitCheckpointStore;
+pub use verify::ShellVerifier;
 
 use std::fs;
 use std::io::Read;
@@ -440,7 +442,7 @@ fn hardline_reason(command: &str) -> Option<&'static str> {
         .map(|(_, reason)| *reason)
 }
 
-fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortResult<String> {
+pub(crate) fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortResult<String> {
     let mut process = Command::new("sh");
     process
         .arg("-c")

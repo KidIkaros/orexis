@@ -89,6 +89,7 @@ async fn kill_and_restart_preserves_the_session() {
         &mut writer,
         &ClientMsg::Prompt {
             text: "before the kill".to_string(),
+            skip_verify: false,
         },
     )
     .await;

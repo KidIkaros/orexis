@@ -38,6 +38,8 @@ fn sqlite_store_replays_the_turn() {
         max_steps: 4,
         codec: &NativeCodec,
         checkpointer: None,
+        verifier: None,
+        skip_verify: false,
         context: ContextConfig {
             system_prompt: "",
             tools: &[],

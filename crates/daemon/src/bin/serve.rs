@@ -30,6 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             project_root,
             cwd,
             providers_dir: None,
+            verify_command: std::env::var("OREXIS_VERIFY").ok(),
             system_prompt: String::new(),
             context_limit: 32768,
         })?
@@ -47,6 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         codec: runtime.codec,
         policy: runtime.policy,
         checkpointer: runtime.checkpointer,
+        verifier: runtime.verifier,
         system_prompt: runtime.system_prompt,
         context_tools: runtime.context_tools,
         context_files: runtime.context_files,

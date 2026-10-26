@@ -39,6 +39,7 @@ fn config(dir: &tempfile::TempDir, providers: PathBuf, model: &str) -> BuildConf
         project_root: dir.path().to_path_buf(),
         cwd: dir.path().to_path_buf(),
         providers_dir: Some(providers),
+        verify_command: None,
         system_prompt: String::new(),
         context_limit: 32768,
     }

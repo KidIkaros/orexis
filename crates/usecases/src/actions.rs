@@ -1,7 +1,7 @@
 //! Executing decoded actions: tool calls and completion.
 
 use orexis_core::{Action, SessionEvent};
-use orexis_ports::{EventSink, PortResult, SessionAppend, ToolExecutor};
+use orexis_ports::{EventSink, PortResult, SessionAppend, ToolExecutor, Verifier};
 
 use crate::session::append;
 
@@ -12,6 +12,8 @@ pub(crate) async fn execute_actions(
     tools: &dyn ToolExecutor,
     actions: Vec<Action>,
     step: usize,
+    verifier: Option<&dyn Verifier>,
+    skip_verify: bool,
 ) -> PortResult<bool> {
     for (index, action) in actions.into_iter().enumerate() {
         match action {
@@ -61,6 +63,39 @@ pub(crate) async fn execute_actions(
                 .await?;
             }
             Action::Done { summary } => {
+                if let Some(verifier) = verifier {
+                    if !skip_verify {
+                        let result = verifier.verify().await?;
+                        append(
+                            session,
+                            sink,
+                            SessionEvent::Verify {
+                                command: result.command.clone(),
+                                passed: result.passed,
+                            },
+                        )
+                        .await?;
+                        if !result.passed {
+                            append(
+                                session,
+                                sink,
+                                SessionEvent::Error {
+                                    message: format!("verify failed:\n{}", result.output),
+                                },
+                            )
+                            .await?;
+                            append(
+                                session,
+                                sink,
+                                SessionEvent::Reprompt {
+                                    note: "Verification failed. Fix the errors, then finish again. Ask the user if skipping is appropriate.".to_string(),
+                                },
+                            )
+                            .await?;
+                            return Ok(false);
+                        }
+                    }
+                }
                 append(session, sink, SessionEvent::Done { summary }).await?;
                 return Ok(true);
             }

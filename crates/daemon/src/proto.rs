@@ -7,9 +7,18 @@ use tokio::io::{AsyncBufRead, AsyncWrite, AsyncWriteExt};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ClientMsg {
-    Attach { session: Option<String> },
-    Prompt { text: String },
-    Approve { id: u64, yes: bool },
+    Attach {
+        session: Option<String>,
+    },
+    Prompt {
+        text: String,
+        #[serde(default)]
+        skip_verify: bool,
+    },
+    Approve {
+        id: u64,
+        yes: bool,
+    },
     Interrupt,
     Undo,
     ListSessions,

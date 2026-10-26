@@ -41,6 +41,7 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         codec: Arc::new(NativeCodec),
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: None,
+        verifier: None,
         system_prompt: String::new(),
         context_tools: Vec::new(),
         context_files: Vec::new(),
@@ -173,6 +174,7 @@ async fn attach_prompt_detach_reattach_replays() {
         &mut writer,
         &ClientMsg::Prompt {
             text: "go".to_string(),
+            skip_verify: false,
         },
     )
     .await;
@@ -243,6 +245,7 @@ async fn two_sessions_complete_under_one_generation_slot() {
         &mut writer_a,
         &ClientMsg::Prompt {
             text: "a".to_string(),
+            skip_verify: false,
         },
     )
     .await;
@@ -250,6 +253,7 @@ async fn two_sessions_complete_under_one_generation_slot() {
         &mut writer_b,
         &ClientMsg::Prompt {
             text: "b".to_string(),
+            skip_verify: false,
         },
     )
     .await;
@@ -307,6 +311,7 @@ async fn a_second_client_attaches_to_the_same_session() {
         &mut writer_a,
         &ClientMsg::Prompt {
             text: "shared".to_string(),
+            skip_verify: false,
         },
     )
     .await;
@@ -359,6 +364,7 @@ async fn approval_required_tool_blocks_until_approved() {
         &mut writer,
         &ClientMsg::Prompt {
             text: "write".to_string(),
+            skip_verify: false,
         },
     )
     .await;
@@ -397,6 +403,7 @@ async fn undo_restores_the_latest_checkpoint() {
         &mut writer,
         &ClientMsg::Prompt {
             text: "go".to_string(),
+            skip_verify: false,
         },
     )
     .await;

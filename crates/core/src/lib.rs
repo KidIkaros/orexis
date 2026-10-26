@@ -289,6 +289,10 @@ pub enum SessionEvent {
     Info {
         message: String,
     },
+    Verify {
+        command: String,
+        passed: bool,
+    },
     Compaction {
         range_start_seq: u64,
         range_end_seq: u64,
@@ -311,6 +315,7 @@ impl SessionEvent {
             Self::Interrupted { .. } => "interrupted",
             Self::Checkpoint { .. } => "checkpoint",
             Self::Info { .. } => "info",
+            Self::Verify { .. } => "verify",
             Self::Compaction { .. } => "compaction",
         }
     }
@@ -484,6 +489,10 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         },
         SessionEvent::Info { message } => SessionEvent::Info {
             message: redact_text(message),
+        },
+        SessionEvent::Verify { command, passed } => SessionEvent::Verify {
+            command: redact_text(command),
+            passed: *passed,
         },
         SessionEvent::Compaction {
             range_start_seq,

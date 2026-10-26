@@ -79,6 +79,18 @@ pub trait SessionFork: Send + Sync {
     async fn fork(&self, at_seq: u64) -> PortResult<String>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifyResult {
+    pub command: String,
+    pub passed: bool,
+    pub output: String,
+}
+
+#[async_trait]
+pub trait Verifier: Send + Sync {
+    async fn verify(&self) -> PortResult<VerifyResult>;
+}
+
 pub trait Checkpointer: Send + Sync {
     fn create(&self, label: &str) -> PortResult<String>;
     fn restore(&self, id: &str) -> PortResult<()>;

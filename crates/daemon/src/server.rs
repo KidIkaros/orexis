@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use orexis_adapters_tools::GatedTools;
 use orexis_core::{ContextFile, PermissionPolicy, SessionEvent, ToolSpec};
-use orexis_ports::{Checkpointer, Codec, Provider, SessionFactory, ToolExecutor};
+use orexis_ports::{Checkpointer, Codec, Provider, SessionFactory, ToolExecutor, Verifier};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::io::BufReader;
 use tokio::net::{UnixListener, UnixStream};
@@ -23,6 +23,7 @@ pub struct DaemonConfig {
     pub codec: Arc<dyn Codec>,
     pub policy: Arc<PermissionPolicy>,
     pub checkpointer: Option<Arc<dyn Checkpointer>>,
+    pub verifier: Option<Arc<dyn Verifier>>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
     pub context_files: Vec<ContextFile>,
@@ -124,7 +125,7 @@ async fn handle(
                         live = Some(receiver);
                         runtime = Some(rt);
                     }
-                    ClientMsg::Prompt { text } => {
+                    ClientMsg::Prompt { text, skip_verify } => {
                         let Some(rt) = runtime.clone() else {
                             write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
                             continue;
@@ -161,6 +162,8 @@ async fn handle(
                                 context,
                                 codec: config.codec.as_ref(),
                                 checkpointer: config.checkpointer.as_deref(),
+                                verifier: config.verifier.as_deref(),
+                                skip_verify,
                             }).await;
                             if let Ok(mut turn) = rt_for_task.turn.lock() {
                                 *turn = None;
