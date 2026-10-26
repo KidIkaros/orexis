@@ -1,6 +1,7 @@
 //! Local coding tools with a path sandbox.
 
 pub mod checkpoints;
+mod edit;
 pub mod verify;
 
 pub use checkpoints::GitCheckpointStore;
@@ -199,32 +200,17 @@ impl LocalTools {
         let path = self.resolve(arg_str(args, "path")?)?;
         let old = arg_str(args, "old")?;
         let new = arg_str(args, "new")?;
-        if old.is_empty() {
-            return Err(PortError("old text is empty".to_string()));
-        }
         let text = fs::read_to_string(&path)
             .map_err(|error| PortError(format!("read {}: {error}", path.display())))?;
-        let count = text.matches(old).count();
-        if count == 0 {
-            return Err(PortError(format!(
-                "old text not found in {}",
-                path.display()
-            )));
-        }
-        if count > 1 {
-            return Err(PortError(format!(
-                "old text is ambiguous in {} ({count} matches)",
-                path.display()
-            )));
-        }
-        let updated = text.replacen(old, new, 1);
+        let (updated, outcome) = crate::edit::apply(&text, old, new)?;
         fs::write(&path, updated)
             .map_err(|error| PortError(format!("write {}: {error}", path.display())))?;
         Ok(Observation {
             name: "edit_file".to_string(),
             output: format!(
-                "edited {}",
-                path.strip_prefix(&self.root).unwrap_or(&path).display()
+                "edited {} ({})",
+                path.strip_prefix(&self.root).unwrap_or(&path).display(),
+                outcome.description()
             ),
         })
     }
