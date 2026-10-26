@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use orexis_adapters_tools::{GatedTools, RouterTools};
 use orexis_core::{EntitySnapshot, SessionEvent};
-use orexis_ports::{Checkpointer, ToolExecutor};
+use orexis_ports::{Checkpointer, PortResult, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::sync::{broadcast, Semaphore};
@@ -61,7 +61,10 @@ pub(crate) struct PromptContext<'a> {
 
 /// Connect the configured MCP servers once per session, before the client
 /// sees any replay, so a failed server is a visible session event.
-async fn ensure_mcp(rt: &Arc<SessionRuntime>, config: &Arc<DaemonConfig>) -> std::io::Result<()> {
+pub(crate) async fn ensure_mcp(
+    rt: &Arc<SessionRuntime>,
+    config: &Arc<DaemonConfig>,
+) -> std::io::Result<()> {
     let Some(mcp) = config.mcp.clone() else {
         return Ok(());
     };
@@ -132,7 +135,27 @@ pub(crate) async fn prompt(
     )
     .await?;
 
-    let events = rt.read.events().await.map_err(io_err)?;
+    let handle = spawn_turn(&rt, config, base_tools, hub, text, skip_verify, permit)
+        .await
+        .map_err(io_err)?;
+    if let Ok(mut turn) = rt.turn.lock() {
+        *turn = Some(handle);
+    }
+    Ok(())
+}
+
+/// Assemble the turn context (identity, router, gate, MCP specs) and spawn
+/// the turn task. Shared by the socket prompt handler and the ACP server.
+pub(crate) async fn spawn_turn(
+    rt: &Arc<SessionRuntime>,
+    config: &Arc<DaemonConfig>,
+    base_tools: &Arc<dyn ToolExecutor>,
+    hub: &Arc<ApprovalHub>,
+    text: String,
+    skip_verify: bool,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) -> PortResult<tokio::task::JoinHandle<()>> {
+    let events = rt.read.events().await?;
     let first_turn = !events
         .iter()
         .any(|stored| matches!(stored.event, SessionEvent::ModelRequest { .. }));
@@ -212,9 +235,9 @@ pub(crate) async fn prompt(
         }
     });
     if let Ok(mut turn) = rt.turn.lock() {
-        *turn = Some(handle);
+        *turn = None;
     }
-    Ok(())
+    Ok(handle)
 }
 
 pub(crate) async fn evolution(

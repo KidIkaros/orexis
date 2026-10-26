@@ -1,6 +1,6 @@
 //! The NDJSON client/server protocol shared by the daemon and its clients.
 
-use orexis_core::SessionEvent;
+pub use orexis_core::SessionEvent;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

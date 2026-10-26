@@ -1,82 +1,11 @@
 //! `serve`: build the runtime from the catalog and run the daemon.
 //! `OREXIS_FAKE=1` uses deterministic fakes for tests.
 
-use std::path::PathBuf;
-
-use orexis_composition::{build_fake_runtime, build_runtime, BuildConfig};
-use orexis_daemon::{Daemon, DaemonConfig};
+use orexis_daemon::{daemon_config_from_env, Daemon};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let socket = std::env::var("OREXIS_SOCKET")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/tmp/orexis.sock"));
-    let db = std::env::var("OREXIS_DB")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/tmp/orexis.db"));
-    let fake = std::env::var("OREXIS_FAKE").is_ok();
-    let profile = std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string());
-    let model = std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string());
-    let cwd = std::env::current_dir()?;
-    let project_root = std::env::var("OREXIS_PROJECT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| cwd.clone());
-    let identity_path = if fake {
-        None
-    } else {
-        Some(project_root.join(".orexis/IDENTITY.md"))
-    };
-    let evolution_ledger = if fake {
-        None
-    } else {
-        Some(project_root.join(".orexis/evolution/ledger.jsonl"))
-    };
-
-    let runtime = if fake {
-        build_fake_runtime(db.clone())
-    } else {
-        build_runtime(BuildConfig {
-            profile_id: profile.clone(),
-            model_id: model.clone(),
-            db_path: db,
-            project_root: project_root.clone(),
-            cwd: cwd.clone(),
-            providers_dir: None,
-            mcp_dirs: None,
-            verify_command: std::env::var("OREXIS_VERIFY").ok(),
-            system_prompt: String::new(),
-            context_limit: 32768,
-        })?
-    };
-
-    for warning in &runtime.warnings {
-        eprintln!("warning: {warning}");
-    }
-
-    let config = DaemonConfig {
-        socket,
-        profile_id: if fake { "fake".to_string() } else { profile },
-        model_id: if fake { "fake".to_string() } else { model },
-        sessions: runtime.sessions,
-        entity: runtime.entity,
-        identity_path,
-        evolution_ledger,
-        mcp: runtime.mcp,
-        provider: runtime.provider,
-        tools: runtime.tools,
-        workspace: runtime.workspace,
-        codec: runtime.codec,
-        policy: runtime.policy,
-        checkpointer: runtime.checkpointer,
-        verifier: runtime.verifier,
-        system_prompt: runtime.system_prompt,
-        context_tools: runtime.context_tools,
-        context_files: runtime.context_files,
-        context_limit: runtime.context_limit,
-        max_steps: if fake { 8 } else { 16 },
-        generation_slots: runtime.generation_slots,
-    };
-
+    let config = daemon_config_from_env()?;
     Daemon::new(config).run().await?;
     Ok(())
 }

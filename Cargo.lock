@@ -1406,6 +1406,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-protocol-acp"
+version = "0.0.0"
+dependencies = [
+ "orexis-adapters-jsonrpc",
+ "orexis-protocol",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "orexis-adapters-protocol-mcp"
 version = "0.0.0"
 dependencies = [
@@ -1577,6 +1587,8 @@ dependencies = [
  "orexis-adapters-codec",
  "orexis-adapters-entity-sqlite",
  "orexis-adapters-fake",
+ "orexis-adapters-jsonrpc",
+ "orexis-adapters-protocol-acp",
  "orexis-adapters-protocol-mcp",
  "orexis-adapters-session-sqlite",
  "orexis-adapters-tools",
