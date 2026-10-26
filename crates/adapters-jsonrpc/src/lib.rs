@@ -11,4 +11,6 @@ pub mod message;
 
 pub use correlate::Correlations;
 pub use framing::{decode_str, encode_line};
-pub use message::{parse_line, ErrorObject, Message, Notification, Request, RequestId, Response};
+pub use message::{
+    parse_line, ErrorObject, Message, Notification, ParseError, Request, RequestId, Response,
+};

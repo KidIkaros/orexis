@@ -1406,6 +1406,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-protocol-mcp"
+version = "0.0.0"
+dependencies = [
+ "orexis-adapters-jsonrpc",
+ "orexis-core",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "orexis-adapters-provider-anthropic"
 version = "0.0.0"
 dependencies = [

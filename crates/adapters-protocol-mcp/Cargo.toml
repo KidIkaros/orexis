@@ -1,0 +1,11 @@
+[package]
+name = "orexis-adapters-protocol-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-adapters-jsonrpc.workspace = true
+orexis-core.workspace = true
+serde_json = "1"
+thiserror = "2"

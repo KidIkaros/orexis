@@ -24,6 +24,7 @@ members = [
     "crates/adapters-provider-anthropic",
     "crates/adapters-http",
     "crates/adapters-jsonrpc",
+    "crates/adapters-protocol-mcp",
     "crates/composition",
     "crates/slice",
 ]
@@ -54,6 +55,7 @@ orexis-adapters-context-fs = { path = "crates/adapters-context-fs" }
 orexis-adapters-provider-llamacpp = { path = "crates/adapters-provider-llamacpp" }
 orexis-adapters-provider-anthropic = { path = "crates/adapters-provider-anthropic" }
 orexis-adapters-http = { path = "crates/adapters-http" }
+orexis-adapters-jsonrpc = { path = "crates/adapters-jsonrpc" }
 orexis-composition = { path = "crates/composition" }
 async-trait = "0.1"
 futures = "0.3"
