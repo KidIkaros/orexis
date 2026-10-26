@@ -7,7 +7,7 @@ use wasm_bindgen_futures::spawn_local;
 use crate::components::{Composer, LeftRail, RightPanel, StatusBar, Transcript};
 use crate::ipc::{args, invoke, start_listener};
 use crate::shortcuts::start_shortcuts;
-use crate::state::{Entry, Snapshot};
+use crate::state::{Entry, LeftTab, Snapshot};
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -21,12 +21,13 @@ pub fn App() -> impl IntoView {
     let (deciding, set_deciding) = signal(false);
     let (split, set_split) = signal(false);
     let (expanded, set_expanded) = signal(false);
+    let (left, set_left) = signal(LeftTab::Sessions);
 
-    let attach = Callback::new(move |_: ()| {
+    let attach = Callback::new(move |session: Option<String>| {
         spawn_local(async move {
             match invoke(
                 "attach",
-                args(serde_json::json!({"socket": "/tmp/orexis.sock", "session": null})),
+                args(serde_json::json!({"socket": "/tmp/orexis.sock", "session": session})),
             )
             .await
             {
@@ -38,7 +39,11 @@ pub fn App() -> impl IntoView {
             }
         });
     });
-    attach.run(());
+    attach.run(None);
+    let retry_attach = attach.clone();
+    let retry = Callback::new(move |_: ()| retry_attach.run(None));
+    let open_attach = attach.clone();
+    let open_session = Callback::new(move |id: String| open_attach.run(Some(id)));
 
     let send = Callback::new(move |_: ()| {
         let text = composer.get();
@@ -87,19 +92,28 @@ pub fn App() -> impl IntoView {
         set_deciding.set(false);
     });
 
-    start_shortcuts(snapshot, decide.clone(), diff.clone(), undo.clone());
-
-    let retry = attach.clone();
+    start_shortcuts(
+        snapshot,
+        decide.clone(),
+        diff.clone(),
+        undo.clone(),
+        set_left,
+    );
     view! {
         <div class="app">
             <StatusBar
                 snapshot
                 error=error
-                on_attach=attach.clone()
+                on_attach=retry.clone()
                 on_undo=undo.clone()
             />
             <main class="zones">
-                <LeftRail snapshot />
+                <LeftRail
+                    snapshot
+                    active=left
+                    set_active=set_left
+                    on_open_session=open_session
+                />
                 <section class="center">
                     {move || {
                         error

@@ -83,3 +83,12 @@ pub fn status_label(status: &str) -> &str {
         _ => status,
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LeftTab {
+    Sessions,
+    Board,
+    Fleet,
+    Artifacts,
+    Files,
+}
