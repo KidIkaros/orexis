@@ -1,8 +1,11 @@
 [workspace]
+exclude = ["crates/desktop"]
 members = [
     "crates/core",
     "crates/ports",
     "crates/protocol",
+    "crates/client",
+    "crates/desktop-core",
     "crates/usecases",
     "crates/adapters-fake",
     "crates/adapters-session-sqlite",
@@ -31,6 +34,8 @@ license = "MIT"
 orexis-core = { path = "crates/core" }
 orexis-ports = { path = "crates/ports" }
 orexis-protocol = { path = "crates/protocol" }
+orexis-client = { path = "crates/client" }
+orexis-desktop-core = { path = "crates/desktop-core" }
 orexis-usecases = { path = "crates/usecases" }
 orexis-adapters-fake = { path = "crates/adapters-fake" }
 orexis-adapters-session-sqlite = { path = "crates/adapters-session-sqlite" }

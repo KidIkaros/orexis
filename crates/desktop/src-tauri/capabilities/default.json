@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Default Orexis desktop capabilities",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

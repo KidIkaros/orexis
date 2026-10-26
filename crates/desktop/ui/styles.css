@@ -1,0 +1,77 @@
+':root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #111;
+  color: #ddd;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+
+.status {
+  padding: 6px 12px;
+  background: #1b1b1b;
+  border-bottom: 1px solid #333;
+  font-size: 12px;
+  color: #bbb;
+}
+
+.zones {
+  display: grid;
+  grid-template-columns: 220px 1fr 340px;
+  min-height: 0;
+}
+
+.left,
+.right {
+  padding: 12px;
+  border-right: 1px solid #333;
+  overflow: auto;
+}
+
+.right {
+  border-right: 0;
+  border-left: 1px solid #333;
+}
+
+.center {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+}
+
+.transcript {
+  overflow: auto;
+  padding: 12px;
+}
+
+.composer {
+  margin: 8px;
+  padding: 10px;
+  background: #1b1b1b;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 6px;
+  resize: none;
+  min-height: 64px;
+}
+
+h2 {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #888;
+  margin: 12px 0 4px;
+}
+
+@media (max-width: 1000px) {
+  .zones {
+    grid-template-columns: 180px 1fr 280px;
+  }
+}

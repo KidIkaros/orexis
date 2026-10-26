@@ -1370,10 +1370,21 @@ name = "orexis-adapters-tui"
 version = "0.0.0"
 dependencies = [
  "crossterm",
+ "orexis-client",
  "orexis-core",
  "orexis-ports",
  "orexis-protocol",
  "ratatui",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "orexis-client"
+version = "0.0.0"
+dependencies = [
+ "orexis-core",
+ "orexis-protocol",
  "serde_json",
  "tempfile",
 ]
@@ -1427,6 +1438,18 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "orexis-desktop-core"
+version = "0.0.0"
+dependencies = [
+ "orexis-client",
+ "orexis-core",
+ "orexis-protocol",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

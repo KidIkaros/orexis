@@ -3,7 +3,7 @@
 use std::io::{BufReader, Write};
 use std::time::Duration;
 
-use orexis_adapters_tui::DaemonClient;
+use orexis_client::DaemonClient;
 use orexis_protocol::{ClientMsg, ServerMsg};
 
 use orexis_core::SessionEvent;

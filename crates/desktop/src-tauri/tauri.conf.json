@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Orexis",
+  "version": "0.1.0",
+  "identifier": "dev.orexis.desktop",
+  "build": {
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:8080"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Orexis",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ],
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": false
+  }
+}

@@ -12,7 +12,7 @@ use crossterm::terminal::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
-use crate::client::DaemonClient;
+use crate::DaemonClient;
 use crate::{TuiAction, TuiApp, TuiState};
 
 pub fn run(socket: PathBuf, session: Option<String>) -> io::Result<()> {

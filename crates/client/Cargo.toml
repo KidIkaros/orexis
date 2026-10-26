@@ -1,0 +1,13 @@
+[package]
+name = "orexis-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-protocol.workspace = true
+serde_json = "1"
+
+[dev-dependencies]
+orexis-core.workspace = true
+tempfile = "3"

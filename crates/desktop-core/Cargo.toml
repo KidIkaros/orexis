@@ -1,0 +1,15 @@
+[package]
+name = "orexis-desktop-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-client.workspace = true
+orexis-core.workspace = true
+orexis-protocol.workspace = true
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"
