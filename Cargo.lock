@@ -1387,6 +1387,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-jsonrpc"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "orexis-adapters-lsp"
 version = "0.0.0"
 dependencies = [

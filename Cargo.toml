@@ -23,6 +23,7 @@ members = [
     "crates/adapters-provider-llamacpp",
     "crates/adapters-provider-anthropic",
     "crates/adapters-http",
+    "crates/adapters-jsonrpc",
     "crates/composition",
     "crates/slice",
 ]
