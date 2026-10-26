@@ -5,6 +5,7 @@ use orexis_protocol::{ServerMsg, SessionInfo};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Connection {
     Connecting,
     Attached,
@@ -12,6 +13,7 @@ pub enum Connection {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum LeftTab {
     Sessions,
     Board,
@@ -21,6 +23,7 @@ pub enum LeftTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RightTab {
     Approvals,
     Diff,
@@ -28,6 +31,7 @@ pub enum RightTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Status {
     Empty,
     Running,
@@ -47,9 +51,14 @@ pub struct Approval {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum DesktopEntry {
-    User(String),
-    Assistant(String),
+    User {
+        text: String,
+    },
+    Assistant {
+        text: String,
+    },
     Tool {
         call_id: String,
         name: String,
@@ -57,9 +66,17 @@ pub enum DesktopEntry {
         ok: bool,
         detail: String,
     },
-    Approval(Approval),
-    Error(String),
-    Info(String),
+    Approval {
+        id: u64,
+        tool: String,
+        args: String,
+    },
+    Error {
+        message: String,
+    },
+    Info {
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,7 +125,11 @@ impl AppState {
             ServerMsg::ApprovalRequest { id, tool, args } => {
                 let approval = Approval { id, tool, args };
                 self.pending = Some(approval.clone());
-                self.transcript.push(DesktopEntry::Approval(approval));
+                self.transcript.push(DesktopEntry::Approval {
+                    id: approval.id,
+                    tool: approval.tool,
+                    args: approval.args,
+                });
                 self.right = RightTab::Approvals;
                 self.status = Status::Approval;
             }
@@ -117,7 +138,7 @@ impl AppState {
             ServerMsg::Sessions { sessions } => self.sessions = sessions,
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
-                self.transcript.push(DesktopEntry::Error(message));
+                self.transcript.push(DesktopEntry::Error { message });
             }
         }
     }
@@ -130,13 +151,15 @@ impl AppState {
     fn apply_event(&mut self, event: &SessionEvent) {
         match event {
             SessionEvent::UserMessage { text } => {
-                self.transcript.push(DesktopEntry::User(text.clone()));
+                self.transcript
+                    .push(DesktopEntry::User { text: text.clone() });
                 self.status = Status::Running;
             }
             SessionEvent::ModelResponse { text, .. } => {
                 self.live = None;
                 if !text.is_empty() {
-                    self.transcript.push(DesktopEntry::Assistant(text.clone()));
+                    self.transcript
+                        .push(DesktopEntry::Assistant { text: text.clone() });
                 }
                 self.status = Status::Running;
             }
@@ -172,38 +195,49 @@ impl AppState {
                 }
             }
             SessionEvent::Done { summary } => {
-                self.transcript
-                    .push(DesktopEntry::Info(format!("done: {summary}")));
+                self.transcript.push(DesktopEntry::Info {
+                    message: format!("done: {summary}"),
+                });
             }
             SessionEvent::Error { message } => {
                 self.status = Status::Error;
-                self.transcript.push(DesktopEntry::Error(message.clone()));
+                self.transcript.push(DesktopEntry::Error {
+                    message: message.clone(),
+                });
             }
             SessionEvent::Reprompt { note } => {
-                self.transcript
-                    .push(DesktopEntry::Info(format!("reprompt: {note}")));
+                self.transcript.push(DesktopEntry::Info {
+                    message: format!("reprompt: {note}"),
+                });
             }
             SessionEvent::Compaction { .. } => {
-                self.transcript
-                    .push(DesktopEntry::Info("compacted earlier context".to_string()));
+                self.transcript.push(DesktopEntry::Info {
+                    message: "compacted earlier context".to_string(),
+                });
             }
             SessionEvent::Checkpoint { id, .. } => {
-                self.transcript
-                    .push(DesktopEntry::Info(format!("checkpoint {id}")));
+                self.transcript.push(DesktopEntry::Info {
+                    message: format!("checkpoint {id}"),
+                });
             }
             SessionEvent::Verify { passed, .. } => {
-                self.transcript.push(DesktopEntry::Info(if *passed {
-                    "verify passed".to_string()
-                } else {
-                    "verify failed".to_string()
-                }));
+                self.transcript.push(DesktopEntry::Info {
+                    message: if *passed {
+                        "verify passed".to_string()
+                    } else {
+                        "verify failed".to_string()
+                    },
+                });
             }
             SessionEvent::Interrupted { reason } => {
-                self.transcript
-                    .push(DesktopEntry::Info(format!("interrupted: {reason}")));
+                self.transcript.push(DesktopEntry::Info {
+                    message: format!("interrupted: {reason}"),
+                });
             }
             SessionEvent::Info { message } => {
-                self.transcript.push(DesktopEntry::Info(message.clone()));
+                self.transcript.push(DesktopEntry::Info {
+                    message: message.clone(),
+                });
             }
             _ => {}
         }
@@ -275,11 +309,15 @@ mod tests {
         assert_eq!(state.transcript.len(), 2);
         assert_eq!(
             state.transcript[0],
-            DesktopEntry::User("refactor".to_string())
+            DesktopEntry::User {
+                text: "refactor".to_string()
+            }
         );
         assert_eq!(
             state.transcript[1],
-            DesktopEntry::Assistant("reading".to_string())
+            DesktopEntry::Assistant {
+                text: "reading".to_string()
+            }
         );
     }
 
@@ -346,6 +384,6 @@ mod tests {
         assert!(state
             .transcript
             .iter()
-            .any(|entry| matches!(entry, DesktopEntry::Assistant(text) if text == "hello")));
+            .any(|entry| matches!(entry, DesktopEntry::Assistant { text } if text == "hello")));
     }
 }

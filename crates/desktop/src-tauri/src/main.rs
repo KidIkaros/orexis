@@ -34,40 +34,73 @@ impl DesktopState {
     }
 }
 
+fn emit_state(handle: &tauri::AppHandle) -> Result<(), String> {
+    let state = handle.state::<DesktopState>();
+    let snapshot = state
+        .with(|bridge| serde_json::to_value(bridge.state()).map_err(|error| error.to_string()))?;
+    handle
+        .emit("orexis://state", &snapshot)
+        .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
-fn attach(state: State<DesktopState>, socket: String, session: Option<String>) -> Result<(), String> {
+fn attach(
+    app: tauri::AppHandle,
+    state: State<DesktopState>,
+    socket: String,
+    session: Option<String>,
+) -> Result<(), String> {
     let bridge = DesktopBridge::connect(&PathBuf::from(socket), session)
         .map_err(|error| error.to_string())?;
     *state
         .bridge
         .lock()
         .map_err(|_| "bridge lock poisoned".to_string())? = Some(bridge);
-    Ok(())
+    emit_state(&app)
 }
 
 #[tauri::command]
-fn prompt(state: State<DesktopState>, text: String, skip_verify: bool) -> Result<(), String> {
-    state.with_mut(|bridge| bridge.prompt(&text, skip_verify).map_err(|error| error.to_string()))
+fn prompt(
+    app: tauri::AppHandle,
+    state: State<DesktopState>,
+    text: String,
+    skip_verify: bool,
+) -> Result<(), String> {
+    state.with_mut(|bridge| {
+        bridge
+            .prompt(&text, skip_verify)
+            .map_err(|error| error.to_string())
+    })?;
+    emit_state(&app)
 }
 
 #[tauri::command]
-fn approve(state: State<DesktopState>, id: u64, yes: bool) -> Result<(), String> {
-    state.with_mut(|bridge| bridge.approve(id, yes).map_err(|error| error.to_string()))
+fn approve(
+    app: tauri::AppHandle,
+    state: State<DesktopState>,
+    id: u64,
+    yes: bool,
+) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.approve(id, yes).map_err(|error| error.to_string()))?;
+    emit_state(&app)
 }
 
 #[tauri::command]
-fn undo(state: State<DesktopState>) -> Result<(), String> {
-    state.with_mut(|bridge| bridge.undo().map_err(|error| error.to_string()))
+fn undo(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.undo().map_err(|error| error.to_string()))?;
+    emit_state(&app)
 }
 
 #[tauri::command]
-fn interrupt(state: State<DesktopState>) -> Result<(), String> {
-    state.with_mut(|bridge| bridge.interrupt().map_err(|error| error.to_string()))
+fn interrupt(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.interrupt().map_err(|error| error.to_string()))?;
+    emit_state(&app)
 }
 
 #[tauri::command]
-fn list_sessions(state: State<DesktopState>) -> Result<(), String> {
-    state.with_mut(|bridge| bridge.list_sessions().map_err(|error| error.to_string()))
+fn list_sessions(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.list_sessions().map_err(|error| error.to_string()))?;
+    emit_state(&app)
 }
 
 #[tauri::command]
@@ -97,8 +130,12 @@ fn main() {
                     state.with_mut(|bridge| bridge.pump().map_err(|error| error.to_string()))
                 };
                 if let Ok(messages) = messages {
+                    let had_messages = !messages.is_empty();
                     for message in messages {
                         let _ = handle.emit("orexis://event", &message);
+                    }
+                    if had_messages {
+                        let _ = emit_state(&handle);
                     }
                 }
                 std::thread::sleep(Duration::from_millis(50));
