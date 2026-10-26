@@ -249,8 +249,20 @@ async fn handle(
                 }
             }
             message = approvals.recv() => {
-                if let Ok(message) = message {
-                    write_msg(&mut write_half, &message).await?;
+                match message {
+                    Ok(message) => write_msg(&mut write_half, &message).await?,
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        write_msg(
+                            &mut write_half,
+                            &ServerMsg::Error {
+                                message: format!(
+                                    "approval stream lagged: {skipped} requests dropped"
+                                ),
+                            },
+                        )
+                        .await?;
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {}
                 }
             }
         }

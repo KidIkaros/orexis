@@ -15,7 +15,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use crate::client::DaemonClient;
-use crate::{TuiAction, TuiApp};
+use crate::{TuiAction, TuiApp, TuiState};
 
 pub fn run(socket: PathBuf, session: Option<String>) -> io::Result<()> {
     enable_raw_mode()?;
@@ -77,8 +77,18 @@ fn run_loop(
             }
         }
 
-        while let Some(message) = client.try_recv()? {
-            app.apply(message);
+        loop {
+            match client.try_recv() {
+                Ok(Some(message)) => app.apply(message),
+                Ok(None) => break,
+                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    app.set_state(TuiState::Disconnected);
+                    terminal.draw(|frame| app.render(frame))?;
+                    let _ = event::read();
+                    return Ok(());
+                }
+                Err(error) => return Err(error),
+            }
         }
     }
     Ok(())

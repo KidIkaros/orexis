@@ -31,6 +31,20 @@ impl ApprovalHub {
         self.tx.subscribe()
     }
 
+    pub fn remove(&self, id: u64) {
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.remove(&id);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn pending_len(&self) -> usize {
+        self.pending
+            .lock()
+            .map(|pending| pending.len())
+            .unwrap_or(0)
+    }
+
     pub fn resolve(&self, id: u64, yes: bool) {
         if let Ok(mut pending) = self.pending.lock() {
             if let Some(sender) = pending.remove(&id) {
@@ -42,11 +56,20 @@ impl ApprovalHub {
 
 pub struct HubGate {
     hub: Arc<ApprovalHub>,
+    timeout: Duration,
 }
 
 impl HubGate {
     pub fn new(hub: Arc<ApprovalHub>) -> Self {
-        Self { hub }
+        Self {
+            hub,
+            timeout: Duration::from_secs(300),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_timeout(hub: Arc<ApprovalHub>, timeout: Duration) -> Self {
+        Self { hub, timeout }
     }
 }
 
@@ -65,10 +88,31 @@ impl ApprovalGate for HubGate {
             tool: tool.to_string(),
             args: args.to_string(),
         });
-        match tokio::time::timeout(Duration::from_secs(300), receiver).await {
+        match tokio::time::timeout(self.timeout, receiver).await {
             Ok(Ok(yes)) => Ok(yes),
-            Ok(Err(_)) => Err(PortError("approval channel closed".into())),
-            Err(_) => Err(PortError("approval timed out".into())),
+            Ok(Err(_)) => {
+                self.hub.remove(id);
+                Err(PortError("approval channel closed".into()))
+            }
+            Err(_) => {
+                self.hub.remove(id);
+                Err(PortError("approval timed out".into()))
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn timeout_removes_the_pending_sender() {
+        let hub = Arc::new(ApprovalHub::new());
+        let gate = HubGate::with_timeout(hub.clone(), Duration::from_millis(20));
+        let error = gate.approve("shell", "{}").await.expect_err("timeout");
+        assert!(error.to_string().contains("timed out"));
+        assert_eq!(hub.pending_len(), 0);
     }
 }
