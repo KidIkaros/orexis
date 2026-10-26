@@ -11,12 +11,15 @@ pub enum CatalogError {
     Io(#[from] std::io::Error),
     #[error("yaml: {0}")]
     Yaml(#[from] serde_yaml::Error),
+    #[error("json: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Default)]
 pub struct Catalog {
     profiles: BTreeMap<String, ProviderProfile>,
     sources: BTreeMap<String, PathBuf>,
+    models_dev: BTreeMap<String, Vec<ModelInfo>>,
 }
 
 impl Catalog {
@@ -27,6 +30,18 @@ impl Catalog {
             if !dir.exists() {
                 continue;
             }
+            let models_dev_path = dir.join("models-dev.json");
+            if models_dev_path.exists() {
+                let snapshot = crate::models_dev::load(&models_dev_path)?;
+                for profile in snapshot.profiles {
+                    catalog
+                        .sources
+                        .insert(profile.id.clone(), models_dev_path.clone());
+                    catalog.profiles.insert(profile.id.clone(), profile);
+                }
+                catalog.models_dev.extend(snapshot.models);
+            }
+
             let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)?
                 .filter_map(Result::ok)
                 .map(|entry| entry.path())
@@ -41,7 +56,18 @@ impl Catalog {
                     continue;
                 }
                 let text = std::fs::read_to_string(&path)?;
-                let profile: ProviderProfile = serde_yaml::from_str(&text)?;
+                let mut profile: ProviderProfile = serde_yaml::from_str(&text)?;
+                if let Some(extra_models) = catalog.models_dev.get(&profile.id) {
+                    for model in extra_models {
+                        if !profile
+                            .models
+                            .iter()
+                            .any(|existing| existing.id == model.id)
+                        {
+                            profile.models.push(model.clone());
+                        }
+                    }
+                }
                 catalog.sources.insert(profile.id.clone(), path);
                 catalog.profiles.insert(profile.id.clone(), profile);
             }

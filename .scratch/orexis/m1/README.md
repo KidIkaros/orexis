@@ -28,6 +28,8 @@ Work blockers-first. Claim a ticket before starting. Each ticket closes only whe
 | [M1-20](M1-20-split-tui.md) | Split the TUI modules | — |
 | [M1-21](M1-21-split-catalog.md) | Split the provider catalog | M1-17 |
 | [M1-22](M1-22-docs-status.md) | Refresh README and AGENTS status | — |
+| [M1-23](M1-23-models-dev-import.md) | models.dev catalog import | — |
+| [M1-24](M1-24-hermes-provider-overrides.md) | Hermes provider overrides | M1-23 |
 
 ## Per-ticket loop
 

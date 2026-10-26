@@ -1,6 +1,7 @@
 //! Provider profiles, the vendored catalog, and secret resolution (ADR-0002).
 
 mod catalog;
+mod models_dev;
 mod profile;
 mod secrets;
 

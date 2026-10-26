@@ -129,3 +129,22 @@ fn shipped_profiles_parse() {
         assert!(catalog.get(id).is_some(), "missing {id}");
     }
 }
+
+#[test]
+fn models_dev_snapshot_loads() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("providers");
+    let catalog = Catalog::load(&[dir]).expect("catalog");
+    assert!(catalog.list().count() > 200, "long-tail providers missing");
+
+    let openrouter = catalog.get("openrouter").expect("openrouter");
+    assert_eq!(openrouter.base_url, "https://openrouter.ai/api/v1");
+
+    let vultr = catalog.get("vultr").expect("vultr");
+    assert!(format!("{:?}", vultr.extra).contains("models.dev"));
+
+    let openai = catalog.get("openai").expect("openai");
+    assert!(openai.models.len() > 1, "models.dev metadata not merged");
+
+    let anthropic = catalog.get("anthropic").expect("anthropic");
+    assert_eq!(anthropic.auth.header, "x-api-key", "curated auth must win");
+}
