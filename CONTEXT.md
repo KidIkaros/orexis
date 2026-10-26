@@ -15,7 +15,11 @@ Every document, ticket, and commit uses these words in exactly these senses. If 
 
 | Term | Means | Never means |
 |---|---|---|
-| **Entity** | The singular identity layer (identity, drives, affect, memory) | A worker |
+| **Entity** | The singular identity layer (identity, drives, affect, memory) | A worker; a model persona |
+| **Entity identity** | External, persistent, evidence-backed traits and continuity | A model's internal persona |
+| **Model persona** | Behavior induced by weights, activations, or steering in one model | The entity |
+| **Activation steering** | Inference-time intervention on neurons/layers; local open weights only | A prompt; an entity trait |
+| **Neuron alignment** | Research on mapping/steering internal representations | Entity memory or identity |
 | **Worker** | A generic execution instance with its own context, model, toolset, budget | A role |
 | **Strategy** | A use case: `plan`, `build`, `review`, `mine` | An agent type; an execution posture |
 | **Drive** | A slow [0,1] pressure that proposes work: connection, curiosity, mastery, coherence, rest, growth | An emotion; a prompt instruction |

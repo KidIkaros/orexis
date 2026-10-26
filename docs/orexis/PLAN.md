@@ -45,6 +45,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Desktop: three-zone oversight workspace; task-driven panels; inline approvals; two evaluation cycles | ADR-0008; ticket 006 |
 | MCP + ACP in v1; A2A/UTCP in M7 | §5, M7 |
 | Entity model: six drives (connection, curiosity, mastery, coherence, rest, growth) + PAD affect; drives propose, affect modulates posture; never prompt mid-session | ADR-0013; ticket 007 |
+| Entity identity is external/persistent/model-agnostic; model persona is internal/model-specific; neuron alignment/steering is research, not M5 | ADR-0014; issue 012 |
 | Lexical memory; no code RAG | §7 |
 | Tiered, git-backed, signed evolution | §4.5 |
 | Milestones M1–M9 with per-milestone cut rule | §5 |
@@ -73,7 +74,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 
 ### Not yet specified
 
-MAS scheduling policy after the breadth benchmark · evolution calibration after 100 cycles · A2A/UTCP adoption after M7 · SDK/marketplace/importers timing · multi-user collaboration · mobile/web.
+Neuron activation alignment/steering for local open weights — research; model-specific, not entity identity (ADR-0014) · MAS scheduling policy after the breadth benchmark · evolution calibration after 100 cycles · A2A/UTCP adoption after M7 · SDK/marketplace/importers timing · multi-user collaboration · mobile/web.
 
 ### Out of scope
 
@@ -293,7 +294,7 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M4 status (2026-10-26):** automated gate green; M4-01 … M4-04 resolved. Manual: SIGKILL a real repository turn and restart.
 
-**M5 status (2026-10-26):** M5-01 … M5-05 resolved; M5-06 gate open; decision 007 resolved (ADR-0013).
+**M5 status (2026-10-26):** M5-01 … M5-05 resolved; M5-06 gate open; decision 007 resolved (ADR-0013); neuron alignment is a separate research track (ADR-0014).
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 
