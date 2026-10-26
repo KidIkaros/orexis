@@ -2,8 +2,8 @@
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, ContextFile, EventRef, Message, Observation, ProviderResponse, SessionEvent,
-    StoredEvent, ToolSpec,
+    Action, ContextFile, EntityEvent, EntitySnapshot, EventRef, Message, Observation,
+    ProviderResponse, SessionEvent, StoredEvent, ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -191,6 +191,34 @@ pub struct SkillSummary {
 pub struct SkillContent {
     pub name: String,
     pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredEntityEvent {
+    pub seq: u64,
+    pub event: EntityEvent,
+}
+
+#[async_trait]
+pub trait EntityAppend: Send + Sync {
+    async fn append(&self, event: EntityEvent) -> PortResult<u64>;
+}
+
+#[async_trait]
+pub trait EntityRead: Send + Sync {
+    async fn events(&self) -> PortResult<Vec<StoredEntityEvent>>;
+    async fn snapshot(&self) -> PortResult<EntitySnapshot>;
+    fn export_jsonl(&self) -> PortResult<String>;
+}
+
+pub struct EntityRefs {
+    pub id: String,
+    pub append: std::sync::Arc<dyn EntityAppend>,
+    pub read: std::sync::Arc<dyn EntityRead>,
+}
+
+pub trait EntityFactory: Send + Sync {
+    fn open(&self) -> PortResult<EntityRefs>;
 }
 
 pub trait Skills: Send + Sync {

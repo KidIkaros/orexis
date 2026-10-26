@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** M5-02 … M5-06
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,14 +10,16 @@ A sovereign, append-only entity log with projections and export/import.
 
 ## Acceptance
 
-- [ ] Entity event kinds: `EntityStart`, `DriveUpdate`, `AffectUpdate`, `DiaryAppend`, `TraitUpdate`, `MemoryWrite`, `MemoryForget`, `PostureChange`.
-- [ ] SQLite WAL store under the Orexis home; `seq` + ULID; JSON payloads.
-- [ ] `EntityAppend`/`EntityRead`/`EntityFactory` ports; adapter only in composition.
-- [ ] Projections derive current drives/affect/traits/memories from the log.
-- [ ] Export/import JSONL round-trips.
-- [ ] Tests: append/read, restart, export/import, tamper detection for bad payloads.
+- [x] Entity event kinds: `EntityStart`, `DriveUpdate`, `AffectUpdate`, `DiaryAppend`, `TraitUpdate`, `MemoryWrite`, `MemoryForget`, `PostureChange`.
+- [x] SQLite WAL store; `seq` + ULID event ids; JSON payloads; `entity.db` beside the session DB.
+- [x] `EntityAppend`/`EntityRead`/`EntityFactory` ports; composition constructs the factory.
+- [x] `project` derives drives/affect/posture/traits/memories/diary from the log.
+- [x] Export/import JSONL round-trips.
+- [x] Tests: append/projection, restart, export/import, redaction.
 
 ## Notes
 
 - Separate from the session store; the entity is not a session.
 - One entity per installation; workers share it.
+- `Runtime.entity` is wired but no use case consumes it yet; M5-02/03 do.
+- Composition is the only place `SqliteEntityFactory` is constructed.

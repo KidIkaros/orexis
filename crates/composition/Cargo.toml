@@ -10,6 +10,7 @@ orexis-ports.workspace = true
 orexis-usecases.workspace = true
 orexis-adapters-fake.workspace = true
 orexis-adapters-session-sqlite.workspace = true
+orexis-adapters-entity-sqlite = { path = "../adapters-entity-sqlite" }
 orexis-adapters-provider-catalog.workspace = true
 orexis-adapters-provider-openai.workspace = true
 orexis-adapters-provider-anthropic.workspace = true

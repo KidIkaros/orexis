@@ -9,6 +9,7 @@ members = [
     "crates/usecases",
     "crates/adapters-fake",
     "crates/adapters-session-sqlite",
+    "crates/adapters-entity-sqlite",
     "crates/adapters-provider-catalog",
     "crates/adapters-provider-openai",
     "crates/adapters-codec",

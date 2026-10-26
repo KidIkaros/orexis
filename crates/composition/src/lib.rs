@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use orexis_adapters_codec::{codec_for, NativeCodec};
 use orexis_adapters_context_fs::FileContextSource;
+use orexis_adapters_entity_sqlite::SqliteEntityFactory;
 use orexis_adapters_fake::{
     EchoTools, InMemorySession, RecordingSink, ScriptedProvider, SlowProvider,
 };
@@ -19,8 +20,8 @@ use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, ContextSource, Lsp, PortError, Provider, SessionAppend, SessionFactory,
-    SessionRead, ToolExecutor, Verifier, Workspace,
+    Checkpointer, Codec, ContextSource, EntityFactory, Lsp, PortError, Provider, SessionAppend,
+    SessionFactory, SessionRead, ToolExecutor, Verifier, Workspace,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -84,6 +85,7 @@ pub struct Runtime {
     pub checkpointer: Option<Arc<dyn Checkpointer>>,
     pub verifier: Option<Arc<dyn Verifier>>,
     pub sessions: Arc<dyn SessionFactory>,
+    pub entity: Arc<dyn EntityFactory>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
     pub context_files: Vec<ContextFile>,
@@ -173,12 +175,16 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
     let lsp: Arc<dyn Lsp> = Arc::new(StdioLsp::new(config.project_root.clone(), "rust-analyzer"));
     let tools = Arc::new(LocalTools::with_lsp(config.project_root.clone(), lsp)?);
     let workspace: Arc<dyn Workspace> = Arc::new(LocalTools::new(config.project_root.clone())?);
+    let entity: Arc<dyn EntityFactory> = Arc::new(SqliteEntityFactory::new(
+        config.db_path.with_file_name("entity.db"),
+    ));
     let context_tools = LocalTools::specs();
 
     Ok(Runtime {
         provider,
         tools,
         workspace,
+        entity,
         codec,
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: Some(Arc::new(GitCheckpointStore::new(
@@ -212,7 +218,10 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: None,
         verifier: None,
-        sessions: Arc::new(SqliteSessionFactory::new(db_path)),
+        sessions: Arc::new(SqliteSessionFactory::new(db_path.clone())),
+        entity: Arc::new(SqliteEntityFactory::new(
+            db_path.with_file_name("entity.db"),
+        )),
         system_prompt: String::new(),
         context_tools: Vec::new(),
         context_files: Vec::new(),

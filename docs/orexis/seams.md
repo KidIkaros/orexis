@@ -16,6 +16,8 @@ graph TD
   orexis-adapters-fake --> orexis-ports
   orexis-adapters-session-sqlite --> orexis-core
   orexis-adapters-session-sqlite --> orexis-ports
+  orexis-adapters-entity-sqlite --> orexis-core
+  orexis-adapters-entity-sqlite --> orexis-ports
   orexis-adapters-provider-openai --> orexis-adapters-http
   orexis-adapters-provider-openai --> orexis-adapters-provider-catalog
   orexis-adapters-provider-openai --> orexis-core
@@ -41,6 +43,7 @@ graph TD
   orexis-daemon --> orexis-usecases
   orexis-composition --> orexis-adapters-codec
   orexis-composition --> orexis-adapters-context-fs
+  orexis-composition --> orexis-adapters-entity-sqlite
   orexis-composition --> orexis-adapters-fake
   orexis-composition --> orexis-adapters-http
   orexis-composition --> orexis-adapters-lsp

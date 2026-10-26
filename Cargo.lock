@@ -1258,6 +1258,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-entity-sqlite"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "orexis-core",
+ "orexis-ports",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+ "ulid",
+]
+
+[[package]]
 name = "orexis-adapters-fake"
 version = "0.0.0"
 dependencies = [
@@ -1409,6 +1423,7 @@ dependencies = [
  "dirs",
  "orexis-adapters-codec",
  "orexis-adapters-context-fs",
+ "orexis-adapters-entity-sqlite",
  "orexis-adapters-fake",
  "orexis-adapters-http",
  "orexis-adapters-lsp",
