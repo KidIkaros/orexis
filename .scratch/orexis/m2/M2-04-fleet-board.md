@@ -2,7 +2,7 @@
 
 - **Blocked by:** M2-01
 - **Blocks:** M2-06
-- **Status:** in progress (devin, 2026-10-26) — session-derived panels; richer worker/task metadata lands with multi-agent
+- **Status:** resolved (devin, 2026-10-26) — session projections per ADR-0012; Worker/Task metadata is M8
 
 ## Goal
 

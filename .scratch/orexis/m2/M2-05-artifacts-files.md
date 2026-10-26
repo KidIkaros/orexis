@@ -2,7 +2,7 @@
 
 - **Blocked by:** M2-01
 - **Blocks:** M2-06
-- **Status:** in progress (devin, 2026-10-26) — files/artifacts wired; session-log artifacts remain
+- **Status:** resolved (devin, 2026-10-26) — changes/files wired; durable Artifact/session logs are M8
 
 ## Goal
 
