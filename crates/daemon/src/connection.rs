@@ -70,6 +70,9 @@ pub(crate) async fn handle(
                             handlers::interrupt(rt).await;
                         }
                     }
+                    ClientMsg::Evolution => {
+                        handlers::evolution(&config, &mut write_half).await?;
+                    }
                     ClientMsg::SelfView => {
                         handlers::self_view(&config, &mut write_half).await?;
                     }

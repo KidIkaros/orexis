@@ -105,6 +105,7 @@ fn entity_is_shared_across_handles() {
         statement: "model-agnostic".to_string(),
         evidence: vec![1],
         confidence: 0.8,
+        last_seen_at: 1,
     }))
     .expect("trait");
     let snapshot = block_on(second.read.snapshot()).expect("snapshot");

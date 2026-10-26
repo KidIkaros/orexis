@@ -27,6 +27,7 @@ fn projection_applies_entity_events() {
             statement: "prefers tests first".to_string(),
             evidence: vec![3, 7],
             confidence: 0.7,
+            last_seen_at: 10,
         },
         EntityEvent::MemoryWrite {
             memory_id: "m1".to_string(),

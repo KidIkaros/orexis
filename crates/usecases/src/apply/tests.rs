@@ -1,14 +1,14 @@
 use super::*;
 
 use std::collections::BTreeMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use futures::executor::block_on;
 use orexis_core::{
     Candidate, CandidateManifest, LedgerOp, Mutation, MutationKind, StageResult, ValidationStage,
 };
-use orexis_ports::{Proposal, ProposalContext};
+use orexis_ports::{Proposal, ProposalContext, Signer};
 
 struct FakeQueue {
     candidate: Candidate,
@@ -125,12 +125,42 @@ fn validation(passed: bool) -> ValidationReport {
     }
 }
 
-fn request(tier: Tier, human: bool, signed: bool) -> ApplyRequest {
+struct FakeSigner;
+
+impl Signer for FakeSigner {
+    fn sign(&self, message: &[u8]) -> PortResult<Vec<u8>> {
+        Ok(message.to_vec())
+    }
+
+    fn verify(&self, message: &[u8], signature: &[u8]) -> bool {
+        message == signature
+    }
+
+    fn public_key(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
+fn request(tier: Tier, human: bool) -> ApplyRequest {
     ApplyRequest {
         candidate_id: "c1".to_string(),
         tier,
         human_approved: human,
-        signed,
+        candidate_signature: None,
+        signer: None,
+        validation: validation(true),
+        seal: Seal::compute(BTreeMap::new()),
+    }
+}
+
+fn signed_request(tier: Tier, human: bool) -> ApplyRequest {
+    let candidate = candidate(MutationKind::GeneParameter);
+    ApplyRequest {
+        candidate_id: "c1".to_string(),
+        tier,
+        human_approved: human,
+        candidate_signature: Some(candidate.manifest.content_hash.as_bytes().to_vec()),
+        signer: Some(Arc::new(FakeSigner)),
         validation: validation(true),
         seal: Seal::compute(BTreeMap::new()),
     }
@@ -145,14 +175,14 @@ fn off_refuses_and_skills_applies_skill_content() {
     assert!(block_on(apply_candidate(
         &queue,
         &corridor,
-        request(Tier::Off, false, false)
+        request(Tier::Off, false)
     ))
     .is_err());
 
     let applied = block_on(apply_candidate(
         &queue,
         &corridor,
-        request(Tier::Skills, false, false),
+        request(Tier::Skills, false),
     ))
     .expect("skills apply");
     assert_eq!(applied.op, LedgerOp::Apply);
@@ -167,19 +197,19 @@ fn skills_cannot_apply_genes_and_core_needs_signature() {
     assert!(block_on(apply_candidate(
         &queue,
         &corridor,
-        request(Tier::Skills, true, true)
+        request(Tier::Skills, true)
     ))
     .is_err());
     assert!(block_on(apply_candidate(
         &queue,
         &corridor,
-        request(Tier::Core, true, false)
+        request(Tier::Core, true)
     ))
     .is_err());
     assert!(block_on(apply_candidate(
         &queue,
         &corridor,
-        request(Tier::Core, true, true)
+        signed_request(Tier::Core, true)
     ))
     .is_ok());
 }
@@ -190,7 +220,7 @@ fn invalid_validation_is_refused() {
         candidate: candidate(MutationKind::SkillContent),
     };
     let corridor = FakeCorridor::default();
-    let mut request = request(Tier::Skills, false, false);
+    let mut request = request(Tier::Skills, false);
     request.validation = validation(false);
     assert!(block_on(apply_candidate(&queue, &corridor, request)).is_err());
 }
@@ -204,4 +234,35 @@ fn rollback_calls_revert() {
         corridor.reverted.lock().expect("reverted").as_slice(),
         ["c1"]
     );
+}
+
+#[test]
+fn monitor_trigger_rolls_back_only_when_policy_allows() {
+    let corridor = FakeCorridor::default();
+    let entry = block_on(handle_trigger(
+        &corridor,
+        "c1",
+        Tier::Skills,
+        RollbackTrigger::Regression,
+    ))
+    .expect("trigger");
+    assert!(entry.is_some());
+
+    let entry = block_on(handle_trigger(
+        &corridor,
+        "c1",
+        Tier::Core,
+        RollbackTrigger::Regression,
+    ))
+    .expect("trigger");
+    assert!(entry.is_none());
+
+    let entry = block_on(handle_trigger(
+        &corridor,
+        "c1",
+        Tier::Core,
+        RollbackTrigger::SafetyIncident,
+    ))
+    .expect("trigger");
+    assert!(entry.is_some());
 }

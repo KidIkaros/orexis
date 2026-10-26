@@ -153,12 +153,36 @@ pub(crate) async fn prompt(
     Ok(())
 }
 
+pub(crate) async fn evolution(
+    config: &Arc<DaemonConfig>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let mut entries = Vec::new();
+    if let Some(path) = &config.evolution_ledger {
+        if let Ok(text) = std::fs::read_to_string(path) {
+            entries = text
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .take(500)
+                .map(str::to_string)
+                .collect();
+        }
+    }
+    write_msg(write, &ServerMsg::Evolution { entries }).await
+}
+
 pub(crate) async fn self_view(
     config: &Arc<DaemonConfig>,
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
     let refs = config.entity.open().map_err(io_err)?;
     let snapshot = refs.read.snapshot().await.map_err(io_err)?;
+    if let Some(path) = &config.identity_path {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(path, orexis_core::render_identity(&snapshot));
+    }
     write_msg(
         write,
         &ServerMsg::SelfView {

@@ -31,6 +31,7 @@ pub fn LeftRail(
                     (LeftTab::Fleet, "fleet*"),
                     (LeftTab::Artifacts, "changes"),
                     (LeftTab::Files, "files"),
+                    (LeftTab::SelfView, "self"),
                 ]
                     .into_iter()
                     .map(|(tab, label)| {
@@ -58,6 +59,7 @@ pub fn LeftRail(
                 LeftTab::Artifacts => {
                     artifacts_view(snapshot, set_preview, on_read_file.clone())
                 }
+                LeftTab::SelfView => self_view(snapshot),
                 LeftTab::Files => {
                     files_view(
                         snapshot,
@@ -81,6 +83,13 @@ fn dot_class(status: &str) -> String {
         "dot"
     }
     .to_string()
+}
+
+fn self_view(snapshot: ReadSignal<Snapshot>) -> AnyView {
+    match snapshot.get().self_text {
+        Some(text) => view! { <pre class="preview">{text}</pre> }.into_any(),
+        None => view! { <p class="muted">"no entity state yet"</p> }.into_any(),
+    }
 }
 
 fn empty(snapshot: &Snapshot) -> AnyView {

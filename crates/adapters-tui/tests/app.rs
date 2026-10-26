@@ -203,3 +203,13 @@ fn self_view_sets_overlay() {
     assert_eq!(app.self_text.as_deref(), Some("drives connection 0.5"));
     assert!(matches!(app.overlay, Some(Overlay::SelfState)));
 }
+
+#[test]
+fn evolution_sets_overlay() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Evolution {
+        entries: vec!["#1 apply".to_string()],
+    });
+    assert_eq!(app.evolution_text.as_deref(), Some("#1 apply"));
+    assert!(matches!(app.overlay, Some(Overlay::Evolution)));
+}

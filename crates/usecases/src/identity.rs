@@ -28,8 +28,10 @@ pub async fn distill_trait(
     statement: &str,
     evidence: Vec<u64>,
     confidence: f32,
+    last_seen_at: u64,
 ) -> PortResult<()> {
     let trait_ = Trait::new(id, statement, evidence, confidence)
+        .map(|trait_| trait_.seen(last_seen_at))
         .ok_or_else(|| PortError("trait needs a statement and evidence".into()))?;
     append
         .append(EntityEvent::TraitUpdate {
@@ -37,6 +39,7 @@ pub async fn distill_trait(
             statement: trait_.statement,
             evidence: trait_.evidence,
             confidence: trait_.confidence,
+            last_seen_at: trait_.last_seen_at,
         })
         .await?;
     Ok(())
@@ -56,6 +59,7 @@ pub async fn decay_traits(
                     statement: decayed.statement,
                     evidence: decayed.evidence,
                     confidence: decayed.confidence,
+                    last_seen_at: decayed.last_seen_at,
                 })
                 .await?;
         }
@@ -105,6 +109,7 @@ mod tests {
             "prefers tests first",
             vec![3, 7],
             0.7,
+            10,
         ))
         .expect("trait");
         let events = append.events.lock().expect("events");
@@ -115,7 +120,7 @@ mod tests {
     #[test]
     fn traits_without_evidence_are_rejected() {
         let append = RecordingAppend::default();
-        assert!(block_on(distill_trait(&append, "t1", "no evidence", vec![], 0.5)).is_err());
+        assert!(block_on(distill_trait(&append, "t1", "no evidence", vec![], 0.5, 10)).is_err());
     }
 
     #[test]

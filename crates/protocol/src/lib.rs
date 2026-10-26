@@ -31,6 +31,7 @@ pub enum ClientMsg {
     },
     Artifacts,
     Audit,
+    Evolution,
     Interrupt,
     Undo,
     Diff,
@@ -89,6 +90,9 @@ pub enum ServerMsg {
     },
     SelfView {
         text: String,
+    },
+    Evolution {
+        entries: Vec<String>,
     },
     Diff {
         diff: String,

@@ -91,6 +91,12 @@ fn approve(
 }
 
 #[tauri::command]
+fn self_view(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.self_view().map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
 fn settings(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
     state.with_mut(|bridge| bridge.settings().map_err(|error| error.to_string()))?;
     emit_state(&app)
@@ -161,6 +167,7 @@ fn main() {
             prompt,
             approve,
             diff,
+            self_view,
             settings,
             list_dir,
             read_file,

@@ -11,6 +11,7 @@ cargo test -p orexis-usecases entity
 cargo test -p orexis-usecases memory
 cargo test -p orexis-adapters-entity-sqlite
 cargo test -p orexis-daemon --test attach identity
+cargo test -p orexis-daemon --test attach entity_survives_model_switch
 cargo test -p orexis-adapters-tui self_view
 
 if grep -RIn --include='*.rs' -E 'embedding|vector_store|faiss|qdrant' \
@@ -23,4 +24,3 @@ echo
 echo "M5 automated gate passed."
 echo "Manual (not verified here):"
 echo "  - /self against a real repository"
-echo "  - entity persistence across a live model switch"

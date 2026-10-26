@@ -47,6 +47,8 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         entity: Arc::new(SqliteEntityFactory::new(
             socket.parent().unwrap_or(Path::new(".")).join("entity.db"),
         )),
+        identity_path: None,
+        evolution_ledger: None,
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
         workspace: Arc::new(
@@ -134,6 +136,19 @@ impl Checkpointer for RecordingCheckpointer {
 
     fn diff(&self, _id: &str) -> PortResult<String> {
         Ok("--- a/a.txt\n+++ b/a.txt\n-one\n+two\n".to_string())
+    }
+}
+
+async fn read_until_evolution(
+    reader: &mut BufReader<OwnedReadHalf>,
+    line: &mut String,
+) -> Vec<String> {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::Evolution { entries } => return entries,
+            ServerMsg::Error { message } => panic!("evolution error: {message}"),
+            _ => {}
+        }
     }
 }
 
@@ -872,6 +887,7 @@ async fn identity_is_injected_only_on_the_first_turn() {
         statement: "prefers tests first".to_string(),
         evidence: vec![1],
         confidence: 0.8,
+        last_seen_at: 1,
     }))
     .expect("trait");
 
@@ -907,6 +923,7 @@ async fn identity_is_injected_only_on_the_first_turn() {
                 statement: "mid-session trait".to_string(),
                 evidence: vec![2],
                 confidence: 0.9,
+                last_seen_at: 2,
             }))
             .expect("mid-session trait");
         }
@@ -924,4 +941,114 @@ async fn identity_is_injected_only_on_the_first_turn() {
     assert!(system(0).contains("prefers tests first"));
     assert!(!system(1).contains("prefers tests first"));
     assert!(!system(1).contains("mid-session trait"));
+}
+
+#[tokio::test]
+async fn self_view_writes_identity_file() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let entity_db = dir.path().join("entity.db");
+    let identity_path = dir.path().join("IDENTITY.md");
+    let store = SqliteEntityStore::open(&entity_db).expect("entity");
+    futures::executor::block_on(store.append(EntityEvent::TraitUpdate {
+        trait_id: "t1".to_string(),
+        statement: "prefers tests first".to_string(),
+        evidence: vec![1],
+        confidence: 0.8,
+        last_seen_at: 1,
+    }))
+    .expect("trait");
+
+    let mut config = config(&socket, &db);
+    config.identity_path = Some(identity_path.clone());
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::SelfView).await;
+    let _ = read_until_self_view(&mut reader, &mut line).await;
+
+    let identity = std::fs::read_to_string(identity_path).expect("identity file");
+    assert!(identity.contains("prefers tests first"));
+}
+
+#[tokio::test]
+async fn entity_survives_model_switch() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket_a = dir.path().join("a.sock");
+    let socket_b = dir.path().join("b.sock");
+    let db = dir.path().join("sessions.db");
+    let entity_db = dir.path().join("entity.db");
+    let store = SqliteEntityStore::open(&entity_db).expect("entity");
+    futures::executor::block_on(store.append(EntityEvent::TraitUpdate {
+        trait_id: "t1".to_string(),
+        statement: "model-agnostic trait".to_string(),
+        evidence: vec![1],
+        confidence: 0.8,
+        last_seen_at: 1,
+    }))
+    .expect("trait");
+
+    let mut config_a = config(&socket_a, &db);
+    config_a.model_id = "model-a".to_string();
+    let daemon_a = Daemon::new(config_a);
+    let handle = tokio::spawn(async move {
+        let _ = daemon_a.run().await;
+    });
+    wait_for(&socket_a).await;
+    let (mut reader, mut writer) = connect(&socket_a).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::SelfView).await;
+    let first = read_until_self_view(&mut reader, &mut line).await;
+    assert!(first.contains("model-agnostic trait"));
+    handle.abort();
+    drop(writer);
+
+    let mut config_b = config(&socket_b, &db);
+    config_b.model_id = "model-b".to_string();
+    let daemon_b = Daemon::new(config_b);
+    tokio::spawn(async move {
+        let _ = daemon_b.run().await;
+    });
+    wait_for(&socket_b).await;
+    let (mut reader, mut writer) = connect(&socket_b).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::SelfView).await;
+    let second = read_until_self_view(&mut reader, &mut line).await;
+    assert!(second.contains("model-agnostic trait"));
+}
+
+#[tokio::test]
+async fn evolution_returns_the_ledger() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let ledger = dir.path().join("ledger.jsonl");
+    std::fs::write(&ledger, "#1 apply\n#2 revert\n").expect("ledger");
+    let mut config = config(&socket, &db);
+    config.evolution_ledger = Some(ledger);
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::Evolution).await;
+    let entries = read_until_evolution(&mut reader, &mut line).await;
+    assert_eq!(entries, vec!["#1 apply", "#2 revert"]);
 }

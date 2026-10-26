@@ -16,7 +16,7 @@ Prove evolution is durable across 100 accelerated cycles.
 - [x] Every applied entry's seal hash equals the sealed set.
 - [x] Executable proposal rejected; quarantine count unchanged.
 - [x] Final verification passes.
-- [ ] Manual: `/evolve` is not built yet; ledger inspection remains manual.
+- [x] Read-only `/evolve` TUI surface reads the ledger. *(Real-repo inspection remains manual.)*
 
 ## Notes
 

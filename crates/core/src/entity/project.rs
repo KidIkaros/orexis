@@ -35,6 +35,7 @@ pub fn project(events: &[EntityEvent]) -> EntitySnapshot {
                 statement,
                 evidence,
                 confidence,
+                last_seen_at,
             } => {
                 snapshot.traits.insert(
                     trait_id.clone(),
@@ -43,6 +44,7 @@ pub fn project(events: &[EntityEvent]) -> EntitySnapshot {
                         statement: statement.clone(),
                         evidence: evidence.clone(),
                         confidence: *confidence,
+                        last_seen_at: *last_seen_at,
                     },
                 );
             }

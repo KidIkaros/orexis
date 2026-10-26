@@ -18,7 +18,13 @@ impl Trait {
             statement,
             evidence,
             confidence: confidence.clamp(0.0, 1.0),
+            last_seen_at: 0,
         })
+    }
+
+    pub fn seen(mut self, at: u64) -> Self {
+        self.last_seen_at = at;
+        self
     }
 
     pub fn decayed(&self, rate: f32) -> Self {
@@ -106,14 +112,15 @@ pub fn self_view(snapshot: &EntitySnapshot) -> String {
     traits.sort_by(|left, right| right.confidence.total_cmp(&left.confidence));
     for item in traits.iter().take(10) {
         out.push_str(&format!(
-            "  - {} ({:.2}; evidence {})\n",
+            "  - {} ({:.2}; evidence {}; last seen {})\n",
             item.statement,
             item.confidence,
             item.evidence
                 .iter()
                 .map(u64::to_string)
                 .collect::<Vec<_>>()
-                .join(",")
+                .join(","),
+            item.last_seen_at
         ));
     }
     out.push_str(&format!("memory   {}\n", snapshot.memories.len()));

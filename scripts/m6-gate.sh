@@ -12,6 +12,7 @@ cargo test -p orexis-usecases apply
 cargo test -p orexis-adapters-evolution-git
 cargo test -p orexis-composition --test evolution_apply
 cargo test -p orexis-composition --test evolution_100_cycles
+cargo test -p orexis-adapters-tui evolution_sets
 
 echo
 echo "M6 automated gate passed."

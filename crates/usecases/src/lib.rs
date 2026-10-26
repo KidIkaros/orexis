@@ -14,7 +14,7 @@ mod replay;
 mod session;
 mod turn;
 
-pub use apply::{apply_candidate, rollback, should_rollback, ApplyRequest};
+pub use apply::{apply_candidate, handle_trigger, rollback, should_rollback, ApplyRequest};
 pub use codec::{select_codec, CodecCapabilities};
 pub use compaction::{plan_compaction, ExtractiveSummarizer};
 pub use context::{

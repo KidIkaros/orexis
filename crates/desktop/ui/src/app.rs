@@ -36,6 +36,7 @@ pub fn App() -> impl IntoView {
                     set_error.set(None);
                     let _ = invoke("artifacts", JsValue::NULL).await;
                     let _ = invoke("settings", JsValue::NULL).await;
+                    let _ = invoke("self_view", JsValue::NULL).await;
                     let _ = invoke("list_dir", args(serde_json::json!({"path": "."}))).await;
                 }
                 Err(err) => set_error.set(Some(

@@ -89,6 +89,7 @@ pub struct Snapshot {
     pub preview: Option<FilePreview>,
     pub artifacts: Vec<Artifact>,
     pub settings: Option<SettingsInfo>,
+    pub self_text: Option<String>,
 }
 
 impl Default for Snapshot {
@@ -107,6 +108,7 @@ impl Default for Snapshot {
             preview: None,
             artifacts: Vec::new(),
             settings: None,
+            self_text: None,
         }
     }
 }
@@ -133,4 +135,5 @@ pub enum LeftTab {
     Fleet,
     Artifacts,
     Files,
+    SelfView,
 }

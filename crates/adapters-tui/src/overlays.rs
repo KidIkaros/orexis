@@ -52,6 +52,13 @@ fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
             Line::from("#13  review store      review   worker 2   blocked by #12"),
             Line::from("#14  migrate tests     build    —          queued"),
         ],
+        Overlay::Evolution => match &app.evolution_text {
+            Some(text) => text
+                .lines()
+                .map(|line| Line::from(line.to_string()))
+                .collect(),
+            None => vec![Line::from("no evolution ledger")],
+        },
         Overlay::SelfState => match &app.self_text {
             Some(text) => text
                 .lines()

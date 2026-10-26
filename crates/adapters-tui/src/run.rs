@@ -63,6 +63,7 @@ fn run_loop(
                         TuiAction::Interrupt | TuiAction::Cancel => client.interrupt()?,
                         TuiAction::Undo => client.undo()?,
                         TuiAction::SelfView => client.self_view()?,
+                        TuiAction::Evolution => client.evolution()?,
                         TuiAction::Detach | TuiAction::Quit => {
                             let _ = client.detach();
                             break;

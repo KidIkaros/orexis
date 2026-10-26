@@ -17,20 +17,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fake = std::env::var("OREXIS_FAKE").is_ok();
     let profile = std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string());
     let model = std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string());
+    let cwd = std::env::current_dir()?;
+    let project_root = std::env::var("OREXIS_PROJECT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| cwd.clone());
+    let identity_path = if fake {
+        None
+    } else {
+        Some(project_root.join(".orexis/IDENTITY.md"))
+    };
+    let evolution_ledger = if fake {
+        None
+    } else {
+        Some(project_root.join(".orexis/evolution/ledger.jsonl"))
+    };
 
     let runtime = if fake {
         build_fake_runtime(db.clone())
     } else {
-        let cwd = std::env::current_dir()?;
-        let project_root = std::env::var("OREXIS_PROJECT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| cwd.clone());
         build_runtime(BuildConfig {
             profile_id: profile.clone(),
             model_id: model.clone(),
             db_path: db,
-            project_root,
-            cwd,
+            project_root: project_root.clone(),
+            cwd: cwd.clone(),
             providers_dir: None,
             verify_command: std::env::var("OREXIS_VERIFY").ok(),
             system_prompt: String::new(),
@@ -48,6 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         model_id: if fake { "fake".to_string() } else { model },
         sessions: runtime.sessions,
         entity: runtime.entity,
+        identity_path,
+        evolution_ledger,
         provider: runtime.provider,
         tools: runtime.tools,
         workspace: runtime.workspace,

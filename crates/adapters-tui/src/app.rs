@@ -34,6 +34,7 @@ pub struct TuiApp {
     pub queued: Option<usize>,
     pub live: Option<String>,
     pub self_text: Option<String>,
+    pub evolution_text: Option<String>,
     pub pending_approval: Option<u64>,
     pub palette_query: String,
     pub palette_selected: usize,
@@ -67,6 +68,7 @@ impl Default for TuiApp {
             queued: None,
             live: None,
             self_text: None,
+            evolution_text: None,
             pending_approval: None,
             palette_query: String::new(),
             palette_selected: 0,
@@ -206,6 +208,15 @@ impl TuiApp {
             ServerMsg::File { .. } => {}
             ServerMsg::Artifacts { .. } => {}
             ServerMsg::Settings { .. } => {}
+            ServerMsg::Evolution { entries } => {
+                self.evolution_text = Some(if entries.is_empty() {
+                    "no evolution ledger".to_string()
+                } else {
+                    entries.join("\n")
+                });
+                self.overlay = Some(Overlay::Evolution);
+                self.revision += 1;
+            }
             ServerMsg::SelfView { text } => {
                 self.self_text = Some(text);
                 self.overlay = Some(Overlay::SelfState);
@@ -231,6 +242,7 @@ impl TuiApp {
         let all = vec![
             ("undo the last turn".to_string(), TuiAction::Undo),
             ("show self".to_string(), TuiAction::SelfView),
+            ("show evolution".to_string(), TuiAction::Evolution),
             ("interrupt the turn".to_string(), TuiAction::Interrupt),
             ("detach".to_string(), TuiAction::Detach),
             ("cancel".to_string(), TuiAction::Cancel),

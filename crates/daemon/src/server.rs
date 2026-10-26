@@ -20,6 +20,8 @@ pub struct DaemonConfig {
     pub model_id: String,
     pub sessions: Arc<dyn SessionFactory>,
     pub entity: Arc<dyn EntityFactory>,
+    pub identity_path: Option<PathBuf>,
+    pub evolution_ledger: Option<PathBuf>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
     pub workspace: Arc<dyn Workspace>,

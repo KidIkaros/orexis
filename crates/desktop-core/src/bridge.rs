@@ -57,6 +57,10 @@ impl DesktopBridge {
         self.client.approve(id, yes)
     }
 
+    pub fn self_view(&mut self) -> io::Result<()> {
+        self.client.self_view()
+    }
+
     pub fn settings(&mut self) -> io::Result<()> {
         self.client.settings()
     }

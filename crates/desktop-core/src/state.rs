@@ -105,6 +105,7 @@ pub struct AppState {
     pub preview: Option<FilePreview>,
     pub artifacts: Vec<Artifact>,
     pub settings: Option<SettingsInfo>,
+    pub self_text: Option<String>,
 }
 
 impl Default for AppState {
@@ -127,6 +128,7 @@ impl Default for AppState {
             preview: None,
             artifacts: Vec::new(),
             settings: None,
+            self_text: None,
         }
     }
 }
@@ -178,7 +180,8 @@ impl AppState {
             ServerMsg::Artifacts { items } => self.artifacts = items,
             ServerMsg::Settings { settings } => self.settings = Some(settings),
             ServerMsg::Audit { .. } => {}
-            ServerMsg::SelfView { .. } => {}
+            ServerMsg::SelfView { text } => self.self_text = Some(text),
+            ServerMsg::Evolution { .. } => {}
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });

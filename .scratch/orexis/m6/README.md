@@ -13,3 +13,4 @@
 | Ticket | Goal | Blocks |
 |---|---|---|
 | [M6-R01](M6-R01-hybrid-signer.md) | Ed25519 + Falcon-1024 hybrid signer audit | — |
+| [M6-R02](M6-R02-calibration.md) | Evolution calibration after 100 cycles | M6-05 |

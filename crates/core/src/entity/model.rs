@@ -175,6 +175,8 @@ pub struct Trait {
     pub statement: String,
     pub evidence: Vec<u64>,
     pub confidence: f32,
+    #[serde(default)]
+    pub last_seen_at: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

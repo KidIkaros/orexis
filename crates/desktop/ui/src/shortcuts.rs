@@ -33,6 +33,7 @@ pub fn start_shortcuts(
                 "3" => Some(LeftTab::Fleet),
                 "4" => Some(LeftTab::Artifacts),
                 "5" => Some(LeftTab::Files),
+                "6" => Some(LeftTab::SelfView),
                 _ => None,
             };
             if let Some(tab) = tab {

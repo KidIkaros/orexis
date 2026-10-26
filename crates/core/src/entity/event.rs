@@ -35,6 +35,8 @@ pub enum EntityEvent {
         statement: String,
         evidence: Vec<u64>,
         confidence: f32,
+        #[serde(default)]
+        last_seen_at: u64,
     },
     MemoryWrite {
         memory_id: String,
@@ -106,11 +108,13 @@ pub fn redact_entity_event(event: &EntityEvent) -> EntityEvent {
             statement,
             evidence,
             confidence,
+            last_seen_at,
         } => EntityEvent::TraitUpdate {
             trait_id: trait_id.clone(),
             statement: redact_text(statement),
             evidence: evidence.clone(),
             confidence: *confidence,
+            last_seen_at: *last_seen_at,
         },
         EntityEvent::MemoryWrite {
             memory_id,

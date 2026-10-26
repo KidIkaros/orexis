@@ -47,6 +47,7 @@ pub enum Overlay {
     Fleet,
     Board,
     SelfState,
+    Evolution,
     Help,
     Palette,
     Search,
@@ -58,6 +59,7 @@ impl Overlay {
             Self::Fleet => "fleet",
             Self::Board => "board",
             Self::SelfState => "self",
+            Self::Evolution => "evolution",
             Self::Help => "help",
             Self::Palette => "palette",
             Self::Search => "search",
@@ -119,6 +121,7 @@ pub enum TuiAction {
     Copy,
     Undo,
     SelfView,
+    Evolution,
     EditExternal,
 }
 
