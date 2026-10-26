@@ -1,0 +1,26 @@
+id: refuseless
+display_name: Refuseless
+kind: openai_compatible
+base_url: https://api.refuseless.com/v1
+auth:
+  kind: api_key
+  env: [REFUSELESS_API_KEY]
+  header: authorization
+  prefix: "Bearer "
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+  parallel_tools: false
+  vision: false
+  json_mode: true
+  reasoning: true
+models:
+  - id: glm-5.3-abliterated
+    context: 1048576
+    max_output: 32768
+limits:
+  max_concurrency: 2
+fallbacks: []

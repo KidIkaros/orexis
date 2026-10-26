@@ -1,0 +1,26 @@
+id: openrouter
+display_name: OpenRouter
+kind: openai_compatible
+base_url: https://openrouter.ai/api/v1
+auth:
+  kind: api_key
+  env: [OPENROUTER_API_KEY]
+  header: authorization
+  prefix: "Bearer "
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+  parallel_tools: true
+  vision: false
+  json_mode: true
+  reasoning: false
+models:
+  - id: openrouter/free
+    context: 200000
+    max_output: 8192
+limits:
+  max_concurrency: 2
+fallbacks: []

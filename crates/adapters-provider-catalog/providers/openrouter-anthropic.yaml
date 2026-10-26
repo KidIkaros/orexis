@@ -1,0 +1,29 @@
+id: openrouter-anthropic
+display_name: OpenRouter (Anthropic wire)
+kind: anthropic
+base_url: https://openrouter.ai/api
+auth:
+  kind: api_key
+  env: [OPENROUTER_API_KEY]
+  header: authorization
+  prefix: "Bearer "
+wire:
+  dialect: anthropic
+  tool_format: native
+  stream_format: sse
+cache:
+  dialect: none
+  breakpoints: false
+capabilities:
+  tools: true
+  parallel_tools: true
+  vision: false
+  json_mode: false
+  reasoning: false
+models:
+  - id: anthropic/claude-haiku-5.5
+    context: 1000000
+    max_output: 1024
+limits:
+  max_concurrency: 2
+fallbacks: []

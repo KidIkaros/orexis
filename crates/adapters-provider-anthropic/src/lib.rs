@@ -147,7 +147,10 @@ impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
             ("anthropic-version".to_string(), "2023-06-01".to_string()),
         ];
         if let Some(key) = &self.api_key {
-            headers.push(("x-api-key".to_string(), key.clone()));
+            headers.push((
+                self.profile.auth.header.clone(),
+                format!("{}{}", self.profile.auth.prefix, key),
+            ));
         }
 
         match self
@@ -427,6 +430,26 @@ mod tests {
         let body = provider.request_body(&messages, &[]);
         assert_eq!(body["system"], "be helpful");
         assert_eq!(body["messages"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn auth_header_uses_the_profile() {
+        let mut profile = profile();
+        profile.auth.header = "authorization".to_string();
+        profile.auth.prefix = "Bearer ".to_string();
+        let provider = AnthropicProvider::new(
+            profile,
+            "claude-sonnet-4-5",
+            Some("test-key".to_string()),
+            MockTransport::new(vec![
+                "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n".to_string(),
+            ]),
+        );
+        let _ = provider.complete(&messages(), &[], 0).await;
+        let headers = provider.transport().headers.lock().unwrap();
+        assert!(headers
+            .iter()
+            .any(|(name, value)| name == "authorization" && value == "Bearer test-key"));
     }
 
     #[tokio::test]

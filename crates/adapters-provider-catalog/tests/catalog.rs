@@ -113,3 +113,19 @@ fn keyring_store_and_forget() {
     store.forget("openai").expect("forget");
     assert_eq!(store.get(&profile), None);
 }
+
+#[test]
+fn shipped_profiles_parse() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("providers");
+    let catalog = Catalog::load(&[dir]).expect("catalog");
+    for id in [
+        "openai",
+        "anthropic",
+        "llamacpp",
+        "openrouter",
+        "refuseless",
+        "openrouter-anthropic",
+    ] {
+        assert!(catalog.get(id).is_some(), "missing {id}");
+    }
+}
