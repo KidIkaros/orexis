@@ -6,7 +6,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use orexis_ports::{PortError, PortResult, Verifier, VerifyResult};
 
-use crate::run_shell;
+use crate::shell::run_shell;
 
 pub struct ShellVerifier {
     root: PathBuf,
