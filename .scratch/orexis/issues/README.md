@@ -45,7 +45,7 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 
 1. ~~[Session event schema and migration format](001-session-event-schema.md)~~ — resolved; ADR-0001.
 2. ~~[`ProviderProfile` schema and catalog source](002-provider-profile-schema.md)~~ — resolved; ADR-0002.
-3. [Codec set beyond the ported four](003-codec-set.md)
+3. ~~[Codec set beyond the ported four](003-codec-set.md)~~ — resolved; ADR-0003.
 4. [TUI layout and keymap](004-tui-layout-keymap.md)
 5. [Edit-tool contract per model tier](005-edit-tool-contract.md)
 6. [Desktop panel layout in Leptos](006-desktop-panel-layout.md)
