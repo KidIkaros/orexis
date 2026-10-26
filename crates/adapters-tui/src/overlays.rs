@@ -52,12 +52,13 @@ fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
             Line::from("#13  review store      review   worker 2   blocked by #12"),
             Line::from("#14  migrate tests     build    —          queued"),
         ],
-        Overlay::SelfState => vec![
-            Line::from("drives   curiosity 0.7 · mastery 0.6 · coherence 0.8 · rest 0.3"),
-            Line::from("affect   valence +0.2 · arousal 0.4 · dominance 0.5"),
-            Line::from("tier     skills        budget 42k/100k    provider anthropic"),
-            Line::from("leaves   prompts + tool args + file reads → api.anthropic.com"),
-        ],
+        Overlay::SelfState => match &app.self_text {
+            Some(text) => text
+                .lines()
+                .map(|line| Line::from(line.to_string()))
+                .collect(),
+            None => vec![Line::from("no entity state yet")],
+        },
         Overlay::Palette => {
             let commands = app.palette_commands();
             if commands.is_empty() {

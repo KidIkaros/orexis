@@ -22,6 +22,7 @@ pub enum ClientMsg {
     },
     ClearOverrides,
     Settings,
+    SelfView,
     ListDir {
         path: String,
     },
@@ -85,6 +86,9 @@ pub enum ServerMsg {
     },
     Audit {
         entries: Vec<String>,
+    },
+    SelfView {
+        text: String,
     },
     Diff {
         diff: String,

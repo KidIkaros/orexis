@@ -178,6 +178,7 @@ impl AppState {
             ServerMsg::Artifacts { items } => self.artifacts = items,
             ServerMsg::Settings { settings } => self.settings = Some(settings),
             ServerMsg::Audit { .. } => {}
+            ServerMsg::SelfView { .. } => {}
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });

@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use orexis_adapters_codec::NativeCodec;
+use orexis_adapters_entity_sqlite::SqliteEntityFactory;
 use orexis_adapters_fake::ScriptedProvider;
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
@@ -156,6 +157,7 @@ async fn a_real_repository_task_reads_edits_tests_and_diffs() {
         profile_id: "test".to_string(),
         model_id: "test".to_string(),
         sessions: Arc::new(SqliteSessionFactory::new(db)),
+        entity: Arc::new(SqliteEntityFactory::new(project.join("entity.db"))),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(LocalTools::new(project).expect("tools")),
         workspace: Arc::new(LocalTools::new(project).expect("workspace")),

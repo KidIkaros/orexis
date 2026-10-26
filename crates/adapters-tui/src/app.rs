@@ -33,6 +33,7 @@ pub struct TuiApp {
     pub budget: Option<(u64, u64)>,
     pub queued: Option<usize>,
     pub live: Option<String>,
+    pub self_text: Option<String>,
     pub pending_approval: Option<u64>,
     pub palette_query: String,
     pub palette_selected: usize,
@@ -65,6 +66,7 @@ impl Default for TuiApp {
             budget: None,
             queued: None,
             live: None,
+            self_text: None,
             pending_approval: None,
             palette_query: String::new(),
             palette_selected: 0,
@@ -204,6 +206,11 @@ impl TuiApp {
             ServerMsg::File { .. } => {}
             ServerMsg::Artifacts { .. } => {}
             ServerMsg::Settings { .. } => {}
+            ServerMsg::SelfView { text } => {
+                self.self_text = Some(text);
+                self.overlay = Some(Overlay::SelfState);
+                self.revision += 1;
+            }
             ServerMsg::Audit { .. } => {}
             ServerMsg::Sessions { sessions } => {
                 self.entries
@@ -223,6 +230,7 @@ impl TuiApp {
     pub fn palette_commands(&self) -> Vec<(String, TuiAction)> {
         let all = vec![
             ("undo the last turn".to_string(), TuiAction::Undo),
+            ("show self".to_string(), TuiAction::SelfView),
             ("interrupt the turn".to_string(), TuiAction::Interrupt),
             ("detach".to_string(), TuiAction::Detach),
             ("cancel".to_string(), TuiAction::Cancel),

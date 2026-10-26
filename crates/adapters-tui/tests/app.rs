@@ -193,3 +193,13 @@ fn error_clears_live() {
     });
     assert!(app.live.is_none());
 }
+
+#[test]
+fn self_view_sets_overlay() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::SelfView {
+        text: "drives connection 0.5".to_string(),
+    });
+    assert_eq!(app.self_text.as_deref(), Some("drives connection 0.5"));
+    assert!(matches!(app.overlay, Some(Overlay::SelfState)));
+}

@@ -87,6 +87,28 @@ pub(crate) async fn prompt(
     )
     .await?;
 
+    let events = rt.read.events().await.map_err(io_err)?;
+    let first_turn = !events
+        .iter()
+        .any(|stored| matches!(stored.event, SessionEvent::ModelRequest { .. }));
+    let identity = if first_turn {
+        match config.entity.open() {
+            Ok(refs) => refs
+                .read
+                .snapshot()
+                .await
+                .ok()
+                .map(|snapshot| orexis_core::identity_context(&snapshot, 2000))
+                .filter(|text| !text.is_empty()),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+    let system_prompt = identity
+        .map(|text| format!("{}\n\n{}", config.system_prompt, text))
+        .unwrap_or_else(|| config.system_prompt.clone());
+
     let sink = Arc::new(BroadcastSink::new(rt.tx.clone()));
     let delta_sink = Arc::new(BroadcastDeltaSink::new(rt.tx.clone()));
     let gated: Arc<dyn ToolExecutor> = Arc::new(GatedTools::new(
@@ -99,7 +121,7 @@ pub(crate) async fn prompt(
     let handle = tokio::spawn(async move {
         let _permit = permit;
         let context = ContextConfig {
-            system_prompt: &config.system_prompt,
+            system_prompt: &system_prompt,
             tools: &config.context_tools,
             context_files: &config.context_files,
             context_limit: config.context_limit,
@@ -129,6 +151,21 @@ pub(crate) async fn prompt(
         *turn = Some(handle);
     }
     Ok(())
+}
+
+pub(crate) async fn self_view(
+    config: &Arc<DaemonConfig>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let refs = config.entity.open().map_err(io_err)?;
+    let snapshot = refs.read.snapshot().await.map_err(io_err)?;
+    write_msg(
+        write,
+        &ServerMsg::SelfView {
+            text: orexis_usecases::self_view(&snapshot),
+        },
+    )
+    .await
 }
 
 pub(crate) async fn approve(

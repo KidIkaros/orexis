@@ -118,6 +118,7 @@ pub enum TuiAction {
     OpenFile(String),
     Copy,
     Undo,
+    SelfView,
     EditExternal,
 }
 

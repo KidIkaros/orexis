@@ -101,6 +101,10 @@ impl DaemonClient {
         self.send(&ClientMsg::Interrupt)
     }
 
+    pub fn self_view(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::SelfView)
+    }
+
     pub fn audit(&mut self) -> std::io::Result<()> {
         self.send(&ClientMsg::Audit)
     }

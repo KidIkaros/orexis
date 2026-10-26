@@ -47,6 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         profile_id: if fake { "fake".to_string() } else { profile },
         model_id: if fake { "fake".to_string() } else { model },
         sessions: runtime.sessions,
+        entity: runtime.entity,
         provider: runtime.provider,
         tools: runtime.tools,
         workspace: runtime.workspace,

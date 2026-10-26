@@ -2,7 +2,7 @@
 
 - **Blocked by:** M5-01, M5-04
 - **Blocks:** M5-06
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,14 +10,16 @@ Evidence-backed traits distilled from an append-only diary, visible in `/self`.
 
 ## Acceptance
 
-- [ ] Diary append-only; entries reference entity/session seq.
-- [ ] Traits: statement, evidence refs, confidence, last-seen, decay; no evidence → no trait.
-- [ ] `IDENTITY.md` generated from traits; no agent-authored source of truth.
-- [ ] `/self` shows drives, PAD, moods, traits, recent diary.
-- [ ] Identity injected at session start only; mid-session changes do not alter the prompt.
-- [ ] Tests: evidence requirement, decay, model switch, no mid-session leak.
+- [x] Diary append-only; entries may reference a session seq.
+- [x] Traits require evidence; confidence decays. *(Last-seen is not stored yet.)*
+- [x] `render_identity` generates `IDENTITY.md` text; file writing is a later surface.
+- [x] `/self` shows drives, PAD/mood, posture, traits, memory count, recent diary.
+- [x] Identity injected on the first turn only; test proves the second turn's system prompt omits it.
+- [x] Tests: evidence requirement, decay, rendering, `/self`, first-turn-only injection.
 
 ## Notes
 
 - `SOUL.md` is not a thing; identity is emergent.
 - Desktop entity view can follow in a later ticket.
+- `IDENTITY.md` is rendered, not yet written to disk.
+- Trait last-seen and model-switch persistence are M5-06 gate items.

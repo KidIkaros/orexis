@@ -5,14 +5,17 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use orexis_adapters_codec::NativeCodec;
+use orexis_adapters_entity_sqlite::{SqliteEntityFactory, SqliteEntityStore};
 use orexis_adapters_fake::{EchoTools, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::LocalTools;
-use orexis_core::{Action, PermissionPolicy, SessionEvent};
+use orexis_core::{
+    Action, EntityEvent, Message, PermissionPolicy, ProviderResponse, Role, SessionEvent, ToolSpec,
+};
 use orexis_daemon::{
     Artifact, ClientMsg, Daemon, DaemonConfig, FileEntry, ServerMsg, SettingsInfo,
 };
-use orexis_ports::{Checkpointer, PortResult};
+use orexis_ports::{Checkpointer, EntityAppend, PortResult, Provider};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::UnixStream;
@@ -41,6 +44,9 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         profile_id: "test".to_string(),
         model_id: "test".to_string(),
         sessions: Arc::new(SqliteSessionFactory::new(db.to_path_buf())),
+        entity: Arc::new(SqliteEntityFactory::new(
+            socket.parent().unwrap_or(Path::new(".")).join("entity.db"),
+        )),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
         workspace: Arc::new(
@@ -128,6 +134,16 @@ impl Checkpointer for RecordingCheckpointer {
 
     fn diff(&self, _id: &str) -> PortResult<String> {
         Ok("--- a/a.txt\n+++ b/a.txt\n-one\n+two\n".to_string())
+    }
+}
+
+async fn read_until_self_view(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -> String {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::SelfView { text } => return text,
+            ServerMsg::Error { message } => panic!("self error: {message}"),
+            _ => {}
+        }
     }
 }
 
@@ -798,4 +814,104 @@ async fn audit_contains_denied_approval() {
     assert!(entries
         .iter()
         .any(|line| line.contains("approval write_file denied")));
+}
+
+#[tokio::test]
+async fn self_view_returns_entity_state() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let daemon = Daemon::new(config(&socket, &db));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::SelfView).await;
+    let text = read_until_self_view(&mut reader, &mut line).await;
+    assert!(text.contains("drives"));
+    assert!(text.contains("affect"));
+    assert!(text.contains("posture"));
+}
+
+struct RecordingProvider {
+    calls: Arc<Mutex<Vec<Vec<Message>>>>,
+}
+
+#[async_trait::async_trait]
+impl Provider for RecordingProvider {
+    async fn complete(
+        &self,
+        messages: &[Message],
+        _tools: &[ToolSpec],
+        _step: usize,
+    ) -> PortResult<ProviderResponse> {
+        self.calls.lock().expect("calls").push(messages.to_vec());
+        Ok(ProviderResponse {
+            actions: vec![Action::Done {
+                summary: "done".to_string(),
+            }],
+            raw_text: String::new(),
+        })
+    }
+}
+
+#[tokio::test]
+async fn identity_is_injected_only_on_the_first_turn() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let entity_db = dir.path().join("entity.db");
+    let store = SqliteEntityStore::open(&entity_db).expect("entity");
+    futures::executor::block_on(store.append(EntityEvent::TraitUpdate {
+        trait_id: "t1".to_string(),
+        statement: "prefers tests first".to_string(),
+        evidence: vec![1],
+        confidence: 0.8,
+    }))
+    .expect("trait");
+
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let mut config = config(&socket, &db);
+    config.provider = Arc::new(RecordingProvider {
+        calls: calls.clone(),
+    });
+    config.entity = Arc::new(SqliteEntityFactory::new(entity_db));
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    for prompt in ["first", "second"] {
+        send(
+            &mut writer,
+            &ClientMsg::Prompt {
+                text: prompt.to_string(),
+                skip_verify: false,
+            },
+        )
+        .await;
+        let _ = read_until_done(&mut reader, &mut line).await;
+    }
+
+    let calls = calls.lock().expect("calls");
+    assert_eq!(calls.len(), 2);
+    let system = |index: usize| {
+        calls[index]
+            .iter()
+            .find(|message| message.role == Role::System)
+            .map(|message| message.text.clone())
+            .unwrap_or_default()
+    };
+    assert!(system(0).contains("prefers tests first"));
+    assert!(!system(1).contains("prefers tests first"));
 }
