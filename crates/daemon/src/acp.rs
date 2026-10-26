@@ -9,9 +9,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use orexis_adapters_jsonrpc::Correlations;
 use orexis_adapters_protocol_acp::{
-    encode_line, initialize_response, method_not_found, parse_incoming, prompt_response,
-    session_new_response, stop_reason_from, update_from, AcpError, AcpIncoming, Message,
+    encode_line, initialize_response, method_not_found, outcome_from, parse_incoming,
+    permission_request, prompt_response, session_new_response, stop_reason_from, update_from,
+    AcpError, AcpIncoming, Message,
 };
 use orexis_ports::ToolExecutor;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
@@ -19,8 +21,15 @@ use tokio::sync::Semaphore;
 
 use crate::approvals::{ApprovalHub, MemoryOverrides};
 use crate::handlers::{ensure_mcp, interrupt, spawn_turn};
+use crate::proto::ServerMsg;
 use crate::server::DaemonConfig;
 use crate::session::SessionRegistry;
+
+/// A client answer we are waiting for: which approval it resolves.
+#[derive(Debug, Clone)]
+struct PendingPermission {
+    approval_id: u64,
+}
 
 pub struct AcpServer {
     config: Arc<DaemonConfig>,
@@ -30,6 +39,9 @@ pub struct AcpServer {
     base_tools: Arc<dyn ToolExecutor>,
     sessions: std::sync::Mutex<HashMap<String, Arc<crate::session::SessionRuntime>>>,
     drives: tokio::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>,
+    /// Outgoing client requests awaiting answers (permission round-trips).
+    pending: Arc<std::sync::Mutex<Correlations<PendingPermission>>>,
+    next_client_id: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl AcpServer {
@@ -47,6 +59,8 @@ impl AcpServer {
             base_tools,
             sessions: std::sync::Mutex::new(HashMap::new()),
             drives: tokio::sync::Mutex::new(Vec::new()),
+            pending: Arc::new(std::sync::Mutex::new(Correlations::new())),
+            next_client_id: Arc::new(std::sync::atomic::AtomicU64::new(1)),
         }
     }
 
@@ -56,12 +70,15 @@ impl AcpServer {
         out: W,
     ) -> std::io::Result<W> {
         let out = Arc::new(tokio::sync::Mutex::new(out));
+        let forwarder = self.spawn_permission_forwarder(out.clone());
         let mut line = String::new();
         loop {
             line.clear();
             if reader.read_line(&mut line).await? == 0 {
                 // Wait for in-flight drives so their output is flushed and
                 // the writer can be handed back (tests read the transcript).
+                forwarder.abort();
+                let _ = forwarder.await;
                 let drives = self.drives.lock().await.drain(..).collect::<Vec<_>>();
                 for drive in drives {
                     let _ = drive.await;
@@ -72,6 +89,48 @@ impl AcpServer {
             }
             self.handle_line(&line, out.clone()).await?;
         }
+    }
+
+    /// Approval requests become `session/request_permission` requests to
+    /// the client; the client's answer resolves the approval hub.
+    fn spawn_permission_forwarder<W: AsyncWrite + Unpin + Send + 'static>(
+        &self,
+        out: Arc<tokio::sync::Mutex<W>>,
+    ) -> tokio::task::JoinHandle<()> {
+        let hub = self.hub.clone();
+        let pending = self.pending.clone();
+        let next_id = self.next_client_id.clone();
+        let mut approvals = hub.subscribe();
+        tokio::spawn(async move {
+            loop {
+                match approvals.recv().await {
+                    Ok(ServerMsg::ApprovalRequest {
+                        id,
+                        session_id,
+                        tool,
+                        ..
+                    }) => {
+                        let request_id = orexis_adapters_jsonrpc::RequestId::Number(
+                            next_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst) as i64,
+                        );
+                        let registered = pending
+                            .lock()
+                            .expect("pending")
+                            .insert(request_id.clone(), PendingPermission { approval_id: id });
+                        if !registered {
+                            continue;
+                        }
+                        let request = permission_request(request_id, &session_id, id, &tool);
+                        if write_message(&out, &request).await.is_err() {
+                            return;
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => return,
+                }
+            }
+        })
     }
 
     pub async fn handle_line<W: AsyncWrite + Unpin + Send + 'static>(
@@ -156,6 +215,34 @@ impl AcpServer {
                 if let Some(rt) = rt {
                     interrupt(&rt).await;
                 }
+                Ok(())
+            }
+            AcpIncoming::ClientResponse { id, result, error } => {
+                let Some(id) = id else {
+                    return Ok(());
+                };
+                // On a real wire the answer follows the request; the
+                // recorded fixtures compress time, so the answer may be
+                // read before the forwarder registers the request. Wait
+                // briefly for the registration before treating it as stray.
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+                let approval_id = loop {
+                    let answered = self
+                        .pending
+                        .lock()
+                        .expect("pending")
+                        .take(&id)
+                        .map(|pending| pending.approval_id);
+                    if answered.is_some() || std::time::Instant::now() >= deadline {
+                        break answered;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                };
+                let Some(approval_id) = approval_id else {
+                    return Ok(());
+                };
+                let (yes, always) = outcome_from(result.as_ref(), error.as_ref());
+                let _ = self.hub.resolve(approval_id, yes, always);
                 Ok(())
             }
             AcpIncoming::Unhandled { id, method } => {

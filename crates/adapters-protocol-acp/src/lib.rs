@@ -10,8 +10,9 @@ pub mod dispatch;
 
 pub use bridge::{stop_reason_from, update_from};
 pub use dispatch::{
-    client_request, initialize_response, method_not_found, parse_incoming, prompt_response,
-    session_new_response, update_notification, AcpError, AcpIncoming,
+    client_request, initialize_response, method_not_found, outcome_from, parse_incoming,
+    permission_request, prompt_response, session_new_response, update_notification, AcpError,
+    AcpIncoming,
 };
 pub use orexis_adapters_jsonrpc::{encode_line, Message};
 

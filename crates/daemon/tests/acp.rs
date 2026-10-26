@@ -246,3 +246,135 @@ async fn a_prompt_for_an_unknown_session_errors() {
         .expect("message")
         .contains("unknown session"));
 }
+
+const ALLOW_ONCE: &str = r#"{"jsonrpc":"2.0","id":1,"result":{"outcome":{"outcome":"selected","optionId":"allow_once"}}}"#;
+const REJECT_ONCE: &str = r#"{"jsonrpc":"2.0","id":1,"result":{"outcome":{"outcome":"selected","optionId":"reject_once"}}}"#;
+
+#[tokio::test]
+async fn a_permission_round_trip_allows_the_tool() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let script = vec![vec![Action::CallTool {
+        call_id: "c1".to_string(),
+        name: "write_file".to_string(),
+        args: r#"{"path": "new.txt", "content": "hi"}"#.to_string(),
+    }]];
+    let server = fake_server(dir.path(), script);
+    let output = drive(
+        &server,
+        &[
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":2,"method":"session/new","params":{}}"#,
+        ],
+    )
+    .await;
+    let session_id = session_id_of(&output);
+
+    let prompt = format!(
+        r#"{{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{{"sessionId":"{session_id}","prompt":[{{"type":"text","text":"hi"}}]}}}}"#
+    );
+    let output = drive(&server, &[&prompt, ALLOW_ONCE]).await;
+    let parsed = messages(&output);
+    assert!(parsed.iter().any(|message| {
+        message["method"] == "session/request_permission"
+            && message["params"]["toolCall"]["title"] == "write_file"
+    }));
+    assert!(parsed
+        .iter()
+        .any(|message| message["params"]["update"]["toolCallUpdate"]["status"] == "completed"));
+    let response = parsed.last().expect("response");
+    assert_eq!(response["result"]["stopReason"], "end_turn");
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("new.txt")).expect("file"),
+        "hi"
+    );
+}
+
+#[tokio::test]
+async fn a_denied_permission_shows_the_error() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let script = vec![vec![Action::CallTool {
+        call_id: "c1".to_string(),
+        name: "write_file".to_string(),
+        args: r#"{"path": "new.txt", "content": "hi"}"#.to_string(),
+    }]];
+    let server = fake_server(dir.path(), script);
+    let output = drive(
+        &server,
+        &[
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":2,"method":"session/new","params":{}}"#,
+        ],
+    )
+    .await;
+    let session_id = session_id_of(&output);
+
+    let prompt = format!(
+        r#"{{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{{"sessionId":"{session_id}","prompt":[{{"type":"text","text":"hi"}}]}}}}"#
+    );
+    let output = drive(&server, &[&prompt, REJECT_ONCE]).await;
+    let parsed = messages(&output);
+    assert!(parsed
+        .iter()
+        .any(
+            |message| message["params"]["update"]["agentMessageChunk"]["content"]["text"]
+                == "[error] approval denied: write_file"
+        ));
+    assert!(!parsed
+        .iter()
+        .any(|message| message["params"]["update"]["toolCallUpdate"]["status"] == "completed"));
+    assert!(!dir.path().join("new.txt").exists());
+}
+
+#[tokio::test]
+async fn fs_work_flows_through_the_workspace() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("a.txt"), "the body").expect("write");
+    let script = vec![vec![Action::CallTool {
+        call_id: "c1".to_string(),
+        name: "read_file".to_string(),
+        args: r#"{"path": "a.txt"}"#.to_string(),
+    }]];
+    let server = fake_server(dir.path(), script);
+    let output = drive(
+        &server,
+        &[
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":2,"method":"session/new","params":{}}"#,
+        ],
+    )
+    .await;
+    let session_id = session_id_of(&output);
+
+    let prompt = format!(
+        r#"{{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{{"sessionId":"{session_id}","prompt":[{{"type":"text","text":"hi"}}]}}}}"#
+    );
+    let output = drive(&server, &[&prompt]).await;
+    let parsed = messages(&output);
+    // One fs path: the workspace served the read; no permission round-trip
+    // (read_file allows) and no client fs callback was involved.
+    assert!(!parsed
+        .iter()
+        .any(|message| message["method"] == "session/request_permission"));
+    let completed = parsed
+        .iter()
+        .find(|message| message["params"]["update"]["toolCallUpdate"]["status"] == "completed")
+        .expect("completed tool call");
+    assert!(completed["params"]["update"]["toolCallUpdate"]["rawOutput"]
+        .as_str()
+        .expect("output")
+        .contains("the body"));
+}
+
+#[tokio::test]
+async fn client_fs_methods_are_unhandled() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = fake_server(dir.path(), Vec::new());
+    let output = drive(
+        &server,
+        &[r#"{"jsonrpc":"2.0","id":9,"method":"fs/read_text_file","params":{"sessionId":"s","path":"a"}}"#],
+    )
+    .await;
+    let parsed = messages(&output);
+    let response = parsed.last().expect("response");
+    assert_eq!(response["error"]["code"], -32601);
+}

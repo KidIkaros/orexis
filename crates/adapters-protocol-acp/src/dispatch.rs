@@ -33,6 +33,12 @@ pub enum AcpIncoming {
     SessionCancel {
         session_id: String,
     },
+    /// The client's answer to an agent-side request (permissions, M7-07).
+    ClientResponse {
+        id: Option<RequestId>,
+        result: Option<Value>,
+        error: Option<ErrorObject>,
+    },
     Unhandled {
         id: Option<RequestId>,
         method: String,
@@ -92,9 +98,9 @@ pub fn parse_incoming(line: &str) -> Result<AcpIncoming, AcpError> {
                 method: notification.method,
             },
         }),
-        Message::Response(_) => Err(AcpError::Shape(
-            "the agent does not accept JSON-RPC responses".into(),
-        )),
+        Message::Response(Response { id, result, error }) => {
+            Ok(AcpIncoming::ClientResponse { id, result, error })
+        }
     }
 }
 
@@ -144,6 +150,54 @@ pub fn client_request(id: RequestId, method: &str, params: Value) -> Message {
         method: method.to_string(),
         params: Some(params),
     })
+}
+
+/// The `session/request_permission` request for a pending tool approval.
+/// Option ids are fixed so the client's answer maps back deterministically.
+pub fn permission_request(
+    id: RequestId,
+    session_id: &str,
+    approval_id: u64,
+    tool: &str,
+) -> Message {
+    client_request(
+        id,
+        "session/request_permission",
+        json!({
+            "sessionId": session_id,
+            "toolCall": {
+                "id": approval_id.to_string(),
+                "title": tool,
+                "kind": "other",
+                "status": "pending",
+            },
+            "options": [
+                { "id": "allow_once", "kind": "allow_once", "name": "Allow once" },
+                { "id": "allow_always", "kind": "allow_always", "name": "Allow always" },
+                { "id": "reject_once", "kind": "reject_once", "name": "Reject" },
+            ],
+        }),
+    )
+}
+
+/// The client's permission answer as `(yes, always)`; a cancelled or
+/// errored outcome denies.
+pub fn outcome_from(result: Option<&Value>, error: Option<&ErrorObject>) -> (bool, bool) {
+    if error.is_some() {
+        return (false, false);
+    }
+    let Some(result) = result else {
+        return (false, false);
+    };
+    let outcome = result.get("outcome").cloned().unwrap_or(Value::Null);
+    if outcome.get("outcome").and_then(Value::as_str) != Some("selected") {
+        return (false, false);
+    }
+    match outcome.get("optionId").and_then(Value::as_str) {
+        Some("allow_once") => (true, false),
+        Some("allow_always") => (true, true),
+        _ => (false, false),
+    }
 }
 
 #[cfg(test)]

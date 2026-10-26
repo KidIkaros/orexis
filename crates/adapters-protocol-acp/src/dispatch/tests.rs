@@ -114,9 +114,53 @@ fn unknown_methods_are_unhandled_and_answered() {
 }
 
 #[test]
-fn a_response_from_the_client_is_a_shape_error() {
-    let error = parse_incoming(r#"{"jsonrpc":"2.0","id":1,"result":{}}"#).expect_err("shape");
-    assert!(matches!(error, AcpError::Shape(_)));
+fn a_response_from_the_client_is_a_client_response() {
+    let incoming = parse_incoming(
+        r#"{"jsonrpc":"2.0","id":7,"result":{"outcome":{"outcome":"selected","optionId":"allow_once"}}}"#,
+    )
+    .expect("parse");
+    assert_eq!(
+        incoming,
+        AcpIncoming::ClientResponse {
+            id: Some(RequestId::Number(7)),
+            result: Some(serde_json::json!({
+                "outcome": {"outcome": "selected", "optionId": "allow_once"}
+            })),
+            error: None,
+        }
+    );
+}
+
+#[test]
+fn outcomes_map_to_yes_always() {
+    let selected =
+        serde_json::json!({"outcome": {"outcome": "selected", "optionId": "allow_once"}});
+    assert_eq!(outcome_from(Some(&selected), None), (true, false));
+    let always =
+        serde_json::json!({"outcome": {"outcome": "selected", "optionId": "allow_always"}});
+    assert_eq!(outcome_from(Some(&always), None), (true, true));
+    let rejected =
+        serde_json::json!({"outcome": {"outcome": "selected", "optionId": "reject_once"}});
+    assert_eq!(outcome_from(Some(&rejected), None), (false, false));
+    let cancelled = serde_json::json!({"outcome": {"outcome": "cancelled"}});
+    assert_eq!(outcome_from(Some(&cancelled), None), (false, false));
+    assert_eq!(outcome_from(None, None), (false, false));
+}
+
+#[test]
+fn permission_requests_carry_the_tool_and_fixed_option_ids() {
+    let message = super::permission_request(RequestId::Number(4), "s-1", 12, "write_file");
+    let value = match &message {
+        Message::Request(request) => request.to_value(),
+        _ => panic!("not a request"),
+    };
+    assert_eq!(value["method"], "session/request_permission");
+    assert_eq!(value["params"]["toolCall"]["id"], "12");
+    assert_eq!(value["params"]["toolCall"]["title"], "write_file");
+    let options = value["params"]["options"].as_array().expect("options");
+    assert_eq!(options.len(), 3);
+    assert_eq!(options[0]["id"], "allow_once");
+    assert_eq!(options[2]["id"], "reject_once");
 }
 
 #[test]
