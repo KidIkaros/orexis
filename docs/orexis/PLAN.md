@@ -74,7 +74,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 
 ### Not yet specified
 
-Neuron activation alignment/steering for local open weights — research; model-specific, not entity identity (ADR-0014) · MAS scheduling policy after the breadth benchmark · evolution calibration after 100 cycles · A2A/UTCP adoption after M7 · SDK/marketplace/importers timing · multi-user collaboration · mobile/web.
+Neuron activation alignment/steering for local open weights — research (M5-R01); model-specific, not entity identity (ADR-0014) · MAS scheduling policy after the breadth benchmark · evolution calibration after 100 cycles · A2A/UTCP adoption after M7 · SDK/marketplace/importers timing · multi-user collaboration · mobile/web.
 
 ### Out of scope
 

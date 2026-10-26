@@ -30,6 +30,7 @@ reproducible, safety-reviewed, never a permission bypass.
 
 ## Follow-ups
 
+- M5-R01 (`.scratch/orexis/m5/research/R01-neuron-alignment.md`).
 - Local prototype (Qwen/llama.cpp activation access) outside the default runtime.
 - Safety-probe evaluation for over-compliance.
 - A new ADR before any production steering feature.

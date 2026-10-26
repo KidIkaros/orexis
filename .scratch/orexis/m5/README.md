@@ -8,3 +8,9 @@
 | [M5-04](M5-04-memory-lattice.md) | Memory lattice + lexical recall | M5-01 |
 | [M5-05](M5-05-identity-distillation.md) | Identity distillation, diary, `/self` | M5-01, M5-04 |
 | [M5-06](M5-06-gate.md) | M5 gate | M5-01 … M5-05 |
+
+## Research (not gate)
+
+| Ticket | Goal | Blocks |
+|---|---|---|
+| [M5-R01](research/R01-neuron-alignment.md) | Local neuron alignment/steering research | — |
