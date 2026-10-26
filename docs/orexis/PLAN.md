@@ -46,12 +46,13 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Lexical memory; no code RAG | §7 |
 | Tiered, git-backed, signed evolution | §4.5 |
 | Milestones M1–M9 with per-milestone cut rule | §5 |
+| Session event model: durable medium events, session + event versioning, lazy migration, four generation triggers, SQLite + JSONL, `seq` + ULID, verbatim request + hash, append-only compaction, fork copies prefix, redact at write, indefinite retention, batch + fsync | ADR-0001; ticket 001 |
 
 ### Frontier
 
 Open decisions, in order. Each is one session's work; resolving it appends a row above and clears the fog it unblocks.
 
-1. **Session event schema and migration format** — blocks M1.
+1. ~~**Session event schema and migration format**~~ — resolved; ADR-0001.
 2. **`ProviderProfile` schema and catalog source** (models.dev snapshot vs live) — blocks M1.
 3. **Codec set beyond the ported four** — blocks M1/M3.
 4. **TUI layout and keymap** — blocks M1.

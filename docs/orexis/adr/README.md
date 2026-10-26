@@ -40,4 +40,4 @@ What else was on the table, and why it lost.
 
 | ADR | Title | Status |
 |---|---|---|
-| — | none yet | — |
+| [0001](0001-session-event-model.md) | Session event model and versioning | accepted |
