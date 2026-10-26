@@ -132,14 +132,17 @@ impl TuiApp {
                 self.state = TuiState::Streaming;
             }
             SessionEvent::Done { summary } => {
+                self.live = None;
                 self.entries.push(Entry::Info(format!("done: {summary}")));
             }
             SessionEvent::Error { message } => {
+                self.live = None;
                 self.error = Some(message.clone());
                 self.entries.push(Entry::Error(message.clone()));
                 self.state = TuiState::Error;
             }
             SessionEvent::Reprompt { note } => {
+                self.live = None;
                 self.entries.push(Entry::Info(format!("reprompt: {note}")));
             }
             SessionEvent::Compaction { .. } => {

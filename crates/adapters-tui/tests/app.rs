@@ -180,3 +180,15 @@ fn delta_stream_appends_and_final_clears() {
         .iter()
         .any(|entry| matches!(entry, Entry::Assistant(text) if text == "hello")));
 }
+
+#[test]
+fn error_clears_live() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Delta {
+        text: "hi".to_string(),
+    });
+    app.push_event(&SessionEvent::Error {
+        message: "boom".to_string(),
+    });
+    assert!(app.live.is_none());
+}

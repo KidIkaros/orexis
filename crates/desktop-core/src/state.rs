@@ -35,6 +35,7 @@ pub enum RightTab {
 pub enum Status {
     Empty,
     Running,
+    Streaming,
     Approval,
     Error,
     Budget,
@@ -151,7 +152,7 @@ impl AppState {
 
     pub fn apply_delta(&mut self, text: &str) {
         self.live.get_or_insert_with(String::new).push_str(text);
-        self.status = Status::Running;
+        self.status = Status::Streaming;
     }
 
     fn apply_event(&mut self, event: &SessionEvent) {
@@ -201,17 +202,21 @@ impl AppState {
                 }
             }
             SessionEvent::Done { summary } => {
+                self.live = None;
+                self.status = Status::Empty;
                 self.transcript.push(DesktopEntry::Info {
                     message: format!("done: {summary}"),
                 });
             }
             SessionEvent::Error { message } => {
+                self.live = None;
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error {
                     message: message.clone(),
                 });
             }
             SessionEvent::Reprompt { note } => {
+                self.live = None;
                 self.transcript.push(DesktopEntry::Info {
                     message: format!("reprompt: {note}"),
                 });
@@ -236,11 +241,16 @@ impl AppState {
                 });
             }
             SessionEvent::Interrupted { reason } => {
+                self.live = None;
                 self.transcript.push(DesktopEntry::Info {
                     message: format!("interrupted: {reason}"),
                 });
             }
             SessionEvent::Info { message } => {
+                if message.starts_with("restored checkpoint") {
+                    self.live = None;
+                    self.diff = None;
+                }
                 self.transcript.push(DesktopEntry::Info {
                     message: message.clone(),
                 });
@@ -401,5 +411,56 @@ mod tests {
         });
         assert!(state.diff.as_deref().unwrap().contains("+two"));
         assert_eq!(state.right, RightTab::Diff);
+    }
+
+    #[test]
+    fn delta_sets_streaming_status() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Delta {
+            text: "hi".to_string(),
+        });
+        assert_eq!(state.status, Status::Streaming);
+    }
+
+    #[test]
+    fn error_clears_the_live_buffer() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Delta {
+            text: "hi".to_string(),
+        });
+        state.apply(event(SessionEvent::Error {
+            message: "boom".to_string(),
+        }));
+        assert!(state.live.is_none());
+        assert_eq!(state.status, Status::Error);
+    }
+
+    #[test]
+    fn undo_info_clears_the_diff() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Diff {
+            diff: "--- a\n+++ b\n".to_string(),
+        });
+        state.apply(event(SessionEvent::Info {
+            message: "restored checkpoint cp-1".to_string(),
+        }));
+        assert!(state.diff.is_none());
+    }
+
+    #[test]
+    fn ui_snapshot_shape_is_stable() {
+        let entry = serde_json::to_value(DesktopEntry::User {
+            text: "hi".to_string(),
+        })
+        .expect("entry");
+        assert_eq!(entry["kind"], "user");
+        assert_eq!(
+            serde_json::to_value(Status::Streaming).expect("status"),
+            "streaming"
+        );
+        assert_eq!(
+            serde_json::to_value(Connection::Disconnected).expect("connection"),
+            "disconnected"
+        );
     }
 }

@@ -549,6 +549,13 @@ fn App() -> impl IntoView {
                     {move || match snapshot.get().pending {
                         Some(approval) => {
                             let id = approval.id;
+                            let note = if matches!(approval.tool.as_str(), "write_file" | "edit_file") {
+                                "reversible: yes · undo available".to_string()
+                            } else if approval.tool == "shell" {
+                                "reversible: files only · external effects persist".to_string()
+                            } else {
+                                "reversible: no".to_string()
+                            };
                             view! {
                                 <div class="approval card">
                                     <div class="approval-head">
@@ -557,7 +564,7 @@ fn App() -> impl IntoView {
                                     </div>
                                     <p class="tool-name">{approval.tool.clone()}</p>
                                     <pre class="approval-args">{approval.args.clone()}</pre>
-                                    <p class="muted">"reversible: yes · undo available"</p>
+                                    <p class="muted">{note}</p>
                                     <div class="approval-actions">
                                         <button
                                             class="approve"
@@ -591,7 +598,7 @@ fn App() -> impl IntoView {
                                                     )
                                             }
                                         >
-                                            "diff (d)"
+                                            "current diff (d)"
                                         </button>
                                     </div>
                                 </div>
