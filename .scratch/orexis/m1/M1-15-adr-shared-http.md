@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** —
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,10 +10,11 @@ Record why provider adapters may depend on `orexis-adapters-http`, or move the s
 
 ## Acceptance
 
-- [ ] ADR written with context, decision, consequences, and alternatives.
-- [ ] Either the exception is recorded, or `Transport` moves to a neutral crate with the same dependency direction.
-- [ ] `AGENTS.md` is updated if the rule changes.
+- [x] ADR written with context, decision, consequences, and alternatives.
+- [x] The exception is recorded: shared infrastructure under `orexis-adapters-*`, external libraries only, no domain types, adapters only.
+- [x] `AGENTS.md` updated with rule 9.
 
 ## Notes
 
-- Moving HTTP into `ports` would leak a transport detail; the ADR likely records a narrow exception.
+- Moving HTTP into `ports` would leak a transport detail; the ADR records a narrow exception instead.
+- Import-lint should allow `adapters-* -> adapters-http` and forbid `core/ports/usecases -> adapters-*`.

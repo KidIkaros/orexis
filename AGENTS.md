@@ -17,6 +17,7 @@ Pre-M1. This repo currently holds documentation only. The Rust workspace arrives
 6. **Protocols are sans-io.** Byte framing, SSE parsing, tool-call parsing, and protocol encoding are sync and runtime-free.
 7. **No shared `utils` crate.** It is the zone-of-pain magnet.
 8. **CI enforces 1–7 with import-lint.** A violation fails the build.
+9. **Shared adapter infrastructure** may live in `orexis-adapters-<name>` (e.g. `orexis-adapters-http`): external libraries only, no domain types, depended on by adapters only. Provider adapters must not depend on each other. See ADR-0005.
 
 ## Async
 

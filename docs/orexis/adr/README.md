@@ -44,3 +44,4 @@ What else was on the table, and why it lost.
 | [0002](0002-provider-catalog.md) | Provider catalog and profile | accepted |
 | [0003](0003-codec-set.md) | Codec set and selection | accepted |
 | [0004](0004-tui-surface.md) | TUI surface contract | accepted |
+| [0005](0005-shared-adapter-infrastructure.md) | Shared adapter infrastructure | accepted |

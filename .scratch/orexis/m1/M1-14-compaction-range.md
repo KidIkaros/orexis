@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** —
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,10 +10,11 @@
 
 ## Acceptance
 
-- [ ] The compaction event's range starts at the previous end + 1 (or 1 for the first).
-- [ ] A test with two compactions asserts the second range.
-- [ ] `derive_messages` behaviour is unchanged.
+- [x] The compaction event's range starts at the previous end + 1 (or 1 for the first).
+- [x] A test with two compactions asserts the second range (3..4).
+- [x] `derive_messages` behaviour is unchanged.
 
 ## Notes
 
 - The range is audit metadata; derivation resets at the event position.
+- `plan_compaction` scans backwards for the last `Compaction` and uses its `range_end_seq + 1`.
