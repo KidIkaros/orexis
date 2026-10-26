@@ -51,6 +51,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Codec set: `native`, `xml-manual`, `json`, `lenient`; code-mode is a program surface, not a codec; automatic selection by capability with `--codec` override; sans-io fixtures | ADR-0003; ticket 003 |
 | TUI surface: four fixed regions, composer-first focus, inline tool expansion + bottom sheet for large diffs, adaptive overlays and status bar, virtualized transcript, full keymap, eleven states | ADR-0004; ticket 004 |
 | Study: eight repos read to adopt/adapt/reject; synthesis drafted with pattern catalog, resolved conflicts, ADR map, confidence, and remaining verification | `docs/orexis/study/synthesis.md`; ticket 011 |
+| Study gate cleared: synthesis + ADRs 0001–0004 + vertical slice (six crates) replaying byte-identically | `docs/orexis/slice.md` |
 
 ### Frontier
 
@@ -191,7 +192,9 @@ Pattern catalog · conflict resolution · porting ledger · architecture spec + 
 
 **prompt → tool call → session event → TUI render → replay**, adapters from composition.
 
-**Study gate:** map cleared, synthesis + ledger + ADRs, slice replays byte-identically.
+**Status: done 2026-10-25.** `crates/slice` (six crates) runs the loop, renders the transcript, and asserts `replay: byte-identical`. See `docs/orexis/slice.md`.
+
+**Study gate:** map cleared, synthesis + ledger + ADRs, slice replays byte-identically. **Cleared 2026-10-25.**
 
 ---
 

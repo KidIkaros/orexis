@@ -1,0 +1,12 @@
+[package]
+name = "orexis-slice"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-usecases.workspace = true
+orexis-composition.workspace = true
+orexis-adapters-fake.workspace = true
+futures.workspace = true

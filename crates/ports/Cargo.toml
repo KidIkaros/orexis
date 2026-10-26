@@ -1,0 +1,9 @@
+[package]
+name = "orexis-ports"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+async-trait.workspace = true

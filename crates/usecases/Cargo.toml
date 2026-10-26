@@ -1,0 +1,9 @@
+[package]
+name = "orexis-usecases"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true

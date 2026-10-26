@@ -1,0 +1,24 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/ports",
+    "crates/usecases",
+    "crates/adapters-fake",
+    "crates/composition",
+    "crates/slice",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+orexis-core = { path = "crates/core" }
+orexis-ports = { path = "crates/ports" }
+orexis-usecases = { path = "crates/usecases" }
+orexis-adapters-fake = { path = "crates/adapters-fake" }
+orexis-composition = { path = "crates/composition" }
+async-trait = "0.1"
+futures = "0.3"

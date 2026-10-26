@@ -1,0 +1,10 @@
+[package]
+name = "orexis-adapters-fake"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true
+async-trait.workspace = true
