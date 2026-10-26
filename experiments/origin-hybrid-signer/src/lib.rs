@@ -88,8 +88,8 @@ mod tests {
 
     #[test]
     fn hybrid_signs_and_verifies() {
-        let signer = OriginHybridSigner::from_seed([9u8; 32], "orexis-evolution-test")
-            .expect("signer");
+        let signer =
+            OriginHybridSigner::from_seed([9u8; 32], "orexis-evolution-test").expect("signer");
         let signature = signer.sign(b"ledger entry").expect("sign");
         assert!(signer.verify(b"ledger entry", &signature));
         assert!(!signer.verify(b"tampered", &signature));
@@ -98,8 +98,8 @@ mod tests {
 
     #[test]
     fn malformed_signature_is_rejected() {
-        let signer = OriginHybridSigner::from_seed([9u8; 32], "orexis-evolution-test")
-            .expect("signer");
+        let signer =
+            OriginHybridSigner::from_seed([9u8; 32], "orexis-evolution-test").expect("signer");
         assert!(!signer.verify(b"x", &[]));
         assert!(!signer.verify(b"x", &[0, 0]));
     }
