@@ -44,6 +44,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Single-agent default; team opt-in; strategies are use cases; workers share identity; provider-bounded concurrency | §9 |
 | Desktop: three-zone oversight workspace; task-driven panels; inline approvals; two evaluation cycles | ADR-0008; ticket 006 |
 | MCP + ACP in v1; A2A/UTCP in M7 | §5, M7 |
+| Entity model: six drives (connection, curiosity, mastery, coherence, rest, growth) + PAD affect; drives propose, affect modulates posture; never prompt mid-session | ADR-0013; ticket 007 |
 | Lexical memory; no code RAG | §7 |
 | Tiered, git-backed, signed evolution | §4.5 |
 | Milestones M1–M9 with per-milestone cut rule | §5 |
@@ -62,9 +63,9 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 2. ~~**`ProviderProfile` schema and catalog source** (models.dev snapshot vs live)~~ — resolved; ADR-0002.
 3. ~~**Codec set beyond the ported four**~~ — resolved; ADR-0003.
 4. ~~**TUI layout and keymap**~~ — resolved; ADR-0004.
-5. **Edit-tool contract per model tier** — blocks M3.
+5. ~~**Edit-tool contract per model tier**~~ — resolved; issue 005.
 6. ~~**Desktop panel layout in Leptos**~~ — resolved; ADR-0008.
-7. **Entity model: five vs six drives, affect dimensions** — blocks M5.
+7. ~~**Entity model: five vs six drives, affect dimensions**~~ — resolved; ADR-0013.
 8. **Evolution tier defaults and validation ladder** — blocks M6.
 9. **Native adapter timing: Gemini / Bedrock / Vertex** — blocks M7.
 10. **Packaging and signing** — blocks M9.
@@ -291,6 +292,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 **M2 status (2026-10-26):** implemented in source; M2-01 … M2-06 wired; fleet/board/changes are session projections per ADR-0012; `scripts/m2-gate.sh` green for automated checks. Tauri shell build, evaluation cycles, and usability measurement remain manual.
 
 **M4 status (2026-10-26):** automated gate green; M4-01 … M4-04 resolved. Manual: SIGKILL a real repository turn and restart.
+
+**M5 status (2026-10-26):** decision 007 resolved (ADR-0013); spec and tickets next.
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 

@@ -17,7 +17,12 @@ Every document, ticket, and commit uses these words in exactly these senses. If 
 |---|---|---|
 | **Entity** | The singular identity layer (identity, drives, affect, memory) | A worker |
 | **Worker** | A generic execution instance with its own context, model, toolset, budget | A role |
-| **Strategy** | A use case: `plan`, `build`, `review`, `mine` | An agent type |
+| **Strategy** | A use case: `plan`, `build`, `review`, `mine` | An agent type; an execution posture |
+| **Drive** | A slow [0,1] pressure that proposes work: connection, curiosity, mastery, coherence, rest, growth | An emotion; a prompt instruction |
+| **Affect** | Fast PAD state (valence, arousal, dominance) that modulates posture | A mood label; a prompt |
+| **Posture** | Turn-boundary execution parameters: model tier, thinking, repair budget, verification, risk appetite, exploration | A Strategy (use case) |
+| **Mood** | A display-only label derived from drives and affect | Persisted state |
+| **Glial** | Deterministic affect-to-drive/posture modulation | A separate agent |
 | **Board** | Durable tasks with owner, required strategy, blocking edges (M8) | A prompt |
 | **Fleet** | The set of workers in team mode (M8); in M2, the session projection | A single worker |
 | **Artifact** | A durable output: diff, log, generated file (M8 blackboard) | A transient tool result |
