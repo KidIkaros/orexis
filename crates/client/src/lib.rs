@@ -101,6 +101,10 @@ impl DaemonClient {
         self.send(&ClientMsg::Interrupt)
     }
 
+    pub fn clear_overrides(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::ClearOverrides)
+    }
+
     pub fn diff(&mut self) -> std::io::Result<()> {
         self.send(&ClientMsg::Diff)
     }

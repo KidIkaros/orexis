@@ -2,7 +2,7 @@
 
 - **Blocked by:** —
 - **Blocks:** —
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,13 +10,13 @@
 
 ## Acceptance
 
-- [ ] An override is represented as data (tool, scope) in the inner layer, not a daemon-local set.
-- [ ] Scope is explicit: session or daemon; per-session is the default.
-- [ ] Revocation path exists (clear overrides / session end).
-- [ ] Daemon tests: always allows within scope, not across sessions.
-- [ ] ADR records the decision.
+- [x] `ApprovalOverrides` port; `MemoryOverrides` is the daemon implementation.
+- [x] Session-scoped: `HubGate` carries the session id; `ApprovalRequest` carries `session_id`.
+- [x] `ClientMsg::ClearOverrides` + `DaemonClient::clear_overrides`; appends an info event.
+- [x] Tests: same session allows; second session still asks; clear restores the ask.
+- [x] ADR-0011.
 
 ## Notes
 
 - Architecture finding from the M2-02/03 audit: policy lives in the transport today.
-- Current behaviour is single-user acceptable but not the target model.
+- Overrides are in-memory only; restart clears them.

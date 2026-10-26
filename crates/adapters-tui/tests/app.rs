@@ -99,6 +99,7 @@ fn apply_maps_an_approval_request() {
     let mut app = TuiApp::new();
     app.apply(ServerMsg::ApprovalRequest {
         id: 7,
+        session_id: "s1".to_string(),
         tool: "shell".to_string(),
         args: "ls".to_string(),
     });

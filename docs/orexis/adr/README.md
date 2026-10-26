@@ -50,3 +50,4 @@ What else was on the table, and why it lost.
 | [0008](0008-desktop-surface.md) | Desktop surface contract | accepted |
 | [0009](0009-secrets-crypto.md) | Secrets and crypto boundary | accepted |
 | [0010](0010-shared-outer-layer.md) | Shared outer-layer crates | accepted |
+| [0011](0011-approval-overrides.md) | Approval overrides as session-scoped policy data | accepted |

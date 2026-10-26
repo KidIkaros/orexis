@@ -2,12 +2,14 @@
 
 use std::sync::Arc;
 
+use orexis_adapters_tools::GatedTools;
 use orexis_core::SessionEvent;
 use orexis_ports::{Checkpointer, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::sync::{broadcast, Semaphore};
 
+use crate::approvals::{ApprovalHub, HubGate};
 use crate::connection::io_err;
 use crate::proto::{write_msg, ServerMsg};
 use crate::server::DaemonConfig;
@@ -46,7 +48,8 @@ pub(crate) async fn attach(
 
 pub(crate) async fn prompt(
     config: &Arc<DaemonConfig>,
-    tools: &Arc<dyn ToolExecutor>,
+    base_tools: &Arc<dyn ToolExecutor>,
+    hub: &Arc<ApprovalHub>,
     generation: &Arc<Semaphore>,
     rt: Arc<SessionRuntime>,
     text: String,
@@ -77,9 +80,13 @@ pub(crate) async fn prompt(
 
     let sink = Arc::new(BroadcastSink::new(rt.tx.clone()));
     let delta_sink = Arc::new(BroadcastDeltaSink::new(rt.tx.clone()));
+    let gated: Arc<dyn ToolExecutor> = Arc::new(GatedTools::new(
+        base_tools.clone(),
+        config.policy.clone(),
+        Arc::new(HubGate::new(hub.clone(), rt.id.clone())),
+    ));
     let config = config.clone();
     let rt_for_task = rt.clone();
-    let tools = tools.clone();
     let handle = tokio::spawn(async move {
         let _permit = permit;
         let context = ContextConfig {
@@ -90,7 +97,7 @@ pub(crate) async fn prompt(
         };
         let _ = run_turn(TurnDeps {
             provider: config.provider.as_ref(),
-            tools: tools.as_ref(),
+            tools: gated.as_ref(),
             session: rt_for_task.append.as_ref(),
             reader: rt_for_task.read.as_ref(),
             sink: sink.as_ref(),
@@ -113,6 +120,20 @@ pub(crate) async fn prompt(
         *turn = Some(handle);
     }
     Ok(())
+}
+
+pub(crate) async fn clear_overrides(rt: &Arc<SessionRuntime>, hub: &Arc<ApprovalHub>) {
+    hub.clear_session(&rt.id);
+    let event = SessionEvent::Info {
+        message: "cleared approval overrides".to_string(),
+    };
+    if let Ok(event_ref) = rt.append.append(event.clone()).await {
+        let _ = rt.tx.send(ServerMsg::Event {
+            seq: event_ref.seq,
+            replay: false,
+            event,
+        });
+    }
 }
 
 pub(crate) async fn interrupt(rt: &Arc<SessionRuntime>) {

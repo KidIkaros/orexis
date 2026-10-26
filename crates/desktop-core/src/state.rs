@@ -125,7 +125,7 @@ impl AppState {
             }
             ServerMsg::Event { event, .. } => self.apply_event(&event),
             ServerMsg::Delta { text } => self.apply_delta(&text),
-            ServerMsg::ApprovalRequest { id, tool, args } => {
+            ServerMsg::ApprovalRequest { id, tool, args, .. } => {
                 let approval = Approval { id, tool, args };
                 self.pending = Some(approval.clone());
                 self.transcript.push(DesktopEntry::Approval {
@@ -282,6 +282,7 @@ mod tests {
         let mut state = AppState::default();
         state.apply(ServerMsg::ApprovalRequest {
             id: 7,
+            session_id: "s1".to_string(),
             tool: "shell".to_string(),
             args: "ls".to_string(),
         });

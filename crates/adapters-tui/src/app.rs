@@ -193,7 +193,7 @@ impl TuiApp {
             ServerMsg::Attached { session_id } => self.session = session_id,
             ServerMsg::Event { event, .. } => self.push_event(&event),
             ServerMsg::Delta { text } => self.apply_delta(&text),
-            ServerMsg::ApprovalRequest { id, tool, args } => {
+            ServerMsg::ApprovalRequest { id, tool, args, .. } => {
                 self.pending_approval = Some(id);
                 self.show_approval(&format!("{tool} {args}"), "ask", true);
             }

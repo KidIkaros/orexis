@@ -74,6 +74,7 @@ pub fn RightPanel(
                                 </button>
                                 <button
                                     class="always"
+                                    title="allow this tool for this session"
                                     disabled=deciding
                                     on:click=move |_| decide.run((id, true, true))
                                 >

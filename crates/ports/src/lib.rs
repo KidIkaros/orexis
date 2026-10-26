@@ -154,6 +154,13 @@ pub trait ApprovalGate: Send + Sync {
     async fn approve(&self, tool: &str, args: &str) -> PortResult<bool>;
 }
 
+/// Session-scoped approval overrides: tools the user chose to always allow.
+pub trait ApprovalOverrides: Send + Sync {
+    fn allows(&self, session: &str, tool: &str) -> bool;
+    fn remember(&self, session: &str, tool: &str);
+    fn clear(&self, session: &str);
+}
+
 pub trait EventSink: Send + Sync {
     fn emit(&self, event: &SessionEvent, seq: u64);
 }

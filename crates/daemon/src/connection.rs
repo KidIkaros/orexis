@@ -18,7 +18,7 @@ pub(crate) async fn handle(
     config: Arc<DaemonConfig>,
     registry: Arc<SessionRegistry>,
     generation: Arc<Semaphore>,
-    tools: Arc<dyn ToolExecutor>,
+    base_tools: Arc<dyn ToolExecutor>,
     hub: Arc<ApprovalHub>,
 ) -> std::io::Result<()> {
     let (read_half, mut write_half) = stream.into_split();
@@ -53,7 +53,8 @@ pub(crate) async fn handle(
                         };
                         handlers::prompt(
                             &config,
-                            &tools,
+                            &base_tools,
+                            &hub,
                             &generation,
                             rt,
                             text,
@@ -69,6 +70,13 @@ pub(crate) async fn handle(
                     }
                     ClientMsg::Approve { id, yes, always } => {
                         hub.resolve(id, yes, always);
+                    }
+                    ClientMsg::ClearOverrides => {
+                        let Some(rt) = &runtime else {
+                            write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
+                            continue;
+                        };
+                        handlers::clear_overrides(rt, &hub).await;
                     }
                     ClientMsg::Undo => {
                         let Some(rt) = &runtime else {
@@ -106,6 +114,11 @@ pub(crate) async fn handle(
             }
             message = approvals.recv() => {
                 match message {
+                    Ok(ServerMsg::ApprovalRequest { session_id, .. })
+                        if runtime
+                            .as_ref()
+                            .map(|rt| rt.id.as_str() != session_id.as_str())
+                            .unwrap_or(true) => {}
                     Ok(message) => write_msg(&mut write_half, &message).await?,
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
                         write_msg(

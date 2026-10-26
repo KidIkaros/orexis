@@ -20,6 +20,7 @@ pub enum ClientMsg {
         #[serde(default)]
         always: bool,
     },
+    ClearOverrides,
     Interrupt,
     Undo,
     Diff,
@@ -43,6 +44,8 @@ pub enum ServerMsg {
     },
     ApprovalRequest {
         id: u64,
+        #[serde(default)]
+        session_id: String,
         tool: String,
         args: String,
     },

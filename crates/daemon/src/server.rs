@@ -3,13 +3,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use orexis_adapters_tools::GatedTools;
 use orexis_core::{ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{Checkpointer, Codec, Provider, SessionFactory, ToolExecutor, Verifier};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
 
-use crate::approvals::{ApprovalHub, HubGate};
+use crate::approvals::{ApprovalHub, MemoryOverrides};
 use crate::connection;
 use crate::session::SessionRegistry;
 
@@ -34,7 +33,7 @@ pub struct Daemon {
     config: Arc<DaemonConfig>,
     registry: Arc<SessionRegistry>,
     generation: Arc<Semaphore>,
-    tools: Arc<dyn ToolExecutor>,
+    base_tools: Arc<dyn ToolExecutor>,
     hub: Arc<ApprovalHub>,
 }
 
@@ -42,17 +41,13 @@ impl Daemon {
     pub fn new(config: DaemonConfig) -> Self {
         let generation = Arc::new(Semaphore::new(config.generation_slots.max(1)));
         let registry = Arc::new(SessionRegistry::new(config.sessions.clone()));
-        let hub = Arc::new(ApprovalHub::new());
-        let tools: Arc<dyn ToolExecutor> = Arc::new(GatedTools::new(
-            config.tools.clone(),
-            config.policy.clone(),
-            Arc::new(HubGate::new(hub.clone())),
-        ));
+        let base_tools = config.tools.clone();
+        let hub = Arc::new(ApprovalHub::new(Arc::new(MemoryOverrides::default())));
         Self {
             config: Arc::new(config),
             registry,
             generation,
-            tools,
+            base_tools,
             hub,
         }
     }
@@ -77,10 +72,11 @@ impl Daemon {
             let config = self.config.clone();
             let registry = self.registry.clone();
             let generation = self.generation.clone();
-            let tools = self.tools.clone();
+            let base_tools = self.base_tools.clone();
             let hub = self.hub.clone();
             tokio::spawn(async move {
-                let _ = connection::handle(stream, config, registry, generation, tools, hub).await;
+                let _ =
+                    connection::handle(stream, config, registry, generation, base_tools, hub).await;
             });
         }
     }
