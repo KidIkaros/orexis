@@ -177,6 +177,7 @@ impl AppState {
             }
             ServerMsg::Artifacts { items } => self.artifacts = items,
             ServerMsg::Settings { settings } => self.settings = Some(settings),
+            ServerMsg::Audit { .. } => {}
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });
@@ -272,6 +273,19 @@ impl AppState {
                     } else {
                         "verify failed".to_string()
                     },
+                });
+            }
+            SessionEvent::ApprovalDecision {
+                tool,
+                approved,
+                always,
+                ..
+            } => {
+                self.transcript.push(DesktopEntry::Info {
+                    message: format!(
+                        "approval: {tool} {} always={always}",
+                        if *approved { "approved" } else { "denied" }
+                    ),
                 });
             }
             SessionEvent::Recovered { reason } => {

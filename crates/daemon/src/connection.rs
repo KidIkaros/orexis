@@ -79,6 +79,13 @@ pub(crate) async fn handle(
                     ClientMsg::ReadFile { path } => {
                         handlers::read_file(&config.workspace, path, &mut write_half).await?;
                     }
+                    ClientMsg::Audit => {
+                        let Some(rt) = &runtime else {
+                            write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
+                            continue;
+                        };
+                        handlers::audit(rt, &mut write_half).await?;
+                    }
                     ClientMsg::Artifacts => {
                         let Some(rt) = &runtime else {
                             write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
@@ -93,7 +100,11 @@ pub(crate) async fn handle(
                         .await?;
                     }
                     ClientMsg::Approve { id, yes, always } => {
-                        hub.resolve(id, yes, always);
+                        let Some(rt) = &runtime else {
+                            write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
+                            continue;
+                        };
+                        handlers::approve(rt, &hub, id, yes, always).await?;
                     }
                     ClientMsg::ClearOverrides => {
                         let Some(rt) = &runtime else {

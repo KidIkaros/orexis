@@ -131,6 +131,16 @@ impl Checkpointer for RecordingCheckpointer {
     }
 }
 
+async fn read_until_audit(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -> Vec<String> {
+    loop {
+        match read_server(reader, line).await {
+            ServerMsg::Audit { entries } => return entries,
+            ServerMsg::Error { message } => panic!("audit error: {message}"),
+            _ => {}
+        }
+    }
+}
+
 async fn read_until_settings(
     reader: &mut BufReader<OwnedReadHalf>,
     line: &mut String,
@@ -685,4 +695,56 @@ async fn settings_returns_profile_and_privacy() {
         .privacy
         .iter()
         .any(|line| line.contains("no telemetry")));
+}
+
+#[tokio::test]
+async fn audit_contains_approval_decision() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let script = vec![
+        vec![Action::CallTool {
+            call_id: "c1".to_string(),
+            name: "write_file".to_string(),
+            args: "{}".to_string(),
+        }],
+        vec![Action::Done {
+            summary: "done".to_string(),
+        }],
+    ];
+    let daemon = Daemon::new(config_with(&socket, &db, script));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "write".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let id = read_until_approval(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Approve {
+            id,
+            yes: true,
+            always: true,
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+
+    send(&mut writer, &ClientMsg::Audit).await;
+    let entries = read_until_audit(&mut reader, &mut line).await;
+    assert!(entries
+        .iter()
+        .any(|line| line.contains("approval write_file approved always=true")));
 }

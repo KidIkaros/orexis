@@ -285,6 +285,12 @@ pub enum SessionEvent {
     Recovered {
         reason: String,
     },
+    ApprovalDecision {
+        tool: String,
+        args: String,
+        approved: bool,
+        always: bool,
+    },
     Checkpoint {
         id: String,
         label: String,
@@ -317,6 +323,7 @@ impl SessionEvent {
             Self::Reprompt { .. } => "reprompt",
             Self::Interrupted { .. } => "interrupted",
             Self::Recovered { .. } => "recovered",
+            Self::ApprovalDecision { .. } => "approval_decision",
             Self::Checkpoint { .. } => "checkpoint",
             Self::Info { .. } => "info",
             Self::Verify { .. } => "verify",
@@ -489,6 +496,17 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
         },
         SessionEvent::Recovered { reason } => SessionEvent::Recovered {
             reason: redact_text(reason),
+        },
+        SessionEvent::ApprovalDecision {
+            tool,
+            args,
+            approved,
+            always,
+        } => SessionEvent::ApprovalDecision {
+            tool: tool.clone(),
+            args: redact_text(args),
+            approved: *approved,
+            always: *always,
         },
         SessionEvent::Checkpoint { id, label } => SessionEvent::Checkpoint {
             id: id.clone(),

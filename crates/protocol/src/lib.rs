@@ -29,6 +29,7 @@ pub enum ClientMsg {
         path: String,
     },
     Artifacts,
+    Audit,
     Interrupt,
     Undo,
     Diff,
@@ -81,6 +82,9 @@ pub enum ServerMsg {
     },
     Settings {
         settings: SettingsInfo,
+    },
+    Audit {
+        entries: Vec<String>,
     },
     Diff {
         diff: String,

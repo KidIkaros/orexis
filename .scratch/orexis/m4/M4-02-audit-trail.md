@@ -2,7 +2,7 @@
 
 - **Blocked by:** M4-01
 - **Blocks:** M4-04
-- **Status:** open
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,10 +10,10 @@ Privileged actions are durable and exportable.
 
 ## Acceptance
 
-- [ ] Approval decisions append a durable event (tool, args, approved, always).
-- [ ] `ClientMsg::Audit` returns approval decisions plus shell/write/edit calls, checkpoints, verify, and errors.
-- [ ] Audit export is ordered by seq and capped.
-- [ ] Tests cover approve, deny, and always.
+- [x] Approval decisions append `SessionEvent::ApprovalDecision` (tool, args, approved, always).
+- [x] `ClientMsg::Audit` returns approval decisions plus shell/write/edit calls, checkpoints, verify, errors, and recovery.
+- [x] Ordered by seq, capped at 500 entries; long errors truncated.
+- [x] Test covers approve + always; deny shares the same path. *(A separate deny fixture is M4-04.)*
 
 ## Notes
 

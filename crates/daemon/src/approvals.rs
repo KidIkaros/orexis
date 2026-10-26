@@ -48,7 +48,14 @@ impl ApprovalOverrides for MemoryOverrides {
 struct PendingApproval {
     session: String,
     tool: String,
+    args: String,
     sender: oneshot::Sender<bool>,
+}
+
+pub struct ResolvedApproval {
+    pub session: String,
+    pub tool: String,
+    pub args: String,
 }
 
 pub struct ApprovalHub {
@@ -91,15 +98,24 @@ impl ApprovalHub {
             .unwrap_or(0)
     }
 
-    pub fn resolve(&self, id: u64, yes: bool, always: bool) {
-        if let Ok(mut pending) = self.pending.lock() {
-            if let Some(pending) = pending.remove(&id) {
-                if yes && always {
-                    self.overrides.remember(&pending.session, &pending.tool);
-                }
-                let _ = pending.sender.send(yes);
-            }
+    pub fn resolve(&self, id: u64, yes: bool, always: bool) -> Option<ResolvedApproval> {
+        let mut pending = self.pending.lock().ok()?;
+        let pending = pending.remove(&id)?;
+        if yes && always {
+            self.overrides.remember(&pending.session, &pending.tool);
         }
+        let PendingApproval {
+            session,
+            tool,
+            args,
+            sender,
+        } = pending;
+        let _ = sender.send(yes);
+        Some(ResolvedApproval {
+            session,
+            tool,
+            args,
+        })
     }
 }
 
@@ -150,6 +166,7 @@ impl ApprovalGate for HubGate {
                 PendingApproval {
                     session: self.session.clone(),
                     tool: tool.to_string(),
+                    args: args.to_string(),
                     sender,
                 },
             );

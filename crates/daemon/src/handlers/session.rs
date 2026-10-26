@@ -131,6 +131,82 @@ pub(crate) async fn prompt(
     Ok(())
 }
 
+pub(crate) async fn approve(
+    rt: &Arc<SessionRuntime>,
+    hub: &Arc<ApprovalHub>,
+    id: u64,
+    yes: bool,
+    always: bool,
+) -> std::io::Result<()> {
+    let Some(resolved) = hub.resolve(id, yes, always) else {
+        return Ok(());
+    };
+    if resolved.session != rt.id {
+        return Ok(());
+    }
+    let event = SessionEvent::ApprovalDecision {
+        tool: resolved.tool,
+        args: resolved.args,
+        approved: yes,
+        always,
+    };
+    if let Ok(event_ref) = rt.append.append(event.clone()).await {
+        let _ = rt.tx.send(ServerMsg::Event {
+            seq: event_ref.seq,
+            replay: false,
+            event,
+        });
+    }
+    Ok(())
+}
+
+pub(crate) async fn audit(
+    rt: &Arc<SessionRuntime>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let events = rt.read.events().await.map_err(io_err)?;
+    let mut entries = Vec::new();
+    for stored in events {
+        let line = match &stored.event {
+            SessionEvent::ApprovalDecision {
+                tool,
+                approved,
+                always,
+                ..
+            } => Some(format!(
+                "#{} approval {tool} {} always={always}",
+                stored.seq,
+                if *approved { "approved" } else { "denied" }
+            )),
+            SessionEvent::ToolCall { name, .. }
+                if matches!(name.as_str(), "shell" | "write_file" | "edit_file") =>
+            {
+                Some(format!("#{} tool {name}", stored.seq))
+            }
+            SessionEvent::Checkpoint { id, .. } => Some(format!("#{} checkpoint {id}", stored.seq)),
+            SessionEvent::Verify { command, passed } => {
+                Some(format!("#{} verify {command} passed={passed}", stored.seq))
+            }
+            SessionEvent::Error { message } => Some(format!(
+                "#{} error {}",
+                stored.seq,
+                message.chars().take(300).collect::<String>()
+            )),
+            SessionEvent::Recovered { reason } => {
+                Some(format!("#{} recovered {reason}", stored.seq))
+            }
+            _ => None,
+        };
+        if let Some(line) = line {
+            entries.push(line);
+            if entries.len() >= 500 {
+                break;
+            }
+        }
+    }
+    write_msg(write, &ServerMsg::Audit { entries }).await
+}
+
 pub(crate) async fn clear_overrides(rt: &Arc<SessionRuntime>, hub: &Arc<ApprovalHub>) {
     hub.clear_session(&rt.id);
     let event = SessionEvent::Info {

@@ -204,6 +204,7 @@ impl TuiApp {
             ServerMsg::File { .. } => {}
             ServerMsg::Artifacts { .. } => {}
             ServerMsg::Settings { .. } => {}
+            ServerMsg::Audit { .. } => {}
             ServerMsg::Sessions { sessions } => {
                 self.entries
                     .push(Entry::Info(format!("{} sessions", sessions.len())));
