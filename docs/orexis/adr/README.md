@@ -41,3 +41,4 @@ What else was on the table, and why it lost.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-session-event-model.md) | Session event model and versioning | accepted |
+| [0002](0002-provider-catalog.md) | Provider catalog and profile | accepted |
