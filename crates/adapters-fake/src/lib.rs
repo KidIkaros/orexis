@@ -101,9 +101,9 @@ impl RecordingSink {
 }
 
 impl EventSink for RecordingSink {
-    fn emit(&self, event: &SessionEvent) {
+    fn emit(&self, event: &SessionEvent, seq: u64) {
         if let Ok(mut lines) = self.lines.lock() {
-            lines.push(format!("{event:?}"));
+            lines.push(format!("{seq}: {event:?}"));
         }
     }
 }

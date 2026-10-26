@@ -9,6 +9,6 @@ pub(crate) async fn append(
     event: SessionEvent,
 ) -> PortResult<EventRef> {
     let event_ref = session.append(event.clone()).await?;
-    sink.emit(&event);
+    sink.emit(&event, event_ref.seq);
     Ok(event_ref)
 }

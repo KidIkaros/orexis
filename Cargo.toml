@@ -9,6 +9,7 @@ members = [
     "crates/adapters-provider-openai",
     "crates/adapters-codec",
     "crates/adapters-tui",
+    "crates/daemon",
     "crates/adapters-context-fs",
     "crates/adapters-provider-llamacpp",
     "crates/adapters-provider-anthropic",
@@ -33,6 +34,7 @@ orexis-adapters-provider-catalog = { path = "crates/adapters-provider-catalog" }
 orexis-adapters-provider-openai = { path = "crates/adapters-provider-openai" }
 orexis-adapters-codec = { path = "crates/adapters-codec" }
 orexis-adapters-tui = { path = "crates/adapters-tui" }
+orexis-daemon = { path = "crates/daemon" }
 orexis-adapters-context-fs = { path = "crates/adapters-context-fs" }
 orexis-adapters-provider-llamacpp = { path = "crates/adapters-provider-llamacpp" }
 orexis-adapters-provider-anthropic = { path = "crates/adapters-provider-anthropic" }

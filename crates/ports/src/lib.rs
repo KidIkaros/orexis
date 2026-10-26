@@ -76,5 +76,5 @@ pub trait Summarizer: Send + Sync {
 }
 
 pub trait EventSink: Send + Sync {
-    fn emit(&self, event: &SessionEvent);
+    fn emit(&self, event: &SessionEvent, seq: u64);
 }

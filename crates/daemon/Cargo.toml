@@ -1,0 +1,19 @@
+[package]
+name = "orexis-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true
+orexis-usecases.workspace = true
+orexis-adapters-session-sqlite.workspace = true
+orexis-adapters-fake.workspace = true
+orexis-adapters-codec.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+tempfile = "3"

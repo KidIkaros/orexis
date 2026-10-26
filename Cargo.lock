@@ -1331,6 +1331,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-daemon"
+version = "0.0.0"
+dependencies = [
+ "orexis-adapters-codec",
+ "orexis-adapters-fake",
+ "orexis-adapters-session-sqlite",
+ "orexis-core",
+ "orexis-ports",
+ "orexis-usecases",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "orexis-ports"
 version = "0.0.0"
 dependencies = [
@@ -2453,7 +2469,9 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",
