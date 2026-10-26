@@ -18,6 +18,8 @@ graph TD
   orexis-adapters-session-sqlite --> orexis-ports
   orexis-adapters-entity-sqlite --> orexis-core
   orexis-adapters-entity-sqlite --> orexis-ports
+  orexis-adapters-evolution-git --> orexis-core
+  orexis-adapters-evolution-git --> orexis-ports
   orexis-adapters-provider-openai --> orexis-adapters-http
   orexis-adapters-provider-openai --> orexis-adapters-provider-catalog
   orexis-adapters-provider-openai --> orexis-core

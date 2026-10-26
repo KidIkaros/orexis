@@ -1,7 +1,9 @@
 //! Pure domain types for the vertical slice. No I/O, no ports, no runtime.
 
 mod entity;
+mod evolution;
 pub use entity::*;
+pub use evolution::*;
 
 use serde::{Deserialize, Serialize};
 

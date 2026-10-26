@@ -1,0 +1,16 @@
+[package]
+name = "orexis-adapters-evolution-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orexis-core.workspace = true
+orexis-ports.workspace = true
+async-trait.workspace = true
+ed25519-dalek = "2"
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+futures = "0.3"

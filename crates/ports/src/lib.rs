@@ -2,8 +2,8 @@
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, ContextFile, EntityEvent, EntitySnapshot, EventRef, Message, Observation,
-    ProviderResponse, SessionEvent, StoredEvent, ToolSpec,
+    Action, CandidateRef, ContextFile, EntityEvent, EntitySnapshot, EventRef, LedgerEntry, Message,
+    Observation, ProviderResponse, Seal, SessionEvent, StoredEvent, ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -219,6 +219,21 @@ pub struct EntityRefs {
 
 pub trait EntityFactory: Send + Sync {
     fn open(&self) -> PortResult<EntityRefs>;
+}
+
+#[async_trait]
+pub trait EvolutionStore: Send + Sync {
+    async fn apply(&self, candidate: CandidateRef, seal: Seal) -> PortResult<LedgerEntry>;
+    async fn revert(&self, candidate_id: &str, reason: &str) -> PortResult<LedgerEntry>;
+    async fn entries(&self) -> PortResult<Vec<LedgerEntry>>;
+    async fn verify(&self) -> PortResult<()>;
+    fn export_jsonl(&self) -> PortResult<String>;
+}
+
+pub trait Signer: Send + Sync {
+    fn sign(&self, message: &[u8]) -> PortResult<Vec<u8>>;
+    fn verify(&self, message: &[u8], signature: &[u8]) -> bool;
+    fn public_key(&self) -> Vec<u8>;
 }
 
 pub trait Skills: Send + Sync {
