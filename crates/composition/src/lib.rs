@@ -20,8 +20,8 @@ use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, ContextSource, EntityFactory, Lsp, PortError, Provider, SessionAppend,
-    SessionFactory, SessionRead, ToolExecutor, Verifier, Workspace,
+    Checkpointer, Codec, ContextSource, EntityFactory, ExternalTools, Lsp, PortError, Provider,
+    SessionAppend, SessionFactory, SessionRead, ToolExecutor, Verifier, Workspace,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -71,6 +71,7 @@ pub struct BuildConfig {
     pub project_root: PathBuf,
     pub cwd: PathBuf,
     pub providers_dir: Option<PathBuf>,
+    pub mcp_dirs: Option<Vec<PathBuf>>,
     pub verify_command: Option<String>,
     pub system_prompt: String,
     pub context_limit: usize,
@@ -88,6 +89,7 @@ pub struct Runtime {
     pub entity: Arc<dyn EntityFactory>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
+    pub mcp: Option<Arc<dyn ExternalTools>>,
     pub context_files: Vec<ContextFile>,
     pub context_limit: usize,
     pub generation_slots: usize,
@@ -181,6 +183,7 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         config.db_path.with_file_name("entity.db"),
     ));
     let context_tools = LocalTools::specs();
+    let mcp = mcp_source(&config, &mut warnings);
 
     Ok(Runtime {
         provider,
@@ -196,11 +199,38 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         sessions: Arc::new(SqliteSessionFactory::new(config.db_path)),
         system_prompt: config.system_prompt,
         context_tools,
+        mcp,
         context_files,
         context_limit: config.context_limit,
         generation_slots: profile.limits.max_concurrency.max(1) as usize,
         warnings,
     })
+}
+
+/// MCP servers come from explicit dirs, or the user dir plus the project's
+/// `.orexis/mcp` (project wins by server name). Problems become warnings;
+/// no configured servers means no MCP layer.
+fn mcp_source(
+    config: &BuildConfig,
+    warnings: &mut Vec<String>,
+) -> Option<Arc<dyn orexis_ports::ExternalTools>> {
+    let dirs = config.mcp_dirs.clone().unwrap_or_else(|| {
+        let mut dirs = Vec::new();
+        if let Ok(home) = std::env::var("HOME") {
+            dirs.push(PathBuf::from(home).join(".config/orexis/mcp"));
+        }
+        dirs.push(config.project_root.join(".orexis/mcp"));
+        dirs
+    });
+    let (servers, problems) = orexis_adapters_protocol_mcp::load_server_configs(&dirs);
+    warnings.extend(problems);
+    if servers.is_empty() {
+        None
+    } else {
+        let tools: Arc<orexis_adapters_protocol_mcp::McpTools> =
+            Arc::new(orexis_adapters_protocol_mcp::McpTools::new(servers));
+        Some(tools)
+    }
 }
 
 /// Deterministic wiring for tests and `OREXIS_FAKE=1`.
@@ -226,6 +256,7 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
         )),
         system_prompt: String::new(),
         context_tools: Vec::new(),
+        mcp: None,
         context_files: Vec::new(),
         context_limit: 32768,
         generation_slots: 1,

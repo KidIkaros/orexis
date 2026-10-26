@@ -140,7 +140,7 @@ impl PermissionPolicy {
     pub fn decide(&self, tool: &str) -> Decision {
         let mut explicit: Option<Decision> = None;
         for rule in &self.rules {
-            if rule.tool == "*" || rule.tool == tool {
+            if rule_matches(&rule.tool, tool) {
                 explicit =
                     Some(explicit.map_or(rule.decision, |current| current.max(rule.decision)));
             }
@@ -163,11 +163,29 @@ impl PermissionPolicy {
     }
 }
 
+/// A rule names a tool exactly, all tools (`*`), or a namespace prefix
+/// (`mcp/fs/*`). A prefix rule matches `mcp/fs/…` but not `mcp/fs-other/…`.
+fn rule_matches(rule_tool: &str, tool: &str) -> bool {
+    if rule_tool == "*" || rule_tool == tool {
+        return true;
+    }
+    rule_tool
+        .strip_suffix("/*")
+        .and_then(|prefix| tool.strip_prefix(prefix))
+        .is_some_and(|rest| rest.starts_with('/') && rest.len() > 1)
+}
+
+/// External tools (namespaced by protocol) reach outside the workspace;
+/// plan mode denies them and their output is untrusted content.
+pub fn is_external_tool(tool: &str) -> bool {
+    tool.starts_with("mcp/") || tool.starts_with("utcp/")
+}
+
 fn is_mutating(tool: &str) -> bool {
     matches!(
         tool,
         "write_file" | "edit_file" | "shell" | "verify" | "git_commit"
-    )
+    ) || is_external_tool(tool)
 }
 
 #[cfg(test)]
@@ -225,6 +243,52 @@ mod policy_tests {
         assert_eq!(policy.decide("edit_file"), Decision::Ask);
         assert_eq!(policy.decide("git_commit"), Decision::Deny);
         assert_eq!(policy.decide("unknown_tool"), Decision::Ask);
+    }
+
+    #[test]
+    fn external_tools_default_to_ask() {
+        let policy = PermissionPolicy::standard();
+        assert_eq!(policy.decide("mcp/fs/read_file"), Decision::Ask);
+        assert_eq!(policy.decide("utcp/http/call"), Decision::Ask);
+    }
+
+    #[test]
+    fn prefix_rules_match_namespaced_tools() {
+        let policy = PermissionPolicy::standard().with_rules(vec![PermissionRule {
+            tool: "mcp/fs/*".into(),
+            decision: Decision::Allow,
+        }]);
+        assert_eq!(policy.decide("mcp/fs/read_file"), Decision::Allow);
+        assert_eq!(policy.decide("mcp/fs/sub/x"), Decision::Allow);
+        assert_eq!(policy.decide("mcp/other/read_file"), Decision::Ask);
+        assert_eq!(policy.decide("mcp/fs"), Decision::Ask);
+        assert_eq!(policy.decide("mcp/fs-other/x"), Decision::Ask);
+    }
+
+    #[test]
+    fn deny_prefix_beats_allow_prefix() {
+        let policy = PermissionPolicy::standard().with_rules(vec![
+            PermissionRule {
+                tool: "mcp/fs/*".into(),
+                decision: Decision::Allow,
+            },
+            PermissionRule {
+                tool: "mcp/fs/write_file".into(),
+                decision: Decision::Deny,
+            },
+        ]);
+        assert_eq!(policy.decide("mcp/fs/read_file"), Decision::Allow);
+        assert_eq!(policy.decide("mcp/fs/write_file"), Decision::Deny);
+    }
+
+    #[test]
+    fn plan_mode_denies_external_tools_regardless_of_rules() {
+        let policy = PermissionPolicy::plan().with_rules(vec![PermissionRule {
+            tool: "mcp/fs/*".into(),
+            decision: Decision::Allow,
+        }]);
+        assert_eq!(policy.decide("mcp/fs/read_file"), Decision::Deny);
+        assert_eq!(policy.decide("utcp/http/call"), Decision::Deny);
     }
 }
 

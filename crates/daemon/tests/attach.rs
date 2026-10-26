@@ -10,12 +10,13 @@ use orexis_adapters_fake::{EchoTools, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::LocalTools;
 use orexis_core::{
-    Action, EntityEvent, Message, PermissionPolicy, ProviderResponse, Role, SessionEvent, ToolSpec,
+    Action, EntityEvent, Message, Observation, PermissionPolicy, ProviderResponse, Role,
+    SessionEvent, ToolSpec,
 };
 use orexis_daemon::{
     Artifact, ClientMsg, Daemon, DaemonConfig, FileEntry, ServerMsg, SettingsInfo,
 };
-use orexis_ports::{Checkpointer, EntityAppend, PortResult, Provider};
+use orexis_ports::{Checkpointer, EntityAppend, ExternalTools, PortResult, Provider, ToolExecutor};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::UnixStream;
@@ -49,6 +50,7 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         )),
         identity_path: None,
         evolution_ledger: None,
+        mcp: None,
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
         workspace: Arc::new(
@@ -876,6 +878,7 @@ async fn self_view_returns_entity_state() {
 
 struct RecordingProvider {
     calls: Arc<Mutex<Vec<Vec<Message>>>>,
+    tool_lists: Arc<Mutex<Vec<Vec<ToolSpec>>>>,
 }
 
 #[async_trait::async_trait]
@@ -883,16 +886,46 @@ impl Provider for RecordingProvider {
     async fn complete(
         &self,
         messages: &[Message],
-        _tools: &[ToolSpec],
+        tools: &[ToolSpec],
         _step: usize,
     ) -> PortResult<ProviderResponse> {
         self.calls.lock().expect("calls").push(messages.to_vec());
+        self.tool_lists
+            .lock()
+            .expect("tool lists")
+            .push(tools.to_vec());
         Ok(ProviderResponse {
             actions: vec![Action::Done {
                 summary: "done".to_string(),
             }],
             raw_text: String::new(),
         })
+    }
+}
+
+struct FakeExternalTools {
+    specs: Vec<ToolSpec>,
+    failures: Vec<(String, String)>,
+}
+
+#[async_trait::async_trait]
+impl ToolExecutor for FakeExternalTools {
+    async fn execute(&self, name: &str, _args: &str) -> PortResult<Observation> {
+        Ok(Observation {
+            name: name.to_string(),
+            output: "external ran".to_string(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl ExternalTools for FakeExternalTools {
+    async fn connect_all(&self) -> Vec<(String, String)> {
+        self.failures.clone()
+    }
+
+    async fn specs(&self) -> Vec<ToolSpec> {
+        self.specs.clone()
     }
 }
 
@@ -916,6 +949,7 @@ async fn identity_is_injected_only_on_the_first_turn() {
     let mut config = config(&socket, &db);
     config.provider = Arc::new(RecordingProvider {
         calls: calls.clone(),
+        tool_lists: Arc::new(Mutex::new(Vec::new())),
     });
     config.entity = Arc::new(SqliteEntityFactory::new(entity_db));
     let daemon = Daemon::new(config);
@@ -1055,4 +1089,76 @@ async fn evolution_returns_the_ledger() {
     send(&mut writer, &ClientMsg::Evolution).await;
     let entries = read_until_evolution(&mut reader, &mut line).await;
     assert_eq!(entries, vec!["#1 apply", "#2 revert"]);
+}
+
+#[tokio::test]
+async fn mcp_tools_register_into_the_session() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let tool_lists = Arc::new(Mutex::new(Vec::new()));
+    let mut config = config(&socket, &db);
+    config.provider = Arc::new(RecordingProvider {
+        calls: calls.clone(),
+        tool_lists: tool_lists.clone(),
+    });
+    config.mcp = Some(Arc::new(FakeExternalTools {
+        specs: vec![ToolSpec {
+            name: "mcp/mock/mock_tool".to_string(),
+            description: "a mock tool".to_string(),
+            schema: serde_json::json!({"type": "object"}),
+        }],
+        failures: Vec::new(),
+    }));
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "hi".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+
+    let tools = tool_lists.lock().expect("tool lists")[0].clone();
+    assert!(tools.iter().any(|tool| tool.name == "mcp/mock/mock_tool"));
+    let messages = calls.lock().expect("calls")[0].clone();
+    assert!(
+        messages[0].text.contains("untrusted data"),
+        "system: {}",
+        messages[0].text
+    );
+}
+
+#[tokio::test]
+async fn a_failed_mcp_server_is_a_visible_session_event() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+
+    let mut config = config(&socket, &db);
+    config.mcp = Some(Arc::new(FakeExternalTools {
+        specs: Vec::new(),
+        failures: vec![("missing".to_string(), "spawn failed".to_string())],
+    }));
+    let (_, mut reader, _writer, mut line) = spawn_and_attach(config, &socket).await;
+
+    // The failure is replayed during attach, before any prompt.
+    let mut saw_error = false;
+    for _ in 0..10 {
+        match read_server(&mut reader, &mut line).await {
+            ServerMsg::Event {
+                event: SessionEvent::Error { message },
+                ..
+            } if message.contains("mcp server missing") => {
+                saw_error = true;
+                break;
+            }
+            _ => continue,
+        }
+    }
+    assert!(saw_error, "the failed server was not visible");
 }

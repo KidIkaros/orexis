@@ -19,6 +19,7 @@ orexis-adapters-codec.workspace = true
 orexis-adapters-tools.workspace = true
 orexis-adapters-lsp.workspace = true
 orexis-adapters-context-fs.workspace = true
+orexis-adapters-protocol-mcp.workspace = true
 dirs = "5"
 thiserror = "2"
 

@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use orexis_core::{ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, EntityFactory, Provider, SessionFactory, ToolExecutor, Verifier, Workspace,
+    Checkpointer, Codec, EntityFactory, ExternalTools, Provider, SessionFactory, ToolExecutor,
+    Verifier, Workspace,
 };
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
@@ -22,6 +23,7 @@ pub struct DaemonConfig {
     pub entity: Arc<dyn EntityFactory>,
     pub identity_path: Option<PathBuf>,
     pub evolution_ledger: Option<PathBuf>,
+    pub mcp: Option<Arc<dyn ExternalTools>>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
     pub workspace: Arc<dyn Workspace>,

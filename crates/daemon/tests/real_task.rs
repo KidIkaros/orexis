@@ -160,6 +160,7 @@ async fn a_real_repository_task_reads_edits_tests_and_diffs() {
         entity: Arc::new(SqliteEntityFactory::new(project.join("entity.db"))),
         identity_path: None,
         evolution_ledger: None,
+        mcp: None,
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(LocalTools::new(project).expect("tools")),
         workspace: Arc::new(LocalTools::new(project).expect("workspace")),

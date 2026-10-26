@@ -56,6 +56,17 @@ pub struct SessionRuntime {
     pub read: Arc<dyn SessionRead>,
     pub tx: broadcast::Sender<ServerMsg>,
     pub turn: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    pub mcp: tokio::sync::Mutex<McpState>,
+}
+
+/// MCP servers connect once per session, at session start; a failed
+/// connect is visible as a session event and is not retried mid-session.
+#[derive(Debug, Default)]
+pub enum McpState {
+    #[default]
+    NotTried,
+    Connected(Vec<orexis_core::ToolSpec>),
+    Failed,
 }
 
 impl SessionRuntime {
@@ -67,6 +78,7 @@ impl SessionRuntime {
             read: refs.read,
             tx,
             turn: Mutex::new(None),
+            mcp: tokio::sync::Mutex::new(McpState::NotTried),
         }
     }
 }

@@ -71,6 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         project_root: dir.path().to_path_buf(),
         cwd: dir.path().to_path_buf(),
         providers_dir: None,
+        mcp_dirs: Some(Vec::new()),
         verify_command: std::env::var("OREXIS_VERIFY").ok(),
         system_prompt: "You are a coding agent. Use the provided tools.".to_string(),
         context_limit: 32768,

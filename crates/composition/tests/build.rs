@@ -39,6 +39,7 @@ fn config(dir: &tempfile::TempDir, providers: PathBuf, model: &str) -> BuildConf
         project_root: dir.path().to_path_buf(),
         cwd: dir.path().to_path_buf(),
         providers_dir: Some(providers),
+        mcp_dirs: Some(Vec::new()),
         verify_command: None,
         system_prompt: String::new(),
         context_limit: 32768,
@@ -104,6 +105,33 @@ limits:
     let message = err.to_string();
     assert!(message.contains("on demand"), "message: {message}");
     assert!(message.contains("openai_compatible"), "message: {message}");
+}
+
+#[test]
+fn mcp_servers_load_from_explicit_dirs() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mcp = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        mcp.path().join("servers.json"),
+        r#"{"servers": [{"name": "fs", "command": "npx", "args": ["-y", "server"]}]}"#,
+    )
+    .expect("write");
+    let providers = providers_dir("native");
+    let build_config = BuildConfig {
+        mcp_dirs: Some(vec![mcp.path().to_path_buf()]),
+        ..config(&dir, providers.path().to_path_buf(), "known")
+    };
+    let runtime = build_runtime(build_config).expect("build");
+    assert!(runtime.mcp.is_some());
+}
+
+#[test]
+fn no_mcp_configs_means_no_mcp_layer() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let providers = providers_dir("native");
+    let runtime =
+        build_runtime(config(&dir, providers.path().to_path_buf(), "known")).expect("build");
+    assert!(runtime.mcp.is_none());
 }
 
 #[test]

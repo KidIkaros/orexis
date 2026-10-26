@@ -56,6 +56,7 @@ orexis-adapters-provider-llamacpp = { path = "crates/adapters-provider-llamacpp"
 orexis-adapters-provider-anthropic = { path = "crates/adapters-provider-anthropic" }
 orexis-adapters-http = { path = "crates/adapters-http" }
 orexis-adapters-jsonrpc = { path = "crates/adapters-jsonrpc" }
+orexis-adapters-protocol-mcp = { path = "crates/adapters-protocol-mcp" }
 orexis-composition = { path = "crates/composition" }
 async-trait = "0.1"
 futures = "0.3"

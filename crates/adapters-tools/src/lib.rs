@@ -5,6 +5,7 @@ mod edit;
 mod files;
 pub mod gate;
 mod git;
+pub mod router;
 mod search;
 mod shell;
 pub mod verify;
@@ -12,6 +13,7 @@ mod workspace;
 
 pub use checkpoints::GitCheckpointStore;
 pub use gate::{AutoApprove, DenyAll, GatedTools};
+pub use router::RouterTools;
 pub use verify::ShellVerifier;
 
 use std::fs;

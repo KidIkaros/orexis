@@ -13,11 +13,13 @@
 pub mod core;
 pub mod error;
 pub mod stdio;
+pub mod tools;
 pub mod types;
 
 pub use core::{Event, McpCore};
 pub use error::McpError;
 pub use stdio::{McpServerConfig, McpStdioClient};
+pub use tools::{load_server_configs, McpTools};
 pub use types::{
     ClientInfo, Initialization, McpPrompt, McpPromptArgument, McpResource, ResourceContent,
     ServerCapabilities, ServerInfo, ToolCallResult, ToolContent,

@@ -1409,8 +1409,10 @@ dependencies = [
 name = "orexis-adapters-protocol-mcp"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "orexis-adapters-jsonrpc",
  "orexis-core",
+ "orexis-ports",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
@@ -1543,6 +1545,7 @@ dependencies = [
  "orexis-adapters-fake",
  "orexis-adapters-http",
  "orexis-adapters-lsp",
+ "orexis-adapters-protocol-mcp",
  "orexis-adapters-provider-anthropic",
  "orexis-adapters-provider-catalog",
  "orexis-adapters-provider-openai",
@@ -1574,6 +1577,7 @@ dependencies = [
  "orexis-adapters-codec",
  "orexis-adapters-entity-sqlite",
  "orexis-adapters-fake",
+ "orexis-adapters-protocol-mcp",
  "orexis-adapters-session-sqlite",
  "orexis-adapters-tools",
  "orexis-composition",

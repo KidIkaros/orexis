@@ -95,6 +95,19 @@ pub trait ToolExecutor: Send + Sync {
     async fn execute(&self, name: &str, args: &str) -> PortResult<Observation>;
 }
 
+/// An external tool source (MCP servers, UTCP manuals): connects once,
+/// lists namespaced specs, and executes through `ToolExecutor`. The
+/// consumer (the daemon) sees only this port; composition constructs the
+/// concrete source.
+#[async_trait]
+pub trait ExternalTools: ToolExecutor {
+    /// Connect every configured source once; returns per-source failures
+    /// as (name, message) pairs.
+    async fn connect_all(&self) -> Vec<(String, String)>;
+    /// Namespaced specs for the connected sources.
+    async fn specs(&self) -> Vec<ToolSpec>;
+}
+
 #[async_trait]
 pub trait SessionAppend: Send + Sync {
     async fn append(&self, event: SessionEvent) -> PortResult<EventRef>;

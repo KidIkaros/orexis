@@ -37,6 +37,7 @@ pub(crate) async fn handle(
                     ClientMsg::Attach { session } => {
                         let (rt, receiver, seq) = handlers::attach(
                             &registry,
+                            &config,
                             session.as_deref(),
                             &mut write_half,
                             last_seq,
