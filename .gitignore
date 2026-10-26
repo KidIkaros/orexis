@@ -1,0 +1,25 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local state
+*.db
+*.db-shm
+*.db-wal
+/sessions/
+/results/
+/workspace/
+.env
+.env.*
+!.env.example
+
+# Node (desktop frontend)
+node_modules/
+dist/
