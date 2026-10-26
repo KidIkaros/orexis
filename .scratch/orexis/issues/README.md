@@ -43,14 +43,14 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 
 ## Frontier (from `docs/orexis/PLAN.md` §Map)
 
-1. Session event schema and migration format
-2. `ProviderProfile` schema and catalog source
-3. Codec set beyond the ported four
-4. TUI layout and keymap
-5. Edit-tool contract per model tier
-6. Desktop panel layout in Leptos
-7. Entity model: five vs six drives, affect dimensions
-8. Evolution tier defaults and validation ladder
-9. Native adapter timing: Gemini / Bedrock / Vertex
-10. Packaging and signing
-11. Eight per-repo study decisions
+1. [Session event schema and migration format](001-session-event-schema.md)
+2. [`ProviderProfile` schema and catalog source](002-provider-profile-schema.md)
+3. [Codec set beyond the ported four](003-codec-set.md)
+4. [TUI layout and keymap](004-tui-layout-keymap.md)
+5. [Edit-tool contract per model tier](005-edit-tool-contract.md)
+6. [Desktop panel layout in Leptos](006-desktop-panel-layout.md)
+7. [Entity model: five vs six drives, affect dimensions](007-entity-model.md)
+8. [Evolution tier defaults and validation ladder](008-evolution-tier-defaults.md)
+9. [Native adapter timing: Gemini / Bedrock / Vertex](009-native-adapter-timing.md)
+10. [Packaging and signing](010-packaging-signing.md)
+11. [Eight per-repo study decisions](011-per-repo-study-decisions.md)
