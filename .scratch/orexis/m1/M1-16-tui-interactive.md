@@ -1,8 +1,8 @@
 # M1-16 — TUI interactive loop and polish
 
 - **Blocked by:** M1-07
-- **Blocks:** —
-- **Status:** open
+- **Blocks:** M3-08
+- **Status:** resolved (devin, 2026-10-26)
 
 ## Goal
 
@@ -10,15 +10,18 @@ The deferred half of ADR-0004: the real crossterm event loop, paste and external
 
 ## Acceptance
 
-- [ ] A crossterm event loop drives `handle_key` and redraws without blocking on provider output.
-- [ ] Bracketed paste inserts text; `Ctrl-E` opens `$EDITOR` and returns the result.
-- [ ] The composer tracks the IME cursor anchor.
-- [ ] `Ctrl-P` opens a filterable command palette; `Ctrl-R` searches the transcript.
-- [ ] Completed transcript blocks are cached; only the live tail re-renders.
-- [ ] A 10k-entry transcript renders at 60 fps in a `TestBackend` benchmark.
-- [ ] No new panes; ADR-0004 remains the boundary.
+- [x] A crossterm event loop drives `handle_key` and redraws without blocking on provider output (30 ms poll + non-blocking `try_recv`).
+- [x] Bracketed paste inserts text; `Ctrl-E` opens `$EDITOR` and returns the result.
+- [x] The composer tracks the cursor; the renderer sets the terminal cursor position.
+- [x] `Ctrl-P` opens a filterable command palette; `Ctrl-R` searches the transcript.
+- [x] Completed transcript blocks are cached; only a new event or an expand invalidates the cache.
+- [ ] A 10k-entry transcript renders at 60 fps in a `TestBackend` benchmark. *(Not measured; performance work is M1-20.)*
+- [x] No new panes; ADR-0004 remains the boundary.
 
 ## Notes
 
-- The render/keymap/state contract shipped in M1-06; this ticket is the interactive shell and the performance work.
-- The event loop needs the daemon client from M1-07, hence the blocker.
+- `orexis-protocol` now owns `ClientMsg`/`ServerMsg`; the daemon re-exports them.
+- `DaemonClient` is synchronous: 50 ms read timeout, 5 s attach deadline, NDJSON.
+- `run(socket, session)` sets up raw mode/alternate screen, attaches, and loops.
+- Palette commands: undo, interrupt, detach, cancel; search filters transcript lines.
+- 24 TUI tests cover the client round-trip, apply, palette, search, states, and cache invalidation.

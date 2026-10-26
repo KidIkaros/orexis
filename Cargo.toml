@@ -2,6 +2,7 @@
 members = [
     "crates/core",
     "crates/ports",
+    "crates/protocol",
     "crates/usecases",
     "crates/adapters-fake",
     "crates/adapters-session-sqlite",
@@ -29,6 +30,7 @@ license = "MIT"
 [workspace.dependencies]
 orexis-core = { path = "crates/core" }
 orexis-ports = { path = "crates/ports" }
+orexis-protocol = { path = "crates/protocol" }
 orexis-usecases = { path = "crates/usecases" }
 orexis-adapters-fake = { path = "crates/adapters-fake" }
 orexis-adapters-session-sqlite = { path = "crates/adapters-session-sqlite" }

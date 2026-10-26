@@ -1,66 +1,8 @@
-//! The NDJSON client/server protocol for `orexis serve`.
+//! NDJSON helpers over the shared protocol types.
 
-use orexis_core::SessionEvent;
-use serde::{Deserialize, Serialize};
+pub use orexis_protocol::{ClientMsg, ServerMsg, SessionInfo};
+
 use tokio::io::{AsyncBufRead, AsyncWrite, AsyncWriteExt};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ClientMsg {
-    Attach {
-        session: Option<String>,
-    },
-    Prompt {
-        text: String,
-        #[serde(default)]
-        skip_verify: bool,
-    },
-    Approve {
-        id: u64,
-        yes: bool,
-    },
-    Interrupt,
-    Undo,
-    ListSessions,
-    Detach,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ServerMsg {
-    Attached {
-        session_id: String,
-    },
-    Event {
-        seq: u64,
-        replay: bool,
-        event: SessionEvent,
-    },
-    ApprovalRequest {
-        id: u64,
-        tool: String,
-        args: String,
-    },
-    Busy {
-        session_id: String,
-    },
-    Queued {
-        session_id: String,
-        position: usize,
-    },
-    Sessions {
-        sessions: Vec<SessionInfo>,
-    },
-    Error {
-        message: String,
-    },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionInfo {
-    pub id: String,
-    pub status: String,
-}
 
 pub async fn write_msg<W: AsyncWrite + Unpin>(
     writer: &mut W,

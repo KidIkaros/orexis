@@ -7,5 +7,8 @@ license.workspace = true
 [dependencies]
 orexis-core.workspace = true
 orexis-ports.workspace = true
+orexis-protocol.workspace = true
 ratatui = "0.30"
 crossterm = "0.29"
+serde_json = "1"
+tempfile = "3"

@@ -62,7 +62,7 @@ pub fn draw(frame: &mut Frame, app: &TuiApp) {
     frame.render_widget(Paragraph::new(app.keyhints()).style(dim(app)), chunks[3]);
 
     if let Some(overlay) = app.overlay {
-        draw_overlay(frame, overlay, area);
+        draw_overlay(frame, app, overlay, area);
     }
     if let Some(sheet) = &app.bottom_sheet {
         draw_bottom_sheet(frame, sheet, chunks[1]);
@@ -94,6 +94,15 @@ fn dim(app: &TuiApp) -> Style {
 }
 
 fn transcript_lines(app: &TuiApp) -> Vec<Line<'static>> {
+    let mut cache = app.cache.borrow_mut();
+    if cache.revision != app.revision {
+        cache.lines = build_transcript_lines(app);
+        cache.revision = app.revision;
+    }
+    cache.lines.clone()
+}
+
+fn build_transcript_lines(app: &TuiApp) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     for entry in &app.entries {
         match entry {
@@ -182,7 +191,7 @@ fn state_message(app: &TuiApp) -> String {
     }
 }
 
-fn draw_overlay(frame: &mut Frame, overlay: Overlay, area: Rect) {
+fn draw_overlay(frame: &mut Frame, app: &TuiApp, overlay: Overlay, area: Rect) {
     let rect = if area.width >= 120 {
         Rect {
             x: area.width.saturating_sub(40),
@@ -200,7 +209,7 @@ fn draw_overlay(frame: &mut Frame, overlay: Overlay, area: Rect) {
     };
     frame.render_widget(Clear, rect);
     frame.render_widget(
-        Paragraph::new(overlay_lines(overlay))
+        Paragraph::new(overlay_lines(app, overlay))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -211,7 +220,7 @@ fn draw_overlay(frame: &mut Frame, overlay: Overlay, area: Rect) {
     );
 }
 
-fn overlay_lines(overlay: Overlay) -> Vec<Line<'static>> {
+fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
     match overlay {
         Overlay::Fleet => vec![
             Line::from("● 1  builder   claude-sonnet   running  task 12   $0.04"),
@@ -230,6 +239,45 @@ fn overlay_lines(overlay: Overlay) -> Vec<Line<'static>> {
             Line::from("tier     skills        budget 42k/100k    provider anthropic"),
             Line::from("leaves   prompts + tool args + file reads → api.anthropic.com"),
         ],
+        Overlay::Palette => {
+            let commands = app.palette_commands();
+            if commands.is_empty() {
+                return vec![Line::from("no matching commands")];
+            }
+            commands
+                .iter()
+                .enumerate()
+                .map(|(index, (label, _))| {
+                    let marker = if index == app.palette_selected {
+                        ">"
+                    } else {
+                        " "
+                    };
+                    Line::from(format!("{marker} {label}"))
+                })
+                .collect()
+        }
+        Overlay::Search => {
+            let query = app.search_query.to_lowercase();
+            let lines = transcript_lines(app);
+            let matches: Vec<Line<'static>> = lines
+                .into_iter()
+                .filter(|line| {
+                    let text = line
+                        .spans
+                        .iter()
+                        .map(|span| span.content.as_ref())
+                        .collect::<String>()
+                        .to_lowercase();
+                    !query.is_empty() && text.contains(&query)
+                })
+                .collect();
+            if matches.is_empty() {
+                vec![Line::from("no matches")]
+            } else {
+                matches
+            }
+        }
         Overlay::Help => vec![
             Line::from("Enter send · ⇧Enter newline · Esc cancel"),
             Line::from("Ctrl-C interrupt · Ctrl-D detach · Ctrl-F fleet"),
@@ -258,12 +306,16 @@ fn draw_bottom_sheet(frame: &mut Frame, sheet: &str, area: Rect) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::PlanTask;
     use orexis_core::SessionEvent;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+
+    pub(crate) fn render_for_test(app: &TuiApp, width: u16, height: u16) -> String {
+        render(app, width, height)
+    }
 
     fn render(app: &TuiApp, width: u16, height: u16) -> String {
         let backend = TestBackend::new(width, height);

@@ -1,10 +1,17 @@
 //! The TUI state machine and keymap (ADR-0004). Rendering lives in `render`.
 
+use std::cell::RefCell;
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use orexis_core::SessionEvent;
+use orexis_protocol::ServerMsg;
+use ratatui::text::Line;
 use ratatui::Frame;
 
+mod client;
 pub mod render;
+
+pub use client::DaemonClient;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TuiState {
@@ -52,6 +59,8 @@ pub enum Overlay {
     Board,
     SelfState,
     Help,
+    Palette,
+    Search,
 }
 
 impl Overlay {
@@ -61,6 +70,8 @@ impl Overlay {
             Self::Board => "board",
             Self::SelfState => "self",
             Self::Help => "help",
+            Self::Palette => "palette",
+            Self::Search => "search",
         }
     }
 }
@@ -116,6 +127,8 @@ pub enum TuiAction {
     PlanCancel,
     OpenFile(String),
     Copy,
+    Undo,
+    EditExternal,
 }
 
 pub struct TuiApp {
@@ -139,6 +152,17 @@ pub struct TuiApp {
     pub error: Option<String>,
     pub budget: Option<(u64, u64)>,
     pub queued: Option<usize>,
+    pub pending_approval: Option<u64>,
+    pub palette_query: String,
+    pub palette_selected: usize,
+    pub search_query: String,
+    pub revision: u64,
+    pub(crate) cache: RefCell<TranscriptCache>,
+}
+
+pub struct TranscriptCache {
+    pub revision: u64,
+    pub lines: Vec<Line<'static>>,
 }
 
 impl Default for TuiApp {
@@ -164,6 +188,15 @@ impl Default for TuiApp {
             error: None,
             budget: None,
             queued: None,
+            pending_approval: None,
+            palette_query: String::new(),
+            palette_selected: 0,
+            search_query: String::new(),
+            revision: 0,
+            cache: RefCell::new(TranscriptCache {
+                revision: u64::MAX,
+                lines: Vec::new(),
+            }),
         }
     }
 }
@@ -175,6 +208,7 @@ impl TuiApp {
 
     pub fn set_state(&mut self, state: TuiState) {
         self.state = state;
+        self.revision += 1;
     }
 
     pub fn push_event(&mut self, event: &SessionEvent) {
@@ -227,6 +261,7 @@ impl TuiApp {
             }
             _ => {}
         }
+        self.revision += 1;
     }
 
     pub fn show_approval(&mut self, command: &str, risk: &str, reversible: bool) {
@@ -236,26 +271,63 @@ impl TuiApp {
             reversible,
         });
         self.state = TuiState::Approval;
+        self.revision += 1;
     }
 
     pub fn show_plan(&mut self, tasks: Vec<PlanTask>) {
         self.entries.push(Entry::Plan { tasks });
         self.state = TuiState::PlanGate;
+        self.revision += 1;
     }
 
     pub fn set_error(&mut self, message: &str) {
         self.error = Some(message.to_string());
         self.state = TuiState::Error;
+        self.revision += 1;
     }
 
     pub fn set_budget(&mut self, spent: u64, limit: u64) {
         self.budget = Some((spent, limit));
         self.state = TuiState::BudgetExhausted;
+        self.revision += 1;
     }
 
     pub fn set_queued(&mut self, position: usize) {
         self.queued = Some(position);
         self.state = TuiState::Queued;
+        self.revision += 1;
+    }
+
+    pub fn apply(&mut self, message: ServerMsg) {
+        match message {
+            ServerMsg::Attached { session_id } => self.session = session_id,
+            ServerMsg::Event { event, .. } => self.push_event(&event),
+            ServerMsg::ApprovalRequest { id, tool, args } => {
+                self.pending_approval = Some(id);
+                self.show_approval(&format!("{tool} {args}"), "ask", true);
+            }
+            ServerMsg::Busy { .. } => self.set_state(TuiState::Streaming),
+            ServerMsg::Queued { position, .. } => self.set_queued(position),
+            ServerMsg::Sessions { sessions } => {
+                self.entries
+                    .push(Entry::Info(format!("{} sessions", sessions.len())));
+                self.revision += 1;
+            }
+            ServerMsg::Error { message } => self.set_error(&message),
+        }
+    }
+
+    pub fn palette_commands(&self) -> Vec<(String, TuiAction)> {
+        let all = vec![
+            ("undo the last turn".to_string(), TuiAction::Undo),
+            ("interrupt the turn".to_string(), TuiAction::Interrupt),
+            ("detach".to_string(), TuiAction::Detach),
+            ("cancel".to_string(), TuiAction::Cancel),
+        ];
+        let query = self.palette_query.to_lowercase();
+        all.into_iter()
+            .filter(|(label, _)| query.is_empty() || label.contains(&query))
+            .collect()
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> TuiAction {
@@ -285,10 +357,46 @@ impl TuiApp {
     }
 
     fn handle_normal(&mut self, key: KeyEvent) -> TuiAction {
-        if self.overlay.is_some() {
-            if key.code == KeyCode::Esc {
-                self.overlay = None;
-                self.focus = Focus::Composer;
+        if let Some(overlay) = self.overlay {
+            match key.code {
+                KeyCode::Esc => {
+                    self.overlay = None;
+                    self.focus = Focus::Composer;
+                }
+                KeyCode::Backspace => match overlay {
+                    Overlay::Palette => {
+                        self.palette_query.pop();
+                    }
+                    Overlay::Search => {
+                        self.search_query.pop();
+                    }
+                    _ => {}
+                },
+                KeyCode::Char(character) => match overlay {
+                    Overlay::Palette => {
+                        self.palette_query.push(character);
+                        self.palette_selected = 0;
+                    }
+                    Overlay::Search => self.search_query.push(character),
+                    _ => {}
+                },
+                KeyCode::Down if overlay == Overlay::Palette => {
+                    self.palette_selected = self.palette_selected.saturating_add(1);
+                }
+                KeyCode::Up if overlay == Overlay::Palette => {
+                    self.palette_selected = self.palette_selected.saturating_sub(1);
+                }
+                KeyCode::Enter if overlay == Overlay::Palette => {
+                    let commands = self.palette_commands();
+                    if !commands.is_empty() {
+                        let index = self.palette_selected.min(commands.len() - 1);
+                        let action = commands[index].1.clone();
+                        self.overlay = None;
+                        self.focus = Focus::Composer;
+                        return action;
+                    }
+                }
+                _ => {}
             }
             return TuiAction::None;
         }
@@ -302,6 +410,16 @@ impl TuiApp {
             }
             KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.overlay = Some(Overlay::Fleet);
+                self.focus = Focus::Overlay;
+                TuiAction::None
+            }
+            KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.overlay = Some(Overlay::Palette);
+                self.focus = Focus::Overlay;
+                TuiAction::None
+            }
+            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.overlay = Some(Overlay::Search);
                 self.focus = Focus::Overlay;
                 TuiAction::None
             }
@@ -345,6 +463,9 @@ impl TuiApp {
                 self.composer.pop();
                 TuiAction::None
             }
+            KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                TuiAction::EditExternal
+            }
             KeyCode::Char(c) => {
                 self.composer.push(c);
                 TuiAction::None
@@ -378,6 +499,7 @@ impl TuiApp {
                         self.bottom_sheet = Some(row.detail.clone());
                     }
                 }
+                self.revision += 1;
                 TuiAction::None
             }
             KeyCode::Char('o') => {
@@ -421,6 +543,8 @@ impl TuiApp {
         match self.state {
             TuiState::Approval => "y approve · n deny · d diff · a always",
             TuiState::PlanGate => "a approve · e edit · c cancel",
+            _ if self.overlay == Some(Overlay::Palette) => "Enter run · Esc close · ↑/↓ select",
+            _ if self.overlay == Some(Overlay::Search) => "type to filter · Esc close",
             _ if self.overlay.is_some() => "Esc close · j/k navigate · Enter select",
             _ if self.focus == Focus::Transcript => {
                 "j/k scroll · Enter expand · o open · y copy · Tab composer"
@@ -503,5 +627,40 @@ mod tests {
         };
         assert!(row.ok);
         assert_eq!(row.detail, "ok");
+    }
+
+    #[test]
+    fn apply_maps_an_approval_request() {
+        let mut app = TuiApp::new();
+        app.apply(ServerMsg::ApprovalRequest {
+            id: 7,
+            tool: "shell".to_string(),
+            args: "ls".to_string(),
+        });
+        assert_eq!(app.pending_approval, Some(7));
+        assert_eq!(app.state, TuiState::Approval);
+    }
+
+    #[test]
+    fn palette_filters_and_runs_a_command() {
+        let mut app = TuiApp::new();
+        app.overlay = Some(Overlay::Palette);
+        app.focus = Focus::Overlay;
+        app.palette_query = "undo".to_string();
+        assert_eq!(app.handle_key(key(KeyCode::Enter)), TuiAction::Undo);
+        assert!(app.overlay.is_none());
+    }
+
+    #[test]
+    fn search_overlay_renders_matches() {
+        let mut app = TuiApp::new();
+        app.push_event(&SessionEvent::UserMessage {
+            text: "find the needle".to_string(),
+        });
+        app.overlay = Some(Overlay::Search);
+        app.focus = Focus::Overlay;
+        app.search_query = "needle".to_string();
+        let rendered = crate::render::tests::render_for_test(&app, 80, 24);
+        assert!(rendered.contains("needle"));
     }
 }

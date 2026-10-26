@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 orexis-core.workspace = true
 orexis-ports.workspace = true
+orexis-protocol.workspace = true
 orexis-usecases.workspace = true
 orexis-adapters-session-sqlite.workspace = true
 orexis-adapters-fake.workspace = true
