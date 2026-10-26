@@ -1,0 +1,26 @@
+id: mistral
+display_name: Mistral
+kind: openai_compatible
+base_url: https://api.mistral.ai/v1
+auth:
+  kind: api_key
+  env: [MISTRAL_API_KEY]
+  header: authorization
+  prefix: "Bearer "
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+  parallel_tools: true
+  vision: false
+  json_mode: true
+  reasoning: false
+models:
+  - id: mistral-medium-latest
+    context: 262144
+    max_output: 32768
+limits:
+  max_concurrency: 4
+fallbacks: []

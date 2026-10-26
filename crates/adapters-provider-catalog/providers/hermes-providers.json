@@ -1,0 +1,850 @@
+{
+  "source": "hermes-agent@bf0203a794",
+  "license": "MIT",
+  "fetched": "2026-10-26",
+  "providers": [
+    {
+      "name": "actual",
+      "display_name": "Actual Computer",
+      "base_url": "https://api.actual.inc/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ACTUAL_API_KEY"
+      ],
+      "aliases": [
+        "actual-computer",
+        "actualcomputer",
+        "aci"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "ai-gateway",
+      "display_name": "",
+      "base_url": "https://ai-gateway.vercel.sh/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "AI_GATEWAY_API_KEY"
+      ],
+      "aliases": [
+        "vercel",
+        "vercel-ai-gateway",
+        "ai_gateway",
+        "aigateway"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "alibaba",
+      "display_name": "",
+      "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "DASHSCOPE_API_KEY"
+      ],
+      "aliases": [
+        "dashscope",
+        "alibaba-cloud",
+        "qwen-dashscope",
+        "aliyun"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "alibaba-cn",
+      "display_name": "Alibaba Cloud DashScope (China)",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "DASHSCOPE_API_KEY",
+        "DASHSCOPE_CN_BASE_URL"
+      ],
+      "aliases": [
+        "dashscope-cn",
+        "alibaba-cloud-cn"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "alibaba-token-plan",
+      "display_name": "Alibaba Cloud (Token Plan)",
+      "base_url": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ALIBABA_TOKEN_PLAN_API_KEY",
+        "ALIBABA_TOKEN_PLAN_BASE_URL"
+      ],
+      "aliases": [
+        "dashscope-token-plan"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "alibaba-token-plan-cn",
+      "display_name": "Alibaba Cloud (Token Plan, China)",
+      "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ALIBABA_TOKEN_PLAN_CN_API_KEY",
+        "ALIBABA_TOKEN_PLAN_API_KEY",
+        "ALIBABA_TOKEN_PLAN_CN_BASE_URL"
+      ],
+      "aliases": [
+        "dashscope-token-plan-cn"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "alibaba-coding-plan",
+      "display_name": "Alibaba Cloud (Coding Plan)",
+      "base_url": "https://coding-intl.dashscope.aliyuncs.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ALIBABA_CODING_PLAN_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "ALIBABA_CODING_PLAN_BASE_URL"
+      ],
+      "aliases": [
+        "alibaba_coding",
+        "alibaba-coding",
+        "dashscope-coding"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "alibaba-coding-plan-cn",
+      "display_name": "Alibaba Cloud (Coding Plan, China)",
+      "base_url": "https://coding.dashscope.aliyuncs.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ALIBABA_CODING_PLAN_CN_API_KEY",
+        "ALIBABA_CODING_PLAN_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "ALIBABA_CODING_PLAN_CN_BASE_URL"
+      ],
+      "aliases": [
+        "alibaba-coding-cn",
+        "dashscope-coding-cn"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "anthropic",
+      "display_name": "",
+      "base_url": "https://api.anthropic.com",
+      "api_mode": "anthropic_messages",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_TOKEN",
+        "CLAUDE_CODE_OAUTH_TOKEN"
+      ],
+      "aliases": [
+        "claude",
+        "claude-oauth",
+        "claude-code"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "arcee",
+      "display_name": "",
+      "base_url": "https://api.arcee.ai/api/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "ARCEEAI_API_KEY"
+      ],
+      "aliases": [
+        "arcee-ai",
+        "arceeai"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "azure-foundry",
+      "display_name": "Azure Foundry",
+      "base_url": "",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "AZURE_FOUNDRY_API_KEY",
+        "AZURE_FOUNDRY_BASE_URL"
+      ],
+      "aliases": [
+        "azure",
+        "azure-ai-foundry",
+        "azure-ai"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "bedrock",
+      "display_name": "",
+      "base_url": "https://bedrock-runtime.us-east-1.amazonaws.com",
+      "api_mode": "bedrock_converse",
+      "auth_type": "aws_sdk",
+      "env_vars": [],
+      "aliases": [
+        "aws",
+        "aws-bedrock",
+        "amazon-bedrock",
+        "amazon"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "commandcode",
+      "display_name": "CommandCode",
+      "base_url": "https://api.commandcode.ai/provider/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "COMMANDCODE_API_KEY",
+        "COMMANDCODE_BASE_URL"
+      ],
+      "aliases": [
+        "commandcode-chat"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "commandcode-anthropic",
+      "display_name": "CommandCode (Anthropic)",
+      "base_url": "https://api.commandcode.ai/provider/v1",
+      "api_mode": "anthropic_messages",
+      "auth_type": "api_key",
+      "env_vars": [
+        "COMMANDCODE_API_KEY",
+        "COMMANDCODE_ANTHROPIC_BASE_URL"
+      ],
+      "aliases": [
+        "commandcode-claude"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "copilot",
+      "display_name": "",
+      "base_url": "https://api.githubcopilot.com",
+      "api_mode": "chat_completions",
+      "auth_type": "copilot",
+      "env_vars": [
+        "COPILOT_GITHUB_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_TOKEN"
+      ],
+      "aliases": [
+        "github-copilot",
+        "github-models",
+        "github-model",
+        "github"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "copilot-acp",
+      "display_name": "",
+      "base_url": "acp://copilot",
+      "api_mode": "chat_completions",
+      "auth_type": "external_process",
+      "env_vars": [],
+      "aliases": [
+        "github-copilot-acp",
+        "copilot-acp-agent"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "custom",
+      "display_name": "",
+      "base_url": "",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [],
+      "aliases": [
+        "ollama",
+        "local",
+        "vllm",
+        "llamacpp",
+        "llama.cpp",
+        "llama-cpp"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "deepinfra",
+      "display_name": "DeepInfra",
+      "base_url": "https://api.deepinfra.com/v1/openai",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "DEEPINFRA_API_KEY",
+        "DEEPINFRA_BASE_URL"
+      ],
+      "aliases": [
+        "deep-infra",
+        "deepinfra-ai"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "deepseek",
+      "display_name": "DeepSeek",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "aliases": [
+        "deepseek-chat",
+        "deep-seek"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "fireworks",
+      "display_name": "Fireworks AI",
+      "base_url": "https://api.fireworks.ai/inference/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "FIREWORKS_API_KEY"
+      ],
+      "aliases": [
+        "fireworks-ai",
+        "fw"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "gemini",
+      "display_name": "",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "GOOGLE_API_KEY",
+        "GEMINI_API_KEY"
+      ],
+      "aliases": [
+        "google",
+        "google-gemini",
+        "google-ai-studio"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "gmi",
+      "display_name": "GMI Cloud",
+      "base_url": "https://api.gmi-serving.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "GMI_API_KEY",
+        "GMI_BASE_URL"
+      ],
+      "aliases": [
+        "gmi-cloud",
+        "gmicloud"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "huggingface",
+      "display_name": "HuggingFace",
+      "base_url": "https://router.huggingface.co/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "HF_TOKEN"
+      ],
+      "aliases": [
+        "hf",
+        "hugging-face",
+        "huggingface-hub"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "kilocode",
+      "display_name": "",
+      "base_url": "https://api.kilo.ai/api/gateway",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "KILOCODE_API_KEY"
+      ],
+      "aliases": [
+        "kilo-code",
+        "kilo",
+        "kilo-gateway"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "kimi-coding",
+      "display_name": "",
+      "base_url": "https://api.moonshot.ai/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "KIMI_API_KEY",
+        "KIMI_CODING_API_KEY"
+      ],
+      "aliases": [
+        "kimi",
+        "moonshot",
+        "kimi-for-coding"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "kimi-coding-cn",
+      "display_name": "",
+      "base_url": "https://api.moonshot.cn/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "KIMI_CN_API_KEY"
+      ],
+      "aliases": [
+        "kimi-cn",
+        "moonshot-cn"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "lmstudio",
+      "display_name": "LM Studio",
+      "base_url": "",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "LM_API_KEY",
+        "LM_BASE_URL"
+      ],
+      "aliases": [],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "meta-ai",
+      "display_name": "Meta Model API",
+      "base_url": "https://api.meta.ai/v1",
+      "api_mode": "codex_responses",
+      "auth_type": "api_key",
+      "env_vars": [
+        "MODEL_API_KEY",
+        "META_API_KEY",
+        "META_MODEL_API_KEY",
+        "META_BASE_URL"
+      ],
+      "aliases": [
+        "meta",
+        "muse",
+        "muse-spark",
+        "model-api",
+        "msl"
+      ],
+      "supports_vision": true,
+      "hidden": false
+    },
+    {
+      "name": "minimax",
+      "display_name": "",
+      "base_url": "https://api.minimax.io/anthropic",
+      "api_mode": "anthropic_messages",
+      "auth_type": "api_key",
+      "env_vars": [
+        "MINIMAX_API_KEY"
+      ],
+      "aliases": [
+        "mini-max"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "minimax-cn",
+      "display_name": "",
+      "base_url": "https://api.minimaxi.com/anthropic",
+      "api_mode": "anthropic_messages",
+      "auth_type": "api_key",
+      "env_vars": [
+        "MINIMAX_CN_API_KEY"
+      ],
+      "aliases": [
+        "minimax-china",
+        "minimax_cn"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "minimax-oauth",
+      "display_name": "MiniMax (OAuth)",
+      "base_url": "https://api.minimax.io/anthropic",
+      "api_mode": "anthropic_messages",
+      "auth_type": "oauth_external",
+      "env_vars": [],
+      "aliases": [
+        "minimax_oauth",
+        "minimax-portal",
+        "minimax-global",
+        "minimax-oauth-io"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "nebius-token-factory",
+      "display_name": "Nebius Token Factory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "NEBIUS_API_KEY",
+        "NEBIUS_TOKEN_FACTORY_API_KEY",
+        "NEBIUS_BASE_URL"
+      ],
+      "aliases": [
+        "nebius",
+        "nebius-tokenfactory",
+        "nebius-tf",
+        "token-factory",
+        "tokenfactory"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "nous",
+      "display_name": "Nous Research",
+      "base_url": "https://inference-api.nousresearch.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "oauth_device_code",
+      "env_vars": [
+        "NOUS_API_KEY"
+      ],
+      "aliases": [
+        "nous-portal",
+        "nousresearch"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "novita",
+      "display_name": "NovitaAI",
+      "base_url": "https://api.novita.ai/openai/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "NOVITA_API_KEY",
+        "NOVITA_BASE_URL"
+      ],
+      "aliases": [
+        "novita-ai",
+        "novitaai"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "nvidia",
+      "display_name": "NVIDIA NIM",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "NVIDIA_API_KEY"
+      ],
+      "aliases": [
+        "nvidia-nim",
+        "nim",
+        "build-nvidia",
+        "nemotron"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "ollama-cloud",
+      "display_name": "",
+      "base_url": "https://ollama.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "OLLAMA_API_KEY"
+      ],
+      "aliases": [
+        "ollama_cloud"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "openai-codex",
+      "display_name": "",
+      "base_url": "https://chatgpt.com/backend-api/codex",
+      "api_mode": "codex_responses",
+      "auth_type": "oauth_external",
+      "env_vars": [],
+      "aliases": [
+        "codex",
+        "openai_codex"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "opencode-zen",
+      "display_name": "",
+      "base_url": "https://opencode.ai/zen/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "OPENCODE_ZEN_API_KEY"
+      ],
+      "aliases": [
+        "opencode",
+        "opencode_zen",
+        "zen"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "opencode-go",
+      "display_name": "",
+      "base_url": "https://opencode.ai/zen/go/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "OPENCODE_GO_API_KEY"
+      ],
+      "aliases": [
+        "opencode_go",
+        "go",
+        "opencode-go-sub"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "openrouter",
+      "display_name": "OpenRouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "OPENROUTER_API_KEY"
+      ],
+      "aliases": [
+        "or"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "qwen-oauth",
+      "display_name": "",
+      "base_url": "https://portal.qwen.ai/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "oauth_external",
+      "env_vars": [
+        "QWEN_API_KEY"
+      ],
+      "aliases": [
+        "qwen",
+        "qwen-portal",
+        "qwen-cli"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "router",
+      "display_name": "Ramp Router",
+      "base_url": "https://api.router.com/v1",
+      "api_mode": "codex_responses",
+      "auth_type": "api_key",
+      "env_vars": [
+        "RAMP_ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "RAMP_ROUTER_BASE_URL"
+      ],
+      "aliases": [
+        "ramp-router",
+        "ramp",
+        "router.com"
+      ],
+      "supports_vision": true,
+      "hidden": false
+    },
+    {
+      "name": "solstice",
+      "display_name": "Solstice",
+      "base_url": "https://generativelanguage.googleapis.com/v1alpha",
+      "api_mode": "chat_completions",
+      "auth_type": "oauth_external",
+      "env_vars": [],
+      "aliases": [
+        "solstice-oauth"
+      ],
+      "supports_vision": true,
+      "hidden": true
+    },
+    {
+      "name": "stepfun",
+      "display_name": "",
+      "base_url": "https://api.stepfun.ai/step_plan/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "STEPFUN_API_KEY"
+      ],
+      "aliases": [
+        "step",
+        "stepfun-coding-plan"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "tencent-tokenhub",
+      "display_name": "Tencent TokenHub",
+      "base_url": "",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "TOKENHUB_API_KEY",
+        "TOKENHUB_BASE_URL"
+      ],
+      "aliases": [],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "upstage",
+      "display_name": "Upstage Solar",
+      "base_url": "https://api.upstage.ai/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "UPSTAGE_API_KEY",
+        "UPSTAGE_BASE_URL"
+      ],
+      "aliases": [
+        "solar"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "vertex",
+      "display_name": "",
+      "base_url": "https://aiplatform.googleapis.com",
+      "api_mode": "chat_completions",
+      "auth_type": "vertex",
+      "env_vars": [],
+      "aliases": [
+        "google-vertex",
+        "vertex-ai",
+        "gcp-vertex",
+        "vertexai"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "xai",
+      "display_name": "",
+      "base_url": "https://api.x.ai/v1",
+      "api_mode": "codex_responses",
+      "auth_type": "api_key",
+      "env_vars": [
+        "XAI_API_KEY"
+      ],
+      "aliases": [
+        "grok",
+        "x-ai",
+        "x.ai"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    },
+    {
+      "name": "xiaomi",
+      "display_name": "",
+      "base_url": "https://api.xiaomimimo.com/v1",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "XIAOMI_API_KEY"
+      ],
+      "aliases": [
+        "mimo",
+        "xiaomi-mimo"
+      ],
+      "supports_vision": true,
+      "hidden": false
+    },
+    {
+      "name": "zai",
+      "display_name": "Z.AI (GLM)",
+      "base_url": "https://api.z.ai/api/paas/v4",
+      "api_mode": "chat_completions",
+      "auth_type": "api_key",
+      "env_vars": [
+        "GLM_API_KEY",
+        "ZAI_API_KEY",
+        "Z_AI_API_KEY"
+      ],
+      "aliases": [
+        "glm",
+        "z-ai",
+        "z.ai",
+        "zhipu"
+      ],
+      "supports_vision": false,
+      "hidden": false
+    }
+  ]
+}

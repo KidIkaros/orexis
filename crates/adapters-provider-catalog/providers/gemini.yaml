@@ -1,0 +1,26 @@
+id: gemini
+display_name: Gemini (OpenAI-compatible)
+kind: openai_compatible
+base_url: https://generativelanguage.googleapis.com/v1beta/openai
+auth:
+  kind: api_key
+  env: [GEMINI_API_KEY]
+  header: authorization
+  prefix: "Bearer "
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+  parallel_tools: true
+  vision: true
+  json_mode: true
+  reasoning: false
+models:
+  - id: gemini-2.5-flash
+    context: 1048576
+    max_output: 65536
+limits:
+  max_concurrency: 4
+fallbacks: []

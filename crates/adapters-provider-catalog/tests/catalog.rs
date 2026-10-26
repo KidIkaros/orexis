@@ -148,3 +148,37 @@ fn models_dev_snapshot_loads() {
     let anthropic = catalog.get("anthropic").expect("anthropic");
     assert_eq!(anthropic.auth.header, "x-api-key", "curated auth must win");
 }
+
+#[test]
+fn hermes_provider_snapshot_loads() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("providers");
+    let catalog = Catalog::load(&[dir]).expect("catalog");
+
+    let deepseek = catalog.get("deepseek").expect("deepseek");
+    assert_eq!(deepseek.base_url, "https://api.deepseek.com/v1");
+    assert!(
+        !deepseek.models.is_empty(),
+        "models.dev metadata not merged"
+    );
+
+    let minimax = catalog.get("minimax").expect("minimax");
+    assert_eq!(minimax.kind, ProviderKind::Anthropic);
+
+    assert_eq!(
+        catalog.get("anthropic").expect("anthropic").auth.header,
+        "x-api-key",
+        "curated profile must win"
+    );
+    assert_eq!(
+        catalog.get("groq").expect("groq").base_url,
+        "https://api.groq.com/openai/v1"
+    );
+    assert_eq!(
+        catalog.get("mistral").expect("mistral").base_url,
+        "https://api.mistral.ai/v1"
+    );
+    assert_eq!(
+        catalog.get("gemini").expect("gemini").base_url,
+        "https://generativelanguage.googleapis.com/v1beta/openai"
+    );
+}

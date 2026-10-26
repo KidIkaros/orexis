@@ -42,6 +42,18 @@ impl Catalog {
                 catalog.models_dev.extend(snapshot.models);
             }
 
+            let hermes_path = dir.join("hermes-providers.json");
+            if hermes_path.exists() {
+                for mut profile in crate::hermes::load(&hermes_path)? {
+                    let models = catalog.models_dev.get(&profile.id).cloned();
+                    merge_models(&mut profile, models.as_ref());
+                    catalog
+                        .sources
+                        .insert(profile.id.clone(), hermes_path.clone());
+                    catalog.profiles.insert(profile.id.clone(), profile);
+                }
+            }
+
             let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)?
                 .filter_map(Result::ok)
                 .map(|entry| entry.path())
@@ -124,5 +136,20 @@ impl Catalog {
                 "unknown model '{model_id}' for provider '{profile_id}'; using conservative defaults"
             )),
         })
+    }
+}
+
+fn merge_models(profile: &mut ProviderProfile, models: Option<&Vec<ModelInfo>>) {
+    let Some(models) = models else {
+        return;
+    };
+    for model in models {
+        if !profile
+            .models
+            .iter()
+            .any(|existing| existing.id == model.id)
+        {
+            profile.models.push(model.clone());
+        }
     }
 }
