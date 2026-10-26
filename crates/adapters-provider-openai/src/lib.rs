@@ -42,11 +42,36 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
             .map(|message| match message.role {
                 Role::System => json!({ "role": "system", "content": message.text }),
                 Role::User => json!({ "role": "user", "content": message.text }),
-                Role::Assistant => json!({ "role": "assistant", "content": message.text }),
-                Role::Tool => json!({
-                    "role": "user",
-                    "content": format!("[tool result] {}", message.text),
-                }),
+                Role::Assistant => {
+                    if message.tool_calls.is_empty() {
+                        json!({ "role": "assistant", "content": message.text })
+                    } else {
+                        json!({
+                            "role": "assistant",
+                            "content": message.text,
+                            "tool_calls": message
+                                .tool_calls
+                                .iter()
+                                .map(|call| json!({
+                                    "id": call.call_id,
+                                    "type": "function",
+                                    "function": { "name": call.name, "arguments": call.args }
+                                }))
+                                .collect::<Vec<_>>()
+                        })
+                    }
+                }
+                Role::Tool => match &message.tool_call_id {
+                    Some(call_id) => json!({
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "content": message.text,
+                    }),
+                    None => json!({
+                        "role": "user",
+                        "content": format!("[tool result] {}", message.text),
+                    }),
+                },
             })
             .collect();
 
@@ -122,6 +147,7 @@ impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
 
 #[derive(Default)]
 struct ToolCallAccum {
+    id: String,
     name: String,
     args: String,
 }
@@ -159,6 +185,9 @@ async fn parse_stream(mut stream: ByteStream) -> Vec<Action> {
                     for call in calls {
                         let index = call["index"].as_u64().unwrap_or(0) as usize;
                         let entry = tool_calls.entry(index).or_default();
+                        if let Some(id) = call["id"].as_str() {
+                            entry.id = id.to_string();
+                        }
                         if let Some(name) = call["function"]["name"].as_str() {
                             entry.name = name.to_string();
                         }
@@ -176,8 +205,13 @@ async fn parse_stream(mut stream: ByteStream) -> Vec<Action> {
 
     let mut actions = Vec::new();
     if !tool_calls.is_empty() {
-        for (_, call) in tool_calls {
+        for (index, call) in tool_calls {
             actions.push(Action::CallTool {
+                call_id: if call.id.is_empty() {
+                    format!("call_{index}")
+                } else {
+                    call.id
+                },
                 name: call.name,
                 args: call.args,
             });
@@ -223,6 +257,8 @@ mod tests {
         vec![Message {
             role: Role::User,
             text: "hi".to_string(),
+            tool_call_id: None,
+            tool_calls: Vec::new(),
         }]
     }
 
@@ -266,6 +302,7 @@ mod tests {
         assert_eq!(
             actions,
             vec![Action::CallTool {
+                call_id: "call_0".to_string(),
                 name: "read".to_string(),
                 args: "{\"path\":\"x\"}".to_string()
             }]
@@ -295,6 +332,34 @@ mod tests {
         );
         let result = provider.complete(&messages(), &[], 0).await;
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn assistant_tool_calls_and_tool_results_are_paired() {
+        use orexis_core::ToolCall;
+        let provider = provider(vec![]);
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                text: "reading".to_string(),
+                tool_call_id: None,
+                tool_calls: vec![ToolCall {
+                    call_id: "call_1".to_string(),
+                    name: "read".to_string(),
+                    args: "{\"path\":\"x\"}".to_string(),
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                text: "read: ok".to_string(),
+                tool_call_id: Some("call_1".to_string()),
+                tool_calls: Vec::new(),
+            },
+        ];
+        let body = provider.request_body(&messages, &[]);
+        assert_eq!(body["messages"][0]["tool_calls"][0]["id"], "call_1");
+        assert_eq!(body["messages"][1]["role"], "tool");
+        assert_eq!(body["messages"][1]["tool_call_id"], "call_1");
     }
 
     #[test]

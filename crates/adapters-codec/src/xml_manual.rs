@@ -83,6 +83,7 @@ fn parse_function(block: &str) -> Result<Action, String> {
         Ok(Action::Done { summary })
     } else {
         Ok(Action::CallTool {
+            call_id: String::new(),
             name,
             args: Value::Object(params).to_string(),
         })

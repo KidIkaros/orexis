@@ -15,14 +15,33 @@ pub enum Role {
 pub struct Message {
     pub role: Role,
     pub text: String,
+    #[serde(default)]
+    pub tool_call_id: Option<String>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCall>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Action {
-    Say { text: String },
-    CallTool { name: String, args: String },
-    Done { summary: String },
+    Say {
+        text: String,
+    },
+    CallTool {
+        call_id: String,
+        name: String,
+        args: String,
+    },
+    Done {
+        summary: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolCall {
+    pub call_id: String,
+    pub name: String,
+    pub args: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,10 +128,12 @@ pub enum SessionEvent {
         actions: Vec<Action>,
     },
     ToolCall {
+        call_id: String,
         name: String,
         args: String,
     },
     Observation {
+        call_id: String,
         name: String,
         output: String,
     },
@@ -153,20 +174,51 @@ pub fn derive_messages(events: &[SessionEvent]) -> Vec<Message> {
             SessionEvent::UserMessage { text } => out.push(Message {
                 role: Role::User,
                 text: text.clone(),
+                tool_call_id: None,
+                tool_calls: Vec::new(),
             }),
-            SessionEvent::ModelResponse { text, .. } if !text.is_empty() => out.push(Message {
-                role: Role::Assistant,
-                text: text.clone(),
-            }),
-            SessionEvent::Observation { name, output } => out.push(Message {
+            SessionEvent::ModelResponse { text, actions } => {
+                let tool_calls: Vec<ToolCall> = actions
+                    .iter()
+                    .filter_map(|action| match action {
+                        Action::CallTool {
+                            call_id,
+                            name,
+                            args,
+                        } => Some(ToolCall {
+                            call_id: call_id.clone(),
+                            name: name.clone(),
+                            args: args.clone(),
+                        }),
+                        _ => None,
+                    })
+                    .collect();
+                if !text.is_empty() || !tool_calls.is_empty() {
+                    out.push(Message {
+                        role: Role::Assistant,
+                        text: text.clone(),
+                        tool_call_id: None,
+                        tool_calls,
+                    });
+                }
+            }
+            SessionEvent::Observation {
+                call_id,
+                name,
+                output,
+            } => out.push(Message {
                 role: Role::Tool,
                 text: format!("{name}: {output}"),
+                tool_call_id: Some(call_id.clone()),
+                tool_calls: Vec::new(),
             }),
             SessionEvent::Compaction { summary, .. } => {
                 out.clear();
                 out.push(Message {
                     role: Role::System,
                     text: format!("[summary] {summary}"),
+                    tool_call_id: None,
+                    tool_calls: Vec::new(),
                 });
             }
             _ => {}
@@ -240,11 +292,21 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
             text: redact_text(text),
             actions: actions.iter().map(redact_action).collect(),
         },
-        SessionEvent::ToolCall { name, args } => SessionEvent::ToolCall {
+        SessionEvent::ToolCall {
+            call_id,
+            name,
+            args,
+        } => SessionEvent::ToolCall {
+            call_id: call_id.clone(),
             name: name.clone(),
             args: redact_text(args),
         },
-        SessionEvent::Observation { name, output } => SessionEvent::Observation {
+        SessionEvent::Observation {
+            call_id,
+            name,
+            output,
+        } => SessionEvent::Observation {
+            call_id: call_id.clone(),
             name: name.clone(),
             output: redact_text(output),
         },
@@ -271,7 +333,12 @@ fn redact_action(action: &Action) -> Action {
         Action::Say { text } => Action::Say {
             text: redact_text(text),
         },
-        Action::CallTool { name, args } => Action::CallTool {
+        Action::CallTool {
+            call_id,
+            name,
+            args,
+        } => Action::CallTool {
+            call_id: call_id.clone(),
             name: name.clone(),
             args: redact_text(args),
         },
@@ -300,10 +367,12 @@ mod tests {
                 }],
             },
             SessionEvent::ToolCall {
+                call_id: "c1".into(),
                 name: "read".into(),
                 args: "x".into(),
             },
             SessionEvent::Observation {
+                call_id: "c1".into(),
                 name: "read".into(),
                 output: "ok".into(),
             },
@@ -338,6 +407,29 @@ mod tests {
     }
 
     #[test]
+    fn derive_pairs_tool_calls_and_results() {
+        let events = vec![
+            SessionEvent::ModelResponse {
+                text: "reading".into(),
+                actions: vec![Action::CallTool {
+                    call_id: "c1".into(),
+                    name: "read".into(),
+                    args: "{}".into(),
+                }],
+            },
+            SessionEvent::Observation {
+                call_id: "c1".into(),
+                name: "read".into(),
+                output: "ok".into(),
+            },
+        ];
+        let messages = derive_messages(&events);
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].tool_calls[0].call_id, "c1");
+        assert_eq!(messages[1].tool_call_id.as_deref(), Some("c1"));
+    }
+
+    #[test]
     fn compaction_resets_history() {
         let events = vec![
             SessionEvent::UserMessage { text: "old".into() },
@@ -359,6 +451,8 @@ mod tests {
         let messages = vec![Message {
             role: Role::User,
             text: "hi".into(),
+            tool_call_id: None,
+            tool_calls: Vec::new(),
         }];
         assert_eq!(hash_messages(&messages), hash_messages(&messages));
     }

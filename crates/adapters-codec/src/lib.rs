@@ -62,6 +62,7 @@ fn parse_json_action(value: Value) -> Result<Action, String> {
                 .cloned()
                 .unwrap_or_else(|| Value::Object(Default::default()));
             Ok(Action::CallTool {
+                call_id: String::new(),
                 name: name.to_string(),
                 args: args.to_string(),
             })
@@ -168,7 +169,7 @@ mod tests {
         assert_eq!(decoded.errors, Vec::<String>::new());
         assert!(matches!(
             &decoded.actions[0],
-            Action::CallTool { name, args } if name == "read" && args.contains("\"x\"")
+            Action::CallTool { name, args, .. } if name == "read" && args.contains("\"x\"")
         ));
     }
 

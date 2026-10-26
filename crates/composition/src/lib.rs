@@ -21,6 +21,7 @@ pub fn build() -> App {
                 text: "reading the file".to_string(),
             },
             Action::CallTool {
+                call_id: "call-1".to_string(),
                 name: "read".to_string(),
                 args: "src/lib.rs".to_string(),
             },

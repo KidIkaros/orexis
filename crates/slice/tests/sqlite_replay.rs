@@ -15,6 +15,7 @@ fn sqlite_store_replays_the_turn() {
 
     let provider = ScriptedProvider::new(vec![
         vec![Action::CallTool {
+            call_id: "call-1".to_string(),
             name: "read".to_string(),
             args: "x".to_string(),
         }],

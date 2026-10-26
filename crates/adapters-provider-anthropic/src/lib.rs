@@ -58,11 +58,41 @@ impl<T: Transport> AnthropicProvider<T> {
             .filter(|message| message.role != Role::System)
             .map(|message| match message.role {
                 Role::User => json!({ "role": "user", "content": message.text }),
-                Role::Assistant => json!({ "role": "assistant", "content": message.text }),
-                Role::Tool => json!({
-                    "role": "user",
-                    "content": format!("[tool result] {}", message.text),
-                }),
+                Role::Assistant => {
+                    if message.tool_calls.is_empty() {
+                        json!({ "role": "assistant", "content": message.text })
+                    } else {
+                        let mut blocks = Vec::new();
+                        if !message.text.is_empty() {
+                            blocks.push(json!({ "type": "text", "text": message.text }));
+                        }
+                        for call in &message.tool_calls {
+                            let input = serde_json::from_str::<Value>(&call.args)
+                                .unwrap_or_else(|_| json!({}));
+                            blocks.push(json!({
+                                "type": "tool_use",
+                                "id": call.call_id,
+                                "name": call.name,
+                                "input": input
+                            }));
+                        }
+                        json!({ "role": "assistant", "content": blocks })
+                    }
+                }
+                Role::Tool => match &message.tool_call_id {
+                    Some(call_id) => json!({
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": call_id,
+                            "content": message.text
+                        }]
+                    }),
+                    None => json!({
+                        "role": "user",
+                        "content": format!("[tool result] {}", message.text),
+                    }),
+                },
                 Role::System => json!({ "role": "user", "content": message.text }),
             })
             .collect();
@@ -148,6 +178,7 @@ impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
 
 #[derive(Default)]
 struct ToolAccum {
+    id: String,
     name: String,
     json: String,
 }
@@ -180,7 +211,11 @@ async fn parse_stream(mut stream: ByteStream) -> Vec<Action> {
                     let block = &value["content_block"];
                     if block["type"] == "tool_use" {
                         let name = block["name"].as_str().unwrap_or_default().to_string();
-                        tools.entry(index).or_default().name = name;
+                        let entry = tools.entry(index).or_default();
+                        entry.name = name;
+                        if let Some(id) = block["id"].as_str() {
+                            entry.id = id.to_string();
+                        }
                     }
                 }
                 Some("content_block_delta") => {
@@ -205,13 +240,18 @@ async fn parse_stream(mut stream: ByteStream) -> Vec<Action> {
 
     let mut actions = Vec::new();
     if !tools.is_empty() {
-        for (_, tool) in tools {
+        for (index, tool) in tools {
             let args = if tool.json.is_empty() {
                 "{}".to_string()
             } else {
                 tool.json
             };
             actions.push(Action::CallTool {
+                call_id: if tool.id.is_empty() {
+                    format!("tool_{index}")
+                } else {
+                    tool.id
+                },
                 name: tool.name,
                 args,
             });
@@ -254,6 +294,8 @@ mod tests {
         vec![Message {
             role: Role::User,
             text: "hi".to_string(),
+            tool_call_id: None,
+            tool_calls: Vec::new(),
         }]
     }
 
@@ -299,6 +341,7 @@ mod tests {
         assert_eq!(
             actions,
             vec![Action::CallTool {
+                call_id: "t1".to_string(),
                 name: "read".to_string(),
                 args: "{\"path\":\"x\"}".to_string()
             }]
@@ -318,6 +361,35 @@ mod tests {
         );
         let result = provider.complete(&messages(), &[], 0).await;
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn assistant_tool_use_and_tool_results_are_paired() {
+        use orexis_core::ToolCall;
+        let provider = provider(vec![]);
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                text: String::new(),
+                tool_call_id: None,
+                tool_calls: vec![ToolCall {
+                    call_id: "t1".to_string(),
+                    name: "read".to_string(),
+                    args: "{\"path\":\"x\"}".to_string(),
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                text: "read: ok".to_string(),
+                tool_call_id: Some("t1".to_string()),
+                tool_calls: Vec::new(),
+            },
+        ];
+        let body = provider.request_body(&messages, &[]);
+        assert_eq!(body["messages"][0]["content"][0]["type"], "tool_use");
+        assert_eq!(body["messages"][0]["content"][0]["id"], "t1");
+        assert_eq!(body["messages"][1]["content"][0]["type"], "tool_result");
+        assert_eq!(body["messages"][1]["content"][0]["tool_use_id"], "t1");
     }
 
     #[test]
@@ -342,10 +414,14 @@ mod tests {
             Message {
                 role: Role::System,
                 text: "be helpful".to_string(),
+                tool_call_id: None,
+                tool_calls: Vec::new(),
             },
             Message {
                 role: Role::User,
                 text: "hi".to_string(),
+                tool_call_id: None,
+                tool_calls: Vec::new(),
             },
         ];
         let body = provider.request_body(&messages, &[]);

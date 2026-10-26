@@ -21,6 +21,7 @@ fn tool_failure_is_persisted_and_returned() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = SqliteSessionStore::open(&dir.path().join("s.db")).expect("open");
     let provider = ScriptedProvider::new(vec![vec![Action::CallTool {
+        call_id: "call-1".to_string(),
         name: "read".to_string(),
         args: "x".to_string(),
     }]]);

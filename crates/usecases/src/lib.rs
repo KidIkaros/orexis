@@ -127,13 +127,23 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         )
         .await?;
 
-        for action in actions {
+        for (index, action) in actions.into_iter().enumerate() {
             match action {
-                Action::CallTool { name, args } => {
+                Action::CallTool {
+                    call_id,
+                    name,
+                    args,
+                } => {
+                    let call_id = if call_id.is_empty() {
+                        format!("call-{step}-{index}")
+                    } else {
+                        call_id
+                    };
                     append(
                         session,
                         sink,
                         SessionEvent::ToolCall {
+                            call_id: call_id.clone(),
                             name: name.clone(),
                             args: args.clone(),
                         },
@@ -157,6 +167,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
                         session,
                         sink,
                         SessionEvent::Observation {
+                            call_id,
                             name: observation.name,
                             output: observation.output,
                         },
@@ -263,6 +274,8 @@ pub fn assemble(config: &ContextConfig<'_>, events: &[SessionEvent]) -> Assemble
         messages.push(Message {
             role: orexis_core::Role::System,
             text: system.clone(),
+            tool_call_id: None,
+            tool_calls: Vec::new(),
         });
     }
     messages.extend(derive_messages(events));

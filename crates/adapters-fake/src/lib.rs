@@ -117,8 +117,10 @@ pub fn render_transcript(events: &[SessionEvent]) -> String {
             SessionEvent::ModelResponse { text, .. } if !text.is_empty() => {
                 out.push_str(&format!("orexis › {text}\n"))
             }
-            SessionEvent::ToolCall { name, args } => out.push_str(&format!("  ▸ {name} {args}\n")),
-            SessionEvent::Observation { name, output } => {
+            SessionEvent::ToolCall { name, args, .. } => {
+                out.push_str(&format!("  ▸ {name} {args}\n"))
+            }
+            SessionEvent::Observation { name, output, .. } => {
                 out.push_str(&format!("    {name} → {output}\n"))
             }
             SessionEvent::Done { summary } => out.push_str(&format!("✓ {summary}\n")),
