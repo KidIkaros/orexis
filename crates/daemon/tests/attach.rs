@@ -7,7 +7,7 @@ use std::time::Duration;
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{EchoTools, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
-use orexis_core::{Action, SessionEvent};
+use orexis_core::{Action, PermissionPolicy, SessionEvent};
 use orexis_daemon::{ClientMsg, Daemon, DaemonConfig, ServerMsg};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
@@ -15,21 +15,30 @@ use tokio::net::UnixStream;
 use tokio::time::timeout;
 
 fn config(socket: &Path, db: &Path) -> DaemonConfig {
-    DaemonConfig {
-        socket: socket.to_path_buf(),
-        sessions: Arc::new(SqliteSessionFactory::new(db.to_path_buf())),
-        provider: Arc::new(ScriptedProvider::new(vec![
+    config_with(
+        socket,
+        db,
+        vec![
             vec![Action::CallTool {
                 call_id: "c1".to_string(),
-                name: "read".to_string(),
+                name: "read_file".to_string(),
                 args: "x".to_string(),
             }],
             vec![Action::Done {
                 summary: "done".to_string(),
             }],
-        ])),
+        ],
+    )
+}
+
+fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConfig {
+    DaemonConfig {
+        socket: socket.to_path_buf(),
+        sessions: Arc::new(SqliteSessionFactory::new(db.to_path_buf())),
+        provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
         codec: Arc::new(NativeCodec),
+        policy: Arc::new(PermissionPolicy::standard()),
         system_prompt: String::new(),
         context_tools: Vec::new(),
         context_files: Vec::new(),
@@ -83,6 +92,15 @@ async fn read_until_done(
         messages.push(message);
         if done {
             return messages;
+        }
+    }
+}
+
+async fn read_until_approval(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -> u64 {
+    loop {
+        let message = read_server(reader, line).await;
+        if let ServerMsg::ApprovalRequest { id, .. } = message {
+            return id;
         }
     }
 }
@@ -266,6 +284,51 @@ async fn a_second_client_attaches_to_the_same_session() {
     )));
     assert!(b.iter().any(|m| matches!(
         m,
+        ServerMsg::Event {
+            event: SessionEvent::Done { .. },
+            ..
+        }
+    )));
+}
+
+#[tokio::test]
+async fn approval_required_tool_blocks_until_approved() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let script = vec![
+        vec![Action::CallTool {
+            call_id: "c1".to_string(),
+            name: "write_file".to_string(),
+            args: "{}".to_string(),
+        }],
+        vec![Action::Done {
+            summary: "done".to_string(),
+        }],
+    ];
+    let daemon = Daemon::new(config_with(&socket, &db, script));
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let _ = read_server(&mut reader, &mut line).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "write".to_string(),
+        },
+    )
+    .await;
+
+    let id = read_until_approval(&mut reader, &mut line).await;
+    send(&mut writer, &ClientMsg::Approve { id, yes: true }).await;
+    let events = read_until_done(&mut reader, &mut line).await;
+    assert!(events.iter().any(|message| matches!(
+        message,
         ServerMsg::Event {
             event: SessionEvent::Done { .. },
             ..

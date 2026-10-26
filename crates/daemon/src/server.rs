@@ -3,13 +3,15 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use orexis_core::{ContextFile, SessionEvent, ToolSpec};
+use orexis_adapters_tools::GatedTools;
+use orexis_core::{ContextFile, PermissionPolicy, SessionEvent, ToolSpec};
 use orexis_ports::{Codec, Provider, SessionFactory, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::io::BufReader;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{broadcast, Semaphore};
 
+use crate::approvals::{ApprovalHub, HubGate};
 use crate::proto::{read_msg, write_msg, ClientMsg, ServerMsg};
 use crate::session::{BroadcastSink, SessionRegistry, SessionRuntime};
 
@@ -19,6 +21,7 @@ pub struct DaemonConfig {
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
     pub codec: Arc<dyn Codec>,
+    pub policy: Arc<PermissionPolicy>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
     pub context_files: Vec<ContextFile>,
@@ -31,16 +34,26 @@ pub struct Daemon {
     config: Arc<DaemonConfig>,
     registry: Arc<SessionRegistry>,
     generation: Arc<Semaphore>,
+    tools: Arc<dyn ToolExecutor>,
+    hub: Arc<ApprovalHub>,
 }
 
 impl Daemon {
     pub fn new(config: DaemonConfig) -> Self {
         let generation = Arc::new(Semaphore::new(config.generation_slots.max(1)));
         let registry = Arc::new(SessionRegistry::new(config.sessions.clone()));
+        let hub = Arc::new(ApprovalHub::new());
+        let tools: Arc<dyn ToolExecutor> = Arc::new(GatedTools::new(
+            config.tools.clone(),
+            config.policy.clone(),
+            Arc::new(HubGate::new(hub.clone())),
+        ));
         Self {
             config: Arc::new(config),
             registry,
             generation,
+            tools,
+            hub,
         }
     }
 
@@ -64,8 +77,10 @@ impl Daemon {
             let config = self.config.clone();
             let registry = self.registry.clone();
             let generation = self.generation.clone();
+            let tools = self.tools.clone();
+            let hub = self.hub.clone();
             tokio::spawn(async move {
-                let _ = handle(stream, config, registry, generation).await;
+                let _ = handle(stream, config, registry, generation, tools, hub).await;
             });
         }
     }
@@ -76,12 +91,15 @@ async fn handle(
     config: Arc<DaemonConfig>,
     registry: Arc<SessionRegistry>,
     generation: Arc<Semaphore>,
+    tools: Arc<dyn ToolExecutor>,
+    hub: Arc<ApprovalHub>,
 ) -> std::io::Result<()> {
     let (read_half, mut write_half) = stream.into_split();
     let mut reader = BufReader::new(read_half);
     let mut line = String::new();
     let mut runtime: Option<Arc<SessionRuntime>> = None;
     let mut live: Option<broadcast::Receiver<ServerMsg>> = None;
+    let mut approvals = hub.subscribe();
     let mut last_seq = 0u64;
 
     loop {
@@ -121,6 +139,7 @@ async fn handle(
                         let sink = Arc::new(BroadcastSink::new(rt.tx.clone()));
                         let config = config.clone();
                         let rt_for_task = rt.clone();
+                        let tools = tools.clone();
                         let handle = tokio::spawn(async move {
                             let _permit = permit;
                             let context = ContextConfig {
@@ -131,7 +150,7 @@ async fn handle(
                             };
                             let _ = run_turn(TurnDeps {
                                 provider: config.provider.as_ref(),
-                                tools: config.tools.as_ref(),
+                                tools: tools.as_ref(),
                                 session: rt_for_task.append.as_ref(),
                                 reader: rt_for_task.read.as_ref(),
                                 sink: sink.as_ref(),
@@ -168,8 +187,8 @@ async fn handle(
                             };
                         }
                     }
-                    ClientMsg::Approve { .. } => {
-                        write_msg(&mut write_half, &ServerMsg::Error { message: "approvals land in M3".into() }).await?;
+                    ClientMsg::Approve { id, yes } => {
+                        hub.resolve(id, yes);
                     }
                     ClientMsg::ListSessions => {
                         write_msg(&mut write_half, &ServerMsg::Sessions { sessions: registry.list() }).await?;
@@ -189,6 +208,11 @@ async fn handle(
                     None => {
                         live = None;
                     }
+                }
+            }
+            message = approvals.recv() => {
+                if let Ok(message) = message {
+                    write_msg(&mut write_half, &message).await?;
                 }
             }
         }

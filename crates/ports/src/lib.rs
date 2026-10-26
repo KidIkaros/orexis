@@ -87,6 +87,11 @@ pub trait Summarizer: Send + Sync {
     fn summarize(&self, events: &[SessionEvent]) -> String;
 }
 
+#[async_trait]
+pub trait ApprovalGate: Send + Sync {
+    async fn approve(&self, tool: &str, args: &str) -> PortResult<bool>;
+}
+
 pub trait EventSink: Send + Sync {
     fn emit(&self, event: &SessionEvent, seq: u64);
 }

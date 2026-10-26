@@ -11,7 +11,9 @@ orexis-usecases.workspace = true
 orexis-adapters-session-sqlite.workspace = true
 orexis-adapters-fake.workspace = true
 orexis-adapters-codec.workspace = true
+orexis-adapters-tools.workspace = true
 orexis-composition.workspace = true
+async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }

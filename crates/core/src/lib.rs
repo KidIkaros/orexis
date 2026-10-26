@@ -90,6 +90,139 @@ pub struct ContextFile {
     pub content: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Decision {
+    Allow,
+    Ask,
+    Deny,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PermissionRule {
+    pub tool: String,
+    pub decision: Decision,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PermissionPolicy {
+    pub plan_mode: bool,
+    pub rules: Vec<PermissionRule>,
+}
+
+impl PermissionPolicy {
+    pub fn standard() -> Self {
+        Self {
+            plan_mode: false,
+            rules: Vec::new(),
+        }
+    }
+
+    pub fn plan() -> Self {
+        Self {
+            plan_mode: true,
+            rules: Vec::new(),
+        }
+    }
+
+    pub fn with_rules(mut self, rules: Vec<PermissionRule>) -> Self {
+        self.rules = rules;
+        self
+    }
+
+    /// Explicit rules override defaults; among rules, deny > ask > allow.
+    /// Plan mode denies every mutating tool regardless of rules.
+    pub fn decide(&self, tool: &str) -> Decision {
+        let mut explicit: Option<Decision> = None;
+        for rule in &self.rules {
+            if rule.tool == "*" || rule.tool == tool {
+                explicit =
+                    Some(explicit.map_or(rule.decision, |current| current.max(rule.decision)));
+            }
+        }
+        let decision = explicit.unwrap_or_else(|| self.default_decision(tool));
+        if self.plan_mode && is_mutating(tool) {
+            Decision::Deny
+        } else {
+            decision
+        }
+    }
+
+    fn default_decision(&self, tool: &str) -> Decision {
+        match tool {
+            "read_file" | "list_dir" | "search" | "git_status" | "git_diff" => Decision::Allow,
+            "write_file" | "edit_file" | "shell" | "verify" => Decision::Ask,
+            "git_commit" => Decision::Deny,
+            _ => Decision::Ask,
+        }
+    }
+}
+
+fn is_mutating(tool: &str) -> bool {
+    matches!(
+        tool,
+        "write_file" | "edit_file" | "shell" | "verify" | "git_commit"
+    )
+}
+
+#[cfg(test)]
+mod policy_tests {
+    use super::*;
+
+    #[test]
+    fn deny_beats_ask_beats_allow() {
+        let policy = PermissionPolicy::standard().with_rules(vec![
+            PermissionRule {
+                tool: "shell".into(),
+                decision: Decision::Allow,
+            },
+            PermissionRule {
+                tool: "shell".into(),
+                decision: Decision::Ask,
+            },
+        ]);
+        assert_eq!(policy.decide("shell"), Decision::Ask);
+
+        let policy = policy.with_rules(vec![
+            PermissionRule {
+                tool: "shell".into(),
+                decision: Decision::Allow,
+            },
+            PermissionRule {
+                tool: "shell".into(),
+                decision: Decision::Deny,
+            },
+        ]);
+        assert_eq!(policy.decide("shell"), Decision::Deny);
+    }
+
+    #[test]
+    fn explicit_allow_overrides_the_default_ask() {
+        let policy = PermissionPolicy::standard().with_rules(vec![PermissionRule {
+            tool: "shell".into(),
+            decision: Decision::Allow,
+        }]);
+        assert_eq!(policy.decide("shell"), Decision::Allow);
+    }
+
+    #[test]
+    fn plan_mode_denies_mutating_tools() {
+        let policy = PermissionPolicy::plan();
+        assert_eq!(policy.decide("read_file"), Decision::Allow);
+        assert_eq!(policy.decide("write_file"), Decision::Deny);
+        assert_eq!(policy.decide("shell"), Decision::Deny);
+    }
+
+    #[test]
+    fn defaults_are_conservative() {
+        let policy = PermissionPolicy::standard();
+        assert_eq!(policy.decide("read_file"), Decision::Allow);
+        assert_eq!(policy.decide("edit_file"), Decision::Ask);
+        assert_eq!(policy.decide("git_commit"), Decision::Deny);
+        assert_eq!(policy.decide("unknown_tool"), Decision::Ask);
+    }
+}
+
 pub const FORMAT_VERSION: u32 = 1;
 
 /// A durable event reference returned by an append.

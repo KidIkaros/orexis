@@ -24,6 +24,7 @@ graph TD
   orexis-daemon --> orexis-adapters-codec
   orexis-daemon --> orexis-adapters-fake
   orexis-daemon --> orexis-adapters-session-sqlite
+  orexis-daemon --> orexis-adapters-tools
   orexis-daemon --> orexis-composition
   orexis-daemon --> orexis-core
   orexis-daemon --> orexis-ports
