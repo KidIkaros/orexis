@@ -14,6 +14,7 @@ mod replay;
 mod scheduler;
 mod session;
 mod strategy;
+mod supervisor;
 mod turn;
 
 pub use apply::{apply_candidate, handle_trigger, rollback, should_rollback, ApplyRequest};
@@ -29,4 +30,5 @@ pub use memory::{forget, recall, remember};
 pub use replay::verify_replay;
 pub use scheduler::{admit_ready, ROSTER_CAP};
 pub use strategy::{strategy, BudgetDefaults, Strategy, StrategyId};
+pub use supervisor::{supervise, Supervision, SupervisorState, MAX_RESTARTS};
 pub use turn::{run_turn, TurnDeps, TurnOutcome};

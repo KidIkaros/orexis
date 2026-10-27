@@ -11,6 +11,6 @@ Spec: `docs/orexis/specs/M8.md`; decisions: ADR-0020.
 | [M8-05](M8-05-strategies.md) | Strategies as use cases | M8-01 | — resolved
 | [M8-06](M8-06-scheduler.md) | The scheduler: admission | M8-02, M8-05 | — resolved
 | [M8-07](M8-07-workers.md) | Workers: in-process turns over sessions | M8-05 | — resolved
-| [M8-08](M8-08-supervisor.md) | The supervisor: stall, restart, escalation | M8-06, M8-07 |
+| [M8-08](M8-08-supervisor.md) | The supervisor: stall, restart, escalation | M8-06, M8-07 | — resolved
 | [M8-09](M8-09-orchestration.md) | The team loop + daemon wiring + real panels | M8-03, M8-04, M8-08 |
 | [M8-10](M8-10-bench-gate.md) | Bench breadth tasks + the team-vs-serial gate | M8-09 |
