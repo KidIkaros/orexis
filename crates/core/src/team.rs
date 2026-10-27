@@ -49,3 +49,36 @@ pub struct Lease {
     /// Unix seconds; expired means stealable.
     pub expires_at: u64,
 }
+
+/// A strategy's toolset: tool names the strategy may call. An empty set
+/// means no restriction (the gate still applies). Matching is by exact
+/// name or namespace prefix (`mcp/`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolsetFilter {
+    pub allowed: Vec<String>,
+}
+
+impl ToolsetFilter {
+    /// No restriction.
+    pub fn open() -> Self {
+        Self {
+            allowed: Vec::new(),
+        }
+    }
+
+    pub fn allow(names: &[&str]) -> Self {
+        Self {
+            allowed: names.iter().map(|name| name.to_string()).collect(),
+        }
+    }
+
+    /// True when the tool may be called. An empty allowlist is open.
+    pub fn permits(&self, tool: &str) -> bool {
+        if self.allowed.is_empty() {
+            return true;
+        }
+        self.allowed
+            .iter()
+            .any(|allowed| tool == allowed || tool.starts_with(&format!("{allowed}/")))
+    }
+}

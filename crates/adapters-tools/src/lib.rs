@@ -8,12 +8,14 @@ mod git;
 pub mod router;
 mod search;
 mod shell;
+mod strategy_tools;
 pub mod verify;
 mod workspace;
 
 pub use checkpoints::GitCheckpointStore;
 pub use gate::{AutoApprove, DenyAll, GatedTools};
 pub use router::{NamespaceTools, RouterTools};
+pub use strategy_tools::StrategyTools;
 pub use verify::ShellVerifier;
 
 use std::fs;
