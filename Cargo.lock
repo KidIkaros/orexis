@@ -1406,6 +1406,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-protocol-a2a"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "orexis-adapters-http",
+ "orexis-adapters-jsonrpc",
+ "orexis-core",
+ "orexis-ports",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "orexis-adapters-protocol-acp"
 version = "0.0.0"
 dependencies = [
@@ -1572,6 +1587,7 @@ dependencies = [
  "orexis-adapters-fake",
  "orexis-adapters-http",
  "orexis-adapters-lsp",
+ "orexis-adapters-protocol-a2a",
  "orexis-adapters-protocol-mcp",
  "orexis-adapters-protocol-utcp",
  "orexis-adapters-provider-anthropic",

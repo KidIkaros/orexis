@@ -21,6 +21,7 @@ orexis-adapters-lsp.workspace = true
 orexis-adapters-context-fs.workspace = true
 orexis-adapters-protocol-mcp.workspace = true
 orexis-adapters-protocol-utcp = { path = "../adapters-protocol-utcp" }
+orexis-adapters-protocol-a2a = { path = "../adapters-protocol-a2a" }
 dirs = "5"
 thiserror = "2"
 

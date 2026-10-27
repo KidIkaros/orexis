@@ -73,6 +73,7 @@ pub struct BuildConfig {
     pub providers_dir: Option<PathBuf>,
     pub mcp_dirs: Option<Vec<PathBuf>>,
     pub utcp_dirs: Option<Vec<PathBuf>>,
+    pub a2a_dirs: Option<Vec<PathBuf>>,
     pub verify_command: Option<String>,
     pub system_prompt: String,
     pub context_limit: usize,
@@ -191,6 +192,9 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
     if let Some(utcp) = utcp_source(&config, tools.clone(), &mut warnings) {
         external.push(utcp);
     }
+    if let Some(a2a) = a2a_source(&config, &mut warnings) {
+        external.push(a2a);
+    }
 
     Ok(Runtime {
         provider,
@@ -274,6 +278,35 @@ fn utcp_source(
                 Arc::new(orexis_adapters_protocol_mcp::StdioPeerFactory {
                     timeout: std::time::Duration::from_secs(10),
                 }),
+            ));
+        Some(tools)
+    }
+}
+
+/// A2A peers come from explicit dirs, or the user dir plus the project's
+/// `.orexis/a2a` (project wins by agent name). Problems become warnings;
+/// no configured peers means no A2A layer.
+fn a2a_source(
+    config: &BuildConfig,
+    warnings: &mut Vec<String>,
+) -> Option<Arc<dyn orexis_ports::ExternalTools>> {
+    let dirs = config.a2a_dirs.clone().unwrap_or_else(|| {
+        let mut dirs = Vec::new();
+        if let Ok(home) = std::env::var("HOME") {
+            dirs.push(PathBuf::from(home).join(".config/orexis/a2a"));
+        }
+        dirs.push(config.project_root.join(".orexis/a2a"));
+        dirs
+    });
+    let (peers, problems) = orexis_adapters_protocol_a2a::load_peer_configs(&dirs);
+    warnings.extend(problems);
+    if peers.is_empty() {
+        None
+    } else {
+        let tools: Arc<orexis_adapters_protocol_a2a::A2aTools> =
+            Arc::new(orexis_adapters_protocol_a2a::A2aTools::new(
+                peers,
+                Arc::new(orexis_adapters_http::ReqwestTransport::new()),
             ));
         Some(tools)
     }

@@ -58,6 +58,7 @@ graph TD
   orexis-composition --> orexis-adapters-fake
   orexis-composition --> orexis-adapters-http
   orexis-composition --> orexis-adapters-lsp
+  orexis-composition --> orexis-adapters-protocol-a2a
   orexis-composition --> orexis-adapters-protocol-mcp
   orexis-composition --> orexis-adapters-protocol-utcp
   orexis-composition --> orexis-adapters-provider-anthropic
@@ -70,6 +71,10 @@ graph TD
   orexis-composition --> orexis-usecases
   orexis-adapters-context-fs --> orexis-core
   orexis-adapters-context-fs --> orexis-ports
+  orexis-adapters-protocol-a2a --> orexis-adapters-http
+  orexis-adapters-protocol-a2a --> orexis-adapters-jsonrpc
+  orexis-adapters-protocol-a2a --> orexis-core
+  orexis-adapters-protocol-a2a --> orexis-ports
   orexis-adapters-protocol-utcp --> orexis-adapters-http
   orexis-adapters-protocol-utcp --> orexis-core
   orexis-adapters-protocol-utcp --> orexis-ports

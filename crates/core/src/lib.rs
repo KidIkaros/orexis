@@ -178,7 +178,7 @@ fn rule_matches(rule_tool: &str, tool: &str) -> bool {
 /// External tools (namespaced by protocol) reach outside the workspace;
 /// plan mode denies them and their output is untrusted content.
 pub fn is_external_tool(tool: &str) -> bool {
-    tool.starts_with("mcp/") || tool.starts_with("utcp/")
+    tool.starts_with("mcp/") || tool.starts_with("utcp/") || tool.starts_with("a2a/")
 }
 
 fn is_mutating(tool: &str) -> bool {

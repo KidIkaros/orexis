@@ -41,6 +41,7 @@ fn config(dir: &tempfile::TempDir, providers: PathBuf, model: &str) -> BuildConf
         providers_dir: Some(providers),
         mcp_dirs: Some(Vec::new()),
         utcp_dirs: Some(Vec::new()),
+        a2a_dirs: Some(Vec::new()),
         verify_command: None,
         system_prompt: String::new(),
         context_limit: 32768,

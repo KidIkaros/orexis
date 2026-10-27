@@ -45,6 +45,7 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
             providers_dir: None,
             mcp_dirs: None,
             utcp_dirs: None,
+            a2a_dirs: None,
             verify_command: std::env::var("OREXIS_VERIFY").ok(),
             system_prompt: String::new(),
             context_limit: 32768,
