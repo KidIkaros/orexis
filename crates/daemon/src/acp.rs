@@ -20,10 +20,11 @@ use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::Semaphore;
 
 use crate::approvals::{ApprovalHub, MemoryOverrides};
-use crate::handlers::{ensure_external, interrupt, spawn_turn};
+use crate::handlers::{ensure_external, interrupt};
 use crate::proto::ServerMsg;
 use crate::server::DaemonConfig;
 use crate::session::SessionRegistry;
+use crate::team::spawn_turn;
 
 /// A client answer we are waiting for: which approval it resolves.
 #[derive(Debug, Clone)]

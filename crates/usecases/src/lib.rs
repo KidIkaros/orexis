@@ -11,7 +11,9 @@ mod evolution;
 mod identity;
 mod memory;
 mod replay;
+mod scheduler;
 mod session;
+mod strategy;
 mod turn;
 
 pub use apply::{apply_candidate, handle_trigger, rollback, should_rollback, ApplyRequest};
@@ -25,4 +27,6 @@ pub use evolution::{growth_allows, propose_growth, GROWTH_THRESHOLD};
 pub use identity::{append_diary, decay_traits, distill_trait, identity, self_view};
 pub use memory::{forget, recall, remember};
 pub use replay::verify_replay;
+pub use scheduler::{admit_ready, ROSTER_CAP};
+pub use strategy::{strategy, BudgetDefaults, Strategy, StrategyId};
 pub use turn::{run_turn, TurnDeps, TurnOutcome};

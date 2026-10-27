@@ -65,10 +65,17 @@ pub fn strategy(id: StrategyId) -> Strategy {
                              task breakdown on the board, and finish. Do not edit files; \
                              do not run mutating commands.",
             toolset: ToolsetFilter::allow(&[
-                "read_file", "list_dir", "search", "git_status", "git_diff",
+                "read_file",
+                "list_dir",
+                "search",
+                "git_status",
+                "git_diff",
             ]),
             verify: VerifyLevel::OnRisk,
-            budget: BudgetDefaults { max_steps: 12, wall_clock_secs: 600 },
+            budget: BudgetDefaults {
+                max_steps: 12,
+                wall_clock_secs: 600,
+            },
         },
         StrategyId::Build => Strategy {
             id,
@@ -77,27 +84,39 @@ pub fn strategy(id: StrategyId) -> Strategy {
                              guessing.",
             toolset: ToolsetFilter::open(),
             verify: VerifyLevel::OnRisk,
-            budget: BudgetDefaults { max_steps: 32, wall_clock_secs: 1800 },
+            budget: BudgetDefaults {
+                max_steps: 32,
+                wall_clock_secs: 1800,
+            },
         },
         StrategyId::Review => Strategy {
             id,
             prompt_fragment: "You are reviewing a change. Read the diff and the touched \
                              code, report findings, and finish. Do not edit files.",
             toolset: ToolsetFilter::allow(&[
-                "read_file", "list_dir", "search", "git_status", "git_diff", "shell",
+                "read_file",
+                "list_dir",
+                "search",
+                "git_status",
+                "git_diff",
+                "shell",
             ]),
             verify: VerifyLevel::OnRisk,
-            budget: BudgetDefaults { max_steps: 12, wall_clock_secs: 600 },
+            budget: BudgetDefaults {
+                max_steps: 12,
+                wall_clock_secs: 600,
+            },
         },
         StrategyId::Mine => Strategy {
             id,
             prompt_fragment: "You are mining the repository for facts the team asked \
                              about: read, search, and report. Do not edit files.",
-            toolset: ToolsetFilter::allow(&[
-                "read_file", "list_dir", "search", "git_status",
-            ]),
+            toolset: ToolsetFilter::allow(&["read_file", "list_dir", "search", "git_status"]),
             verify: VerifyLevel::OnRisk,
-            budget: BudgetDefaults { max_steps: 16, wall_clock_secs: 900 },
+            budget: BudgetDefaults {
+                max_steps: 16,
+                wall_clock_secs: 900,
+            },
         },
     }
 }
@@ -108,7 +127,12 @@ mod tests {
 
     #[test]
     fn the_four_strategies_exist_and_are_bounded() {
-        for id in [StrategyId::Plan, StrategyId::Build, StrategyId::Review, StrategyId::Mine] {
+        for id in [
+            StrategyId::Plan,
+            StrategyId::Build,
+            StrategyId::Review,
+            StrategyId::Mine,
+        ] {
             let strategy = strategy(id);
             assert!(
                 !strategy.prompt_fragment.is_empty() && strategy.prompt_fragment.len() < 1000,
