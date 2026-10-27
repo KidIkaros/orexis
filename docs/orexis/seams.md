@@ -36,6 +36,9 @@ graph TD
   orexis-adapters-tui --> orexis-protocol
   orexis-daemon --> orexis-adapters-codec
   orexis-daemon --> orexis-adapters-fake
+  orexis-daemon --> orexis-adapters-jsonrpc
+  orexis-daemon --> orexis-adapters-protocol-acp
+  orexis-daemon --> orexis-adapters-protocol-mcp
   orexis-daemon --> orexis-adapters-session-sqlite
   orexis-daemon --> orexis-adapters-tools
   orexis-daemon --> orexis-composition
@@ -43,12 +46,20 @@ graph TD
   orexis-daemon --> orexis-ports
   orexis-daemon --> orexis-protocol
   orexis-daemon --> orexis-usecases
+  orexis-adapters-protocol-acp --> orexis-adapters-jsonrpc
+  orexis-adapters-protocol-acp --> orexis-protocol
+  orexis-adapters-protocol-mcp --> orexis-adapters-http
+  orexis-adapters-protocol-mcp --> orexis-adapters-jsonrpc
+  orexis-adapters-protocol-mcp --> orexis-core
+  orexis-adapters-protocol-mcp --> orexis-ports
   orexis-composition --> orexis-adapters-codec
   orexis-composition --> orexis-adapters-context-fs
   orexis-composition --> orexis-adapters-entity-sqlite
   orexis-composition --> orexis-adapters-fake
   orexis-composition --> orexis-adapters-http
   orexis-composition --> orexis-adapters-lsp
+  orexis-composition --> orexis-adapters-protocol-mcp
+  orexis-composition --> orexis-adapters-protocol-utcp
   orexis-composition --> orexis-adapters-provider-anthropic
   orexis-composition --> orexis-adapters-provider-catalog
   orexis-composition --> orexis-adapters-provider-openai
@@ -59,6 +70,9 @@ graph TD
   orexis-composition --> orexis-usecases
   orexis-adapters-context-fs --> orexis-core
   orexis-adapters-context-fs --> orexis-ports
+  orexis-adapters-protocol-utcp --> orexis-adapters-http
+  orexis-adapters-protocol-utcp --> orexis-core
+  orexis-adapters-protocol-utcp --> orexis-ports
   orexis-adapters-provider-anthropic --> orexis-adapters-http
   orexis-adapters-provider-anthropic --> orexis-adapters-provider-catalog
   orexis-adapters-provider-anthropic --> orexis-core

@@ -1420,6 +1420,8 @@ name = "orexis-adapters-protocol-mcp"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
+ "orexis-adapters-http",
  "orexis-adapters-jsonrpc",
  "orexis-core",
  "orexis-ports",

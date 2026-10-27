@@ -14,6 +14,8 @@ pub enum McpError {
     Initialization(String),
     #[error("transport: {0}")]
     Transport(String),
+    #[error("the server expired the session; the client must start a new one")]
+    SessionExpired,
     #[error("timed out waiting for the server")]
     Timeout,
 }

@@ -235,7 +235,10 @@ fn mcp_source(
         None
     } else {
         let tools: Arc<orexis_adapters_protocol_mcp::McpTools> =
-            Arc::new(orexis_adapters_protocol_mcp::McpTools::new(servers));
+            Arc::new(orexis_adapters_protocol_mcp::McpTools::new(
+                servers,
+                Arc::new(orexis_adapters_http::ReqwestTransport::new()),
+            ));
         Some(tools)
     }
 }

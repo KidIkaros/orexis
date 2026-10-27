@@ -6,13 +6,16 @@
 //! descriptions are capped before they reach a prompt.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use async_trait::async_trait;
+use orexis_adapters_http::Transport;
 use orexis_core::{Observation, ToolSpec};
 use orexis_ports::{ExternalTools, PortError, PortResult, ToolExecutor};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
+use crate::http::{McpHttpClient, McpHttpConfig};
 use crate::stdio::{McpServerConfig, McpStdioClient};
 use crate::types::ToolContent;
 
@@ -20,21 +23,61 @@ const DESCRIPTION_CAP: usize = 500;
 const OUTPUT_CAP: usize = 64 * 1024;
 pub(crate) const MAX_PAGES: usize = 10;
 
+/// One configured MCP server, over either transport.
+#[derive(Debug, Clone, PartialEq)]
+pub enum McpSource {
+    /// A server started as a child process, spoken to over stdio.
+    Stdio(McpServerConfig),
+    /// A server reached over the streamable HTTP transport.
+    Http(McpHttpConfig),
+}
+
+/// A connected server, over either transport.
+enum McpClient {
+    Stdio(McpStdioClient),
+    Http(McpHttpClient),
+}
+
+impl McpClient {
+    async fn list_tools(
+        &mut self,
+        cursor: Option<String>,
+    ) -> Result<(Vec<ToolSpec>, Option<String>), crate::McpError> {
+        match self {
+            Self::Stdio(client) => client.list_tools(cursor).await,
+            Self::Http(client) => client.list_tools(cursor).await,
+        }
+    }
+
+    async fn call_tool(
+        &mut self,
+        name: &str,
+        arguments: Option<Value>,
+    ) -> Result<crate::types::ToolCallResult, crate::McpError> {
+        match self {
+            Self::Stdio(client) => client.call_tool(name, arguments).await,
+            Self::Http(client) => client.call_tool(name, arguments).await,
+        }
+    }
+}
+
 pub struct McpTools {
-    configs: Vec<McpServerConfig>,
-    clients: Mutex<Vec<(String, McpStdioClient)>>,
+    sources: Vec<McpSource>,
+    clients: Mutex<Vec<(String, McpClient)>>,
+    http: Arc<dyn Transport>,
 }
 
 impl McpTools {
-    pub fn new(configs: Vec<McpServerConfig>) -> Self {
+    pub fn new(sources: Vec<McpSource>, http: Arc<dyn Transport>) -> Self {
         Self {
-            configs,
+            sources,
             clients: Mutex::new(Vec::new()),
+            http,
         }
     }
 
     pub fn configured(&self) -> usize {
-        self.configs.len()
+        self.sources.len()
     }
 
     /// Connect every configured server once; returns per-server failures.
@@ -42,13 +85,32 @@ impl McpTools {
     pub async fn connect_all(&self) -> Vec<(String, String)> {
         let mut clients = self.clients.lock().await;
         let mut failures = Vec::new();
-        for config in &self.configs {
-            if clients.iter().any(|(name, _)| name == &config.name) {
+        for source in &self.sources {
+            let name = match source {
+                McpSource::Stdio(config) => config.name.clone(),
+                McpSource::Http(config) => config.name.clone(),
+            };
+            if clients.iter().any(|(known, _)| known == &name) {
                 continue;
             }
-            match McpStdioClient::spawn(config, std::time::Duration::from_secs(10)).await {
-                Ok(client) => clients.push((config.name.clone(), client)),
-                Err(error) => failures.push((config.name.clone(), error.to_string())),
+            let connected = match source {
+                McpSource::Stdio(config) => {
+                    McpStdioClient::spawn(config, std::time::Duration::from_secs(10))
+                        .await
+                        .map(McpClient::Stdio)
+                }
+                McpSource::Http(config) => {
+                    let mut client = McpHttpClient::new(
+                        config.clone(),
+                        self.http.clone(),
+                        std::time::Duration::from_secs(30),
+                    );
+                    client.connect().await.map(|_| McpClient::Http(client))
+                }
+            };
+            match connected {
+                Ok(client) => clients.push((name, client)),
+                Err(error) => failures.push((name, error.to_string())),
             }
         }
         failures
@@ -176,8 +238,11 @@ impl ToolExecutor for McpTools {
 /// Load `*.json` server configs from each directory in order; later
 /// directories win by server name. Missing directories are normal; unreadable
 /// or malformed files are reported as problems.
-pub fn load_server_configs(dirs: &[std::path::PathBuf]) -> (Vec<McpServerConfig>, Vec<String>) {
-    let mut by_name: BTreeMap<String, McpServerConfig> = BTreeMap::new();
+///
+/// A server with a `command` is spawned and spoken to over stdio; a server
+/// with a `url` is reached over the streamable HTTP transport.
+pub fn load_server_configs(dirs: &[std::path::PathBuf]) -> (Vec<McpSource>, Vec<String>) {
+    let mut by_name: BTreeMap<String, McpSource> = BTreeMap::new();
     let mut problems = Vec::new();
     for dir in dirs {
         let Ok(entries) = std::fs::read_dir(dir) else {
@@ -197,7 +262,11 @@ pub fn load_server_configs(dirs: &[std::path::PathBuf]) -> (Vec<McpServerConfig>
                 Ok(value) => match parse_server_file(&value) {
                     Ok(servers) => {
                         for config in servers {
-                            by_name.insert(config.name.clone(), config);
+                            let name = match &config {
+                                McpSource::Stdio(config) => config.name.clone(),
+                                McpSource::Http(config) => config.name.clone(),
+                            };
+                            by_name.insert(name, config);
                         }
                     }
                     Err(error) => problems.push(format!("{}: {error}", path.display())),
@@ -208,7 +277,7 @@ pub fn load_server_configs(dirs: &[std::path::PathBuf]) -> (Vec<McpServerConfig>
     (by_name.into_values().collect(), problems)
 }
 
-fn parse_server_file(value: &Value) -> Result<Vec<McpServerConfig>, String> {
+fn parse_server_file(value: &Value) -> Result<Vec<McpSource>, String> {
     let servers = value
         .get("servers")
         .and_then(Value::as_array)
@@ -223,11 +292,22 @@ fn parse_server_file(value: &Value) -> Result<Vec<McpServerConfig>, String> {
             if name.contains('/') {
                 return Err(format!("server name {name:?} contains '/'"));
             }
+            if let Some(url) = server.get("url").and_then(Value::as_str) {
+                let mut config = McpHttpConfig::new(name, url);
+                if let Some(headers) = server.get("headers").and_then(Value::as_object) {
+                    for (key, value) in headers {
+                        if let Some(value) = value.as_str() {
+                            config = config.with_header(key, value);
+                        }
+                    }
+                }
+                return Ok(McpSource::Http(config));
+            }
             let command = server
                 .get("command")
                 .and_then(Value::as_str)
-                .ok_or_else(|| format!("server {name:?} without a command"))?;
-            Ok(McpServerConfig {
+                .ok_or_else(|| format!("server {name:?} without a command or url"))?;
+            Ok(McpSource::Stdio(McpServerConfig {
                 name: name.to_string(),
                 command: command.to_string(),
                 args: server
@@ -251,7 +331,7 @@ fn parse_server_file(value: &Value) -> Result<Vec<McpServerConfig>, String> {
                             .collect()
                     })
                     .unwrap_or_default(),
-            })
+            }))
         })
         .collect()
 }

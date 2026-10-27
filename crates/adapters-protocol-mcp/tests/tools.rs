@@ -1,28 +1,37 @@
 //! Conformance fixtures for `McpTools` against the scripted mock server.
 
-use orexis_adapters_protocol_mcp::{load_server_configs, McpServerConfig, McpTools};
+use std::sync::Arc;
+
+use orexis_adapters_http::MockTransport;
+use orexis_adapters_protocol_mcp::{load_server_configs, McpServerConfig, McpSource, McpTools};
 use orexis_ports::ToolExecutor;
 use std::path::PathBuf;
 
-fn mock_config(name: &str, args: &[&str]) -> McpServerConfig {
-    McpServerConfig {
+fn mock_config(name: &str, args: &[&str]) -> McpSource {
+    McpSource::Stdio(McpServerConfig {
         name: name.into(),
         command: env!("CARGO_BIN_EXE_mock_mcp_server").into(),
         args: args.iter().map(|arg| arg.to_string()).collect(),
         env: Default::default(),
-    }
+    })
+}
+
+/// The MCP tools over a transport no HTTP server will use; the stdio
+/// servers are the ones under test.
+fn tools(sources: Vec<McpSource>) -> McpTools {
+    McpTools::new(sources, Arc::new(MockTransport::new(Vec::new())))
 }
 
 #[tokio::test]
 async fn connect_all_reports_failures_and_specs_collect() {
-    let tools = McpTools::new(vec![
+    let tools = tools(vec![
         mock_config("mock", &[]),
-        McpServerConfig {
+        McpSource::Stdio(McpServerConfig {
             name: "missing".into(),
             command: "/nonexistent/mcp-server-xyz".into(),
             args: Vec::new(),
             env: Default::default(),
-        },
+        }),
     ]);
     let failures = tools.connect_all().await;
     assert_eq!(failures.len(), 1);
@@ -35,7 +44,7 @@ async fn connect_all_reports_failures_and_specs_collect() {
 
 #[tokio::test]
 async fn execute_routes_and_delimits_output() {
-    let tools = McpTools::new(vec![mock_config("mock", &[])]);
+    let tools = tools(vec![mock_config("mock", &[])]);
     tools.connect_all().await;
     let observation = tools
         .execute("mcp/mock/mock_tool", r#"{"path": "a.rs"}"#)
@@ -51,7 +60,7 @@ async fn execute_routes_and_delimits_output() {
 
 #[tokio::test]
 async fn execute_rejects_bad_names_and_args() {
-    let tools = McpTools::new(vec![mock_config("mock", &[])]);
+    let tools = tools(vec![mock_config("mock", &[])]);
     tools.connect_all().await;
     assert!(tools.execute("read_file", "{}").await.is_err());
     assert!(tools.execute("mcp/mock/", "{}").await.is_err());
@@ -64,7 +73,7 @@ async fn execute_rejects_bad_names_and_args() {
 
 #[tokio::test]
 async fn execute_escapes_delimiter_breakout_in_output() {
-    let tools = McpTools::new(vec![mock_config("mock", &["inject"])]);
+    let tools = tools(vec![mock_config("mock", &["inject"])]);
     tools.connect_all().await;
     let observation = tools
         .execute("mcp/mock/mock_tool", "")
@@ -76,7 +85,7 @@ async fn execute_escapes_delimiter_breakout_in_output() {
 
 #[tokio::test]
 async fn execute_caps_huge_output() {
-    let tools = McpTools::new(vec![mock_config("mock", &["huge"])]);
+    let tools = tools(vec![mock_config("mock", &["huge"])]);
     tools.connect_all().await;
     let observation = tools
         .execute("mcp/mock/mock_tool", "")
@@ -97,7 +106,12 @@ fn load_server_configs_reads_the_project_dir() {
     let (configs, problems) = load_server_configs(&[PathBuf::from(dir.path())]);
     assert!(problems.is_empty());
     assert_eq!(configs.len(), 1);
-    assert_eq!(configs[0].name, "fs");
-    assert_eq!(configs[0].args, vec!["-y", "server"]);
-    assert_eq!(configs[0].env.get("K"), Some(&"v".to_string()));
+    match &configs[0] {
+        McpSource::Stdio(config) => {
+            assert_eq!(config.name, "fs");
+            assert_eq!(config.args, vec!["-y", "server"]);
+            assert_eq!(config.env.get("K"), Some(&"v".to_string()));
+        }
+        McpSource::Http(_) => panic!("fs is a stdio server"),
+    }
 }

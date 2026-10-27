@@ -12,6 +12,7 @@
 
 pub mod core;
 pub mod error;
+pub mod http;
 pub mod peer;
 pub mod stdio;
 pub mod tools;
@@ -19,9 +20,10 @@ pub mod types;
 
 pub use core::{Event, McpCore};
 pub use error::McpError;
+pub use http::{McpHttpClient, McpHttpConfig};
 pub use peer::StdioPeerFactory;
 pub use stdio::{McpServerConfig, McpStdioClient};
-pub use tools::{load_server_configs, McpTools};
+pub use tools::{load_server_configs, McpSource, McpTools};
 pub use types::{
     ClientInfo, Initialization, McpPrompt, McpPromptArgument, McpResource, ResourceContent,
     ServerCapabilities, ServerInfo, ToolCallResult, ToolContent,
