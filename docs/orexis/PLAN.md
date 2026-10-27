@@ -57,6 +57,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Study: eight repos read to adopt/adapt/reject; synthesis drafted with pattern catalog, resolved conflicts, ADR map, confidence, and remaining verification | `docs/orexis/study/synthesis.md`; ticket 011 |
 | Study gate cleared: synthesis + ADRs 0001–0004 + vertical slice (six crates) replaying byte-identically | `docs/orexis/slice.md` |
 | Native adapters are on-demand (wire/fidelity/auth triggers), not milestone-scheduled; M7 stays protocols-only | ADR-0016; ticket 009 |
+| Provider conformance fixtures are capability transcripts with a three-state manifest (expressed / gap / wire-inexpressible); open_ai + anthropic first; thinking and message-cache gaps are adapter tickets, not native triggers | ADR-0018; ticket 013 |
 
 ### Frontier
 
