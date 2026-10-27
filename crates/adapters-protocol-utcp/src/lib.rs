@@ -9,6 +9,8 @@
 
 pub mod core;
 pub mod manual;
+pub mod tools;
 
 pub use core::{CallInstruction, DiscoverInstruction, ToolSchema, UtcpCore};
 pub use manual::{parse_providers, Provider, ProviderType, UtcpError};
+pub use tools::{load_manuals, UtcpTools};

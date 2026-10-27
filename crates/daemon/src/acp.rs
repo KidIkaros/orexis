@@ -20,7 +20,7 @@ use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::Semaphore;
 
 use crate::approvals::{ApprovalHub, MemoryOverrides};
-use crate::handlers::{ensure_mcp, interrupt, spawn_turn};
+use crate::handlers::{ensure_external, interrupt, spawn_turn};
 use crate::proto::ServerMsg;
 use crate::server::DaemonConfig;
 use crate::session::SessionRegistry;
@@ -151,7 +151,7 @@ impl AcpServer {
             AcpIncoming::Initialize { id } => write_message(&out, &initialize_response(id)).await,
             AcpIncoming::SessionNew { id } => match self.registry.get_or_create(None) {
                 Ok(rt) => {
-                    ensure_mcp(&rt, &self.config)
+                    ensure_external(&rt, &self.config)
                         .await
                         .map_err(std::io::Error::other)?;
                     self.sessions

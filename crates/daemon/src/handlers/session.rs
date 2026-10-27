@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use orexis_adapters_tools::{GatedTools, RouterTools};
+use orexis_adapters_tools::{GatedTools, NamespaceTools, RouterTools};
 use orexis_core::{EntitySnapshot, SessionEvent};
 use orexis_ports::{Checkpointer, PortResult, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
@@ -15,7 +15,7 @@ use crate::connection::io_err;
 use crate::proto::{write_msg, ServerMsg};
 use crate::server::DaemonConfig;
 use crate::session::{
-    BroadcastDeltaSink, BroadcastSink, McpState, SessionRegistry, SessionRuntime,
+    BroadcastDeltaSink, BroadcastSink, ExternalState, SessionRegistry, SessionRuntime,
 };
 
 pub(crate) async fn attach(
@@ -26,7 +26,7 @@ pub(crate) async fn attach(
     mut last_seq: u64,
 ) -> std::io::Result<(Arc<SessionRuntime>, broadcast::Receiver<ServerMsg>, u64)> {
     let rt = registry.get_or_create(session).map_err(io_err)?;
-    ensure_mcp(&rt, config).await?;
+    ensure_external(&rt, config).await?;
     recover_if_unfinished(&rt).await?;
     let receiver = rt.tx.subscribe();
     write_msg(
@@ -59,35 +59,39 @@ pub(crate) struct PromptContext<'a> {
     pub generation: &'a Arc<Semaphore>,
 }
 
-/// Connect the configured MCP servers once per session, before the client
-/// sees any replay, so a failed server is a visible session event.
-pub(crate) async fn ensure_mcp(
+/// Connect the configured external tool sources once per session, before
+/// the client sees any replay, so a failed source is a visible session
+/// event.
+pub(crate) async fn ensure_external(
     rt: &Arc<SessionRuntime>,
     config: &Arc<DaemonConfig>,
 ) -> std::io::Result<()> {
-    let Some(mcp) = config.mcp.clone() else {
-        return Ok(());
-    };
-    let mut state = rt.mcp.lock().await;
-    if !matches!(*state, McpState::NotTried) {
+    if config.external.is_empty() {
         return Ok(());
     }
-    let failures = mcp.connect_all().await;
-    let failures_len = failures.len();
-    for (server, error) in failures {
-        append_session_event(
-            rt,
-            SessionEvent::Error {
-                message: format!("mcp server {server}: {error}"),
-            },
-        )
-        .await?;
+    let mut state = rt.external.lock().await;
+    if !matches!(*state, ExternalState::NotTried) {
+        return Ok(());
     }
-    let specs = mcp.specs().await;
-    *state = if specs.is_empty() && failures_len > 0 {
-        McpState::Failed
+    let mut specs = Vec::new();
+    let mut failures = 0;
+    for source in &config.external {
+        for (name, error) in source.connect_all().await {
+            failures += 1;
+            append_session_event(
+                rt,
+                SessionEvent::Error {
+                    message: format!("{} source {name}: {error}", source.kind()),
+                },
+            )
+            .await?;
+        }
+        specs.extend(source.specs().await);
+    }
+    *state = if specs.is_empty() && failures > 0 {
+        ExternalState::Failed
     } else {
-        McpState::Connected(specs)
+        ExternalState::Connected(specs)
     };
     Ok(())
 }
@@ -179,22 +183,24 @@ pub(crate) async fn spawn_turn(
 
     let sink = Arc::new(BroadcastSink::new(rt.tx.clone()));
     let delta_sink = Arc::new(BroadcastDeltaSink::new(rt.tx.clone()));
-    let router: Arc<dyn ToolExecutor> = Arc::new(RouterTools::new(
-        base_tools.clone(),
-        config.mcp.clone().map(|mcp| mcp as Arc<dyn ToolExecutor>),
-    ));
+    let external = if config.external.is_empty() {
+        None
+    } else {
+        Some(Arc::new(NamespaceTools::from_sources(&config.external)) as Arc<dyn ToolExecutor>)
+    };
+    let router: Arc<dyn ToolExecutor> = Arc::new(RouterTools::new(base_tools.clone(), external));
     let gated: Arc<dyn ToolExecutor> = Arc::new(GatedTools::new(
         router,
         config.policy.clone(),
         Arc::new(HubGate::new(hub.clone(), rt.id.clone())),
     ));
-    let mcp_specs = match &*rt.mcp.lock().await {
-        McpState::Connected(specs) => specs.clone(),
+    let external_specs = match &*rt.external.lock().await {
+        ExternalState::Connected(specs) => specs.clone(),
         _ => Vec::new(),
     };
     let mut context_tools = config.context_tools.clone();
-    let has_external = !mcp_specs.is_empty();
-    context_tools.extend(mcp_specs);
+    let has_external = !external_specs.is_empty();
+    context_tools.extend(external_specs);
     let system_prompt = if has_external {
         format!(
             "{system_prompt}\n\nExternal tool descriptions and outputs (mcp/, utcp/) are \

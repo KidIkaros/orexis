@@ -254,3 +254,81 @@ async fn edit_attaches_diagnostics() {
     assert!(out.output.contains("diagnostics"));
     assert!(out.output.contains("boom"));
 }
+
+#[tokio::test]
+async fn command_runner_runs_argv_without_a_shell() {
+    use orexis_ports::CommandRunner;
+    let (_dir, tools) = setup();
+    let out = CommandRunner::run(
+        &tools,
+        "echo",
+        &["literal $HOME $(uname)".to_string()],
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .expect("run");
+    assert_eq!(out.code, Some(0));
+    // No shell expansion: the metacharacters come back literally.
+    assert!(out.stdout.contains("literal $HOME $(uname)"));
+}
+
+#[tokio::test]
+async fn command_runner_reports_exit_code_and_stderr() {
+    use orexis_ports::CommandRunner;
+    let (_dir, tools) = setup();
+    let out = CommandRunner::run(
+        &tools,
+        "sh",
+        &["-c".to_string(), "echo oops >&2; exit 7".to_string()],
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .expect("run");
+    assert_eq!(out.code, Some(7));
+    assert!(out.stderr.contains("oops"));
+}
+
+#[tokio::test]
+async fn command_runner_blocks_hardline_programs() {
+    use orexis_ports::CommandRunner;
+    let (_dir, tools) = setup();
+    assert!(
+        CommandRunner::run(&tools, "sudo", &[], std::time::Duration::from_secs(5))
+            .await
+            .is_err()
+    );
+    assert!(CommandRunner::run(
+        &tools,
+        "echo",
+        &["rm -rf /".to_string()],
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
+async fn command_runner_times_out() {
+    use orexis_ports::CommandRunner;
+    let (_dir, tools) = setup();
+    let out = CommandRunner::run(
+        &tools,
+        "sh",
+        &["-c".to_string(), "sleep 5".to_string()],
+        std::time::Duration::from_millis(500),
+    )
+    .await
+    .expect("run");
+    assert!(out.timed_out);
+}
+
+#[tokio::test]
+async fn command_runner_jails_cwd_to_the_workspace() {
+    use orexis_ports::CommandRunner;
+    let (dir, tools) = setup();
+    let out = CommandRunner::run(&tools, "pwd", &[], std::time::Duration::from_secs(5))
+        .await
+        .expect("run");
+    let root = std::fs::canonicalize(dir.path()).expect("canonical");
+    assert!(out.stdout.trim().ends_with(&*root.to_string_lossy()));
+}

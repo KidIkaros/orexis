@@ -101,11 +101,62 @@ pub trait ToolExecutor: Send + Sync {
 /// concrete source.
 #[async_trait]
 pub trait ExternalTools: ToolExecutor {
+    /// The namespace stem this source serves (`"mcp"` serves `mcp/...`).
+    fn kind(&self) -> &'static str;
     /// Connect every configured source once; returns per-source failures
     /// as (name, message) pairs.
     async fn connect_all(&self) -> Vec<(String, String)>;
     /// Namespaced specs for the connected sources.
     async fn specs(&self) -> Vec<ToolSpec>;
+}
+
+/// The result of running a command inside the workspace sandbox.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandOutput {
+    /// None when the process ended by signal or timeout.
+    pub code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+    pub timed_out: bool,
+}
+
+/// Runs `program argv` inside the workspace sandbox — environment
+/// scrubbed, working directory jailed to the workspace root, timed out,
+/// output capped. Consumer-side so transport shells never spawn raw
+/// processes themselves.
+#[async_trait]
+pub trait CommandRunner: Send + Sync {
+    async fn run(
+        &self,
+        program: &str,
+        args: &[String],
+        timeout: std::time::Duration,
+    ) -> PortResult<CommandOutput>;
+}
+
+/// The result of a call to a peer tool server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PeerOutput {
+    pub text: String,
+    /// True when the peer reported the call itself failed.
+    pub is_error: bool,
+}
+
+/// A connected peer tool server (e.g. an MCP process) driven as a
+/// transport inside another adapter. Plain data in and out.
+#[async_trait]
+pub trait PeerSession: Send {
+    /// The peer's tools as un-namespaced specs.
+    async fn tools(&mut self) -> PortResult<Vec<ToolSpec>>;
+    async fn call(&mut self, name: &str, args: &str) -> PortResult<PeerOutput>;
+}
+
+/// Connects peer tool servers by argv (`command[0]` is the program).
+/// Consumer-side so adapters like UTCP compose a protocol client without
+/// depending on it.
+#[async_trait]
+pub trait PeerFactory: Send + Sync {
+    async fn connect(&self, command: &[String]) -> PortResult<Box<dyn PeerSession>>;
 }
 
 #[async_trait]

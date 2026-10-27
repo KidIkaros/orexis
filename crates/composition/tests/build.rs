@@ -40,6 +40,7 @@ fn config(dir: &tempfile::TempDir, providers: PathBuf, model: &str) -> BuildConf
         cwd: dir.path().to_path_buf(),
         providers_dir: Some(providers),
         mcp_dirs: Some(Vec::new()),
+        utcp_dirs: Some(Vec::new()),
         verify_command: None,
         system_prompt: String::new(),
         context_limit: 32768,
@@ -122,16 +123,16 @@ fn mcp_servers_load_from_explicit_dirs() {
         ..config(&dir, providers.path().to_path_buf(), "known")
     };
     let runtime = build_runtime(build_config).expect("build");
-    assert!(runtime.mcp.is_some());
+    assert!(runtime.external.iter().any(|source| source.kind() == "mcp"));
 }
 
 #[test]
-fn no_mcp_configs_means_no_mcp_layer() {
+fn no_external_configs_means_no_external_layer() {
     let dir = tempfile::tempdir().expect("tempdir");
     let providers = providers_dir("native");
     let runtime =
         build_runtime(config(&dir, providers.path().to_path_buf(), "known")).expect("build");
-    assert!(runtime.mcp.is_none());
+    assert!(runtime.external.is_empty());
 }
 
 #[test]
@@ -142,4 +143,25 @@ fn unknown_models_warn_and_keep_capacity() {
         build_runtime(config(&dir, providers.path().to_path_buf(), "unknown")).expect("build");
     assert_eq!(runtime.generation_slots, 3);
     assert!(!runtime.warnings.is_empty());
+}
+
+#[test]
+fn utcp_manuals_load_from_explicit_dirs() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let utcp = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        utcp.path().join("providers.json"),
+        r#"[{"name":"svc","provider_type":"http","endpoint":"https://svc.example.com"}]"#,
+    )
+    .expect("write");
+    let providers = providers_dir("native");
+    let build_config = BuildConfig {
+        utcp_dirs: Some(vec![utcp.path().to_path_buf()]),
+        ..config(&dir, providers.path().to_path_buf(), "known")
+    };
+    let runtime = build_runtime(build_config).expect("build");
+    assert!(runtime
+        .external
+        .iter()
+        .any(|source| source.kind() == "utcp"));
 }

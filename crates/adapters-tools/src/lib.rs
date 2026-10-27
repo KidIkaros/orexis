@@ -13,7 +13,7 @@ mod workspace;
 
 pub use checkpoints::GitCheckpointStore;
 pub use gate::{AutoApprove, DenyAll, GatedTools};
-pub use router::RouterTools;
+pub use router::{NamespaceTools, RouterTools};
 pub use verify::ShellVerifier;
 
 use std::fs;

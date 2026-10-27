@@ -50,7 +50,7 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
         )),
         identity_path: None,
         evolution_ledger: None,
-        mcp: None,
+        external: Vec::new(),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
         workspace: Arc::new(
@@ -904,6 +904,7 @@ impl Provider for RecordingProvider {
 }
 
 struct FakeExternalTools {
+    kind: &'static str,
     specs: Vec<ToolSpec>,
     failures: Vec<(String, String)>,
 }
@@ -920,6 +921,10 @@ impl ToolExecutor for FakeExternalTools {
 
 #[async_trait::async_trait]
 impl ExternalTools for FakeExternalTools {
+    fn kind(&self) -> &'static str {
+        self.kind
+    }
+
     async fn connect_all(&self) -> Vec<(String, String)> {
         self.failures.clone()
     }
@@ -1104,14 +1109,15 @@ async fn mcp_tools_register_into_the_session() {
         calls: calls.clone(),
         tool_lists: tool_lists.clone(),
     });
-    config.mcp = Some(Arc::new(FakeExternalTools {
+    config.external = vec![Arc::new(FakeExternalTools {
+        kind: "mcp",
         specs: vec![ToolSpec {
             name: "mcp/mock/mock_tool".to_string(),
             description: "a mock tool".to_string(),
             schema: serde_json::json!({"type": "object"}),
         }],
         failures: Vec::new(),
-    }));
+    })];
     let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
     send(
         &mut writer,
@@ -1140,10 +1146,11 @@ async fn a_failed_mcp_server_is_a_visible_session_event() {
     let db = dir.path().join("sessions.db");
 
     let mut config = config(&socket, &db);
-    config.mcp = Some(Arc::new(FakeExternalTools {
+    config.external = vec![Arc::new(FakeExternalTools {
+        kind: "mcp",
         specs: Vec::new(),
         failures: vec![("missing".to_string(), "spawn failed".to_string())],
-    }));
+    })];
     let (_, mut reader, _writer, mut line) = spawn_and_attach(config, &socket).await;
 
     // The failure is replayed during attach, before any prompt.
@@ -1153,7 +1160,7 @@ async fn a_failed_mcp_server_is_a_visible_session_event() {
             ServerMsg::Event {
                 event: SessionEvent::Error { message },
                 ..
-            } if message.contains("mcp server missing") => {
+            } if message.contains("mcp source missing") => {
                 saw_error = true;
                 break;
             }
@@ -1161,4 +1168,59 @@ async fn a_failed_mcp_server_is_a_visible_session_event() {
         }
     }
     assert!(saw_error, "the failed server was not visible");
+}
+
+#[tokio::test]
+async fn utcp_tools_register_and_route_through_the_surface() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+
+    let mut config = config(&socket, &db);
+    config.provider = Arc::new(ScriptedProvider::new(vec![vec![
+        Action::CallTool {
+            call_id: "c1".to_string(),
+            name: "utcp/svc/echo".to_string(),
+            args: r#"{"x":1}"#.to_string(),
+        },
+        Action::Done {
+            summary: "done".to_string(),
+        },
+    ]]));
+    config.policy =
+        Arc::new(
+            PermissionPolicy::standard().with_rules(vec![orexis_core::PermissionRule {
+                tool: "utcp/*".to_string(),
+                decision: orexis_core::Decision::Allow,
+            }]),
+        );
+    config.external = vec![Arc::new(FakeExternalTools {
+        kind: "utcp",
+        specs: vec![ToolSpec {
+            name: "utcp/svc/echo".to_string(),
+            description: "a utcp tool".to_string(),
+            schema: serde_json::json!({"type": "object"}),
+        }],
+        failures: Vec::new(),
+    })];
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "hi".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let events = read_until_done(&mut reader, &mut line).await;
+    let observed = events.iter().any(|message| {
+        matches!(
+            message,
+            ServerMsg::Event {
+                event: SessionEvent::Observation { name, .. },
+                ..
+            } if name == "utcp/svc/echo"
+        )
+    });
+    assert!(observed, "the utcp call did not route through the surface");
 }

@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use orexis_core::Observation;
-use orexis_ports::{PortError, PortResult};
+use orexis_ports::{CommandOutput, CommandRunner, PortError, PortResult};
 use serde_json::Value;
 
 use crate::{arg_str, LocalTools};
@@ -34,6 +34,70 @@ impl LocalTools {
     }
 }
 
+/// `CommandRunner` for transport shells (UTCP CLI providers): argv-exact —
+/// no shell interpretation of arguments — inside the same sandbox as the
+/// `shell` tool (env scrub, workspace cwd, process group, caps).
+#[async_trait::async_trait]
+impl CommandRunner for LocalTools {
+    async fn run(
+        &self,
+        program: &str,
+        args: &[String],
+        timeout: Duration,
+    ) -> PortResult<CommandOutput> {
+        let joined = format!("{program} {}", args.join(" "));
+        if let Some(reason) = hardline_reason(&joined).or_else(|| blocked_program(program)) {
+            return Err(PortError(format!("blocked command: {reason}")));
+        }
+        let cwd = self.root.clone();
+        let program = program.to_string();
+        let args = args.to_vec();
+        tokio::task::spawn_blocking(move || run_program(&cwd, &program, &args, timeout))
+            .await
+            .map_err(|error| PortError(error.to_string()))?
+    }
+}
+
+/// Programs whose argv form the joined-string patterns miss (a bare
+/// `sudo` has no trailing space). The safety floor applies to argv too.
+fn blocked_program(program: &str) -> Option<&'static str> {
+    let basename = Path::new(program)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(program);
+    const BLOCKED: &[(&str, &str)] = &[
+        ("sudo", "privilege escalation"),
+        ("su", "privilege escalation"),
+        ("doas", "privilege escalation"),
+        ("shutdown", "shutdown"),
+        ("reboot", "reboot"),
+        ("halt", "shutdown"),
+        ("poweroff", "shutdown"),
+    ];
+    if basename.starts_with("mkfs") {
+        return Some("filesystem format");
+    }
+    BLOCKED
+        .iter()
+        .find(|(name, _)| basename == *name)
+        .map(|(_, reason)| *reason)
+}
+
+pub(crate) fn run_program(
+    cwd: &Path,
+    program: &str,
+    args: &[String],
+    timeout: Duration,
+) -> PortResult<CommandOutput> {
+    let mut process = Command::new(program);
+    process.args(args);
+    configure(&mut process, cwd);
+    let child = process
+        .spawn()
+        .map_err(|error| PortError(format!("spawn {program}: {error}")))?;
+    Ok(collect(child, timeout))
+}
+
 pub(crate) const SHELL_OUTPUT_CAP: usize = 64 * 1024;
 
 fn hardline_reason(command: &str) -> Option<&'static str> {
@@ -54,9 +118,33 @@ fn hardline_reason(command: &str) -> Option<&'static str> {
 
 pub(crate) fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortResult<String> {
     let mut process = Command::new("sh");
+    process.arg("-c").arg(command);
+    configure(&mut process, cwd);
+    let child = process
+        .spawn()
+        .map_err(|error| PortError(format!("spawn shell: {error}")))?;
+    let output = collect(child, timeout);
+    let code = output
+        .code
+        .map(|code| code.to_string())
+        .unwrap_or_else(|| "signal".to_string());
+
+    let mut text = format!(
+        "exit {code}\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        output.stdout, output.stderr
+    );
+    if output.timed_out {
+        text.push_str(&format!(
+            "\n[timed out after {}s; process group killed]",
+            timeout.as_secs()
+        ));
+    }
+    Ok(text)
+}
+
+/// The sandbox posture shared by `sh -c` and argv-exact runs.
+fn configure(process: &mut Command, cwd: &Path) {
     process
-        .arg("-c")
-        .arg(command)
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -83,10 +171,9 @@ pub(crate) fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortRes
         use std::os::unix::process::CommandExt;
         process.process_group(0);
     }
+}
 
-    let mut child = process
-        .spawn()
-        .map_err(|error| PortError(format!("spawn shell: {error}")))?;
+fn collect(mut child: Child, timeout: Duration) -> CommandOutput {
     let pid = child.id();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -100,18 +187,13 @@ pub(crate) fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortRes
         .try_wait()
         .ok()
         .flatten()
-        .and_then(|status| status.code())
-        .map(|code| code.to_string())
-        .unwrap_or_else(|| "signal".to_string());
-
-    let mut output = format!("exit {code}\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}");
-    if timed_out {
-        output.push_str(&format!(
-            "\n[timed out after {}s; process group killed]",
-            timeout.as_secs()
-        ));
+        .and_then(|status| status.code());
+    CommandOutput {
+        code,
+        stdout,
+        stderr,
+        timed_out,
     }
-    Ok(output)
 }
 
 fn read_capped<R: Read>(reader: Option<R>) -> String {

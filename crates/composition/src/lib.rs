@@ -72,6 +72,7 @@ pub struct BuildConfig {
     pub cwd: PathBuf,
     pub providers_dir: Option<PathBuf>,
     pub mcp_dirs: Option<Vec<PathBuf>>,
+    pub utcp_dirs: Option<Vec<PathBuf>>,
     pub verify_command: Option<String>,
     pub system_prompt: String,
     pub context_limit: usize,
@@ -89,7 +90,7 @@ pub struct Runtime {
     pub entity: Arc<dyn EntityFactory>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
-    pub mcp: Option<Arc<dyn ExternalTools>>,
+    pub external: Vec<Arc<dyn ExternalTools>>,
     pub context_files: Vec<ContextFile>,
     pub context_limit: usize,
     pub generation_slots: usize,
@@ -183,7 +184,13 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         config.db_path.with_file_name("entity.db"),
     ));
     let context_tools = LocalTools::specs();
-    let mcp = mcp_source(&config, &mut warnings);
+    let mut external = Vec::new();
+    if let Some(mcp) = mcp_source(&config, &mut warnings) {
+        external.push(mcp);
+    }
+    if let Some(utcp) = utcp_source(&config, tools.clone(), &mut warnings) {
+        external.push(utcp);
+    }
 
     Ok(Runtime {
         provider,
@@ -199,7 +206,7 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         sessions: Arc::new(SqliteSessionFactory::new(config.db_path)),
         system_prompt: config.system_prompt,
         context_tools,
-        mcp,
+        external,
         context_files,
         context_limit: config.context_limit,
         generation_slots: profile.limits.max_concurrency.max(1) as usize,
@@ -233,6 +240,42 @@ fn mcp_source(
     }
 }
 
+/// UTCP manuals come from explicit dirs, or the user dir plus the
+/// project's `.orexis/utcp` (project wins by provider name). The
+/// transports are the shared HTTP adapter, the same sandboxed
+/// `LocalTools` that serves built-in tools (`CommandRunner`), and the
+/// MCP stdio client behind `PeerFactory`.
+fn utcp_source(
+    config: &BuildConfig,
+    commands: Arc<LocalTools>,
+    warnings: &mut Vec<String>,
+) -> Option<Arc<dyn orexis_ports::ExternalTools>> {
+    let dirs = config.utcp_dirs.clone().unwrap_or_else(|| {
+        let mut dirs = Vec::new();
+        if let Ok(home) = std::env::var("HOME") {
+            dirs.push(PathBuf::from(home).join(".config/orexis/utcp"));
+        }
+        dirs.push(config.project_root.join(".orexis/utcp"));
+        dirs
+    });
+    let (providers, problems) = orexis_adapters_protocol_utcp::load_manuals(&dirs);
+    warnings.extend(problems);
+    if providers.is_empty() {
+        None
+    } else {
+        let tools: Arc<orexis_adapters_protocol_utcp::UtcpTools> =
+            Arc::new(orexis_adapters_protocol_utcp::UtcpTools::new(
+                providers,
+                Arc::new(orexis_adapters_http::ReqwestTransport::new()),
+                commands,
+                Arc::new(orexis_adapters_protocol_mcp::StdioPeerFactory {
+                    timeout: std::time::Duration::from_secs(10),
+                }),
+            ));
+        Some(tools)
+    }
+}
+
 /// Deterministic wiring for tests and `OREXIS_FAKE=1`.
 pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
     let provider: Arc<dyn Provider> = if std::env::var("OREXIS_FAKE_SLOW").is_ok() {
@@ -256,7 +299,7 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
         )),
         system_prompt: String::new(),
         context_tools: Vec::new(),
-        mcp: None,
+        external: Vec::new(),
         context_files: Vec::new(),
         context_limit: 32768,
         generation_slots: 1,

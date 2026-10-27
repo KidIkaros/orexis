@@ -18,7 +18,7 @@ use crate::types::ToolContent;
 
 const DESCRIPTION_CAP: usize = 500;
 const OUTPUT_CAP: usize = 64 * 1024;
-const MAX_PAGES: usize = 10;
+pub(crate) const MAX_PAGES: usize = 10;
 
 pub struct McpTools {
     configs: Vec<McpServerConfig>,
@@ -99,7 +99,7 @@ fn delimit(server: &str, tool: &str, output: &str) -> String {
     format!("<mcp_result server=\"{server}\" tool=\"{tool}\">\n{escaped}\n</mcp_result>")
 }
 
-fn render_content(content: &[ToolContent]) -> String {
+pub(crate) fn render_content(content: &[ToolContent]) -> String {
     content
         .iter()
         .map(|block| match block {
@@ -125,6 +125,10 @@ fn parse_name(name: &str) -> Option<(String, String)> {
 
 #[async_trait]
 impl ExternalTools for McpTools {
+    fn kind(&self) -> &'static str {
+        "mcp"
+    }
+
     async fn connect_all(&self) -> Vec<(String, String)> {
         McpTools::connect_all(self).await
     }

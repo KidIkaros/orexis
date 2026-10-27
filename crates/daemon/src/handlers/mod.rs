@@ -3,7 +3,7 @@ mod settings;
 mod workspace;
 
 pub(crate) use session::{
-    approve, attach, audit, clear_overrides, diff, ensure_mcp, evolution, interrupt, prompt,
+    approve, attach, audit, clear_overrides, diff, ensure_external, evolution, interrupt, prompt,
     self_view, spawn_turn, undo, PromptContext,
 };
 pub(crate) use settings::settings;

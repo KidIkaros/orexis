@@ -97,3 +97,26 @@ async fn a_server_request_is_refused_without_deadlock() {
         .expect("call completes after refusing sampling");
     assert_eq!(call.content[0].as_text(), Some("mock says hi"));
 }
+
+#[tokio::test]
+async fn peer_factory_connects_a_real_process_by_argv() {
+    use orexis_adapters_protocol_mcp::StdioPeerFactory;
+    use orexis_ports::PeerFactory;
+
+    let factory = StdioPeerFactory {
+        timeout: Duration::from_secs(5),
+    };
+    let command = vec![env!("CARGO_BIN_EXE_mock_mcp_server").to_string()];
+    let mut peer = factory.connect(&command).await.expect("connect");
+
+    let tools = peer.tools().await.expect("tools");
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].name, "mock_tool");
+
+    let output = peer
+        .call("mock_tool", r#"{"path":"a.rs"}"#)
+        .await
+        .expect("call");
+    assert!(!output.is_error);
+    assert!(output.text.contains("mock says hi"));
+}

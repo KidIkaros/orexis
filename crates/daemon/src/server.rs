@@ -23,7 +23,7 @@ pub struct DaemonConfig {
     pub entity: Arc<dyn EntityFactory>,
     pub identity_path: Option<PathBuf>,
     pub evolution_ledger: Option<PathBuf>,
-    pub mcp: Option<Arc<dyn ExternalTools>>,
+    pub external: Vec<Arc<dyn ExternalTools>>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
     pub workspace: Arc<dyn Workspace>,

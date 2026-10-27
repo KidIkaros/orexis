@@ -56,13 +56,13 @@ pub struct SessionRuntime {
     pub read: Arc<dyn SessionRead>,
     pub tx: broadcast::Sender<ServerMsg>,
     pub turn: Mutex<Option<tokio::task::JoinHandle<()>>>,
-    pub mcp: tokio::sync::Mutex<McpState>,
+    pub external: tokio::sync::Mutex<ExternalState>,
 }
 
-/// MCP servers connect once per session, at session start; a failed
+/// External sources connect once per session, at session start; a failed
 /// connect is visible as a session event and is not retried mid-session.
 #[derive(Debug, Default)]
-pub enum McpState {
+pub enum ExternalState {
     #[default]
     NotTried,
     Connected(Vec<orexis_core::ToolSpec>),
@@ -78,7 +78,7 @@ impl SessionRuntime {
             read: refs.read,
             tx,
             turn: Mutex::new(None),
-            mcp: tokio::sync::Mutex::new(McpState::NotTried),
+            external: tokio::sync::Mutex::new(ExternalState::NotTried),
         }
     }
 }

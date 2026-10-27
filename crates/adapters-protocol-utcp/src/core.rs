@@ -56,6 +56,13 @@ impl UtcpCore {
         Self::default()
     }
 
+    /// Register one already-parsed provider (validated again here).
+    pub fn register(&mut self, provider: Provider) -> Result<(), UtcpError> {
+        provider.validate()?;
+        self.providers.push(provider);
+        Ok(())
+    }
+
     /// Parse a providers manual and register its providers (appending).
     pub fn load_providers(&mut self, json: &str) -> Result<usize, UtcpError> {
         let providers = crate::manual::parse_providers(json)?;
@@ -163,20 +170,26 @@ impl UtcpCore {
         self.index.iter().find(|tool| tool.name == name)
     }
 
-    /// The call instruction for a tool: the provider's native transport
-    /// shape with the endpoint, auth, and arguments substituted in.
+    /// The call instruction for `provider`'s `tool`: the provider's
+    /// native transport shape with the endpoint, auth, and arguments
+    /// substituted in. Namespaced names pin the provider, so lookup is
+    /// scoped — a same-named tool on another provider never shadows it.
     pub fn call_instruction(
         &self,
+        provider: &str,
         tool: &str,
         args: Value,
-    ) -> Result<(String, CallInstruction), UtcpError> {
-        let provider_name = self
-            .find_tool(tool)
-            .map(|found| found.provider.clone())
-            .ok_or_else(|| UtcpError::UnknownTool(tool.to_string()))?;
+    ) -> Result<CallInstruction, UtcpError> {
+        let known = self
+            .index
+            .iter()
+            .any(|entry| entry.provider == provider && entry.name == tool);
+        if !known {
+            return Err(UtcpError::UnknownTool(format!("{provider}/{tool}")));
+        }
         let provider = self
-            .provider(&provider_name)
-            .ok_or_else(|| UtcpError::UnknownProvider(provider_name.clone()))?;
+            .provider(provider)
+            .ok_or_else(|| UtcpError::UnknownProvider(provider.to_string()))?;
         let instruction = match provider.provider_type {
             ProviderType::Http => CallInstruction::Http {
                 url: format!("{}/tools/{}", provider.endpoint.trim_end_matches('/'), tool),
@@ -198,7 +211,7 @@ impl UtcpCore {
                 args,
             },
         };
-        Ok((provider_name, instruction))
+        Ok(instruction)
     }
 }
 

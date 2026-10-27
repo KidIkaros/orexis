@@ -224,10 +224,9 @@ fn http_call_instruction_substitutes_path_body_and_auth() {
             provider: "github".into(),
         }],
     );
-    let (provider, instruction) = core
-        .call_instruction("list_issues", serde_json::json!({"repo": "x/y"}))
+    let instruction = core
+        .call_instruction("github", "list_issues", serde_json::json!({"repo": "x/y"}))
         .expect("instruction");
-    assert_eq!(provider, "github");
     assert_eq!(
         instruction,
         CallInstruction::Http {
@@ -252,8 +251,8 @@ fn cli_call_instruction_appends_tool_and_args_json() {
             provider: "mock".into(),
         }],
     );
-    let (_, instruction) = core
-        .call_instruction("echo", serde_json::json!({"text": "hi"}))
+    let instruction = core
+        .call_instruction("mock", "echo", serde_json::json!({"text": "hi"}))
         .expect("instruction");
     assert_eq!(
         instruction,
@@ -283,8 +282,8 @@ fn mcp_call_instruction_carries_the_tool_and_args() {
             provider: "fs".into(),
         }],
     );
-    let (_, instruction) = core
-        .call_instruction("read_file", serde_json::json!({"path": "a"}))
+    let instruction = core
+        .call_instruction("fs", "read_file", serde_json::json!({"path": "a"}))
         .expect("instruction");
     assert_eq!(
         instruction,
@@ -304,7 +303,7 @@ fn unknown_tools_and_providers_error() {
     )
     .expect("load");
     let error = core
-        .call_instruction("missing", serde_json::json!({}))
+        .call_instruction("github", "missing", serde_json::json!({}))
         .expect_err("unknown tool");
     assert!(matches!(error, UtcpError::UnknownTool(_)));
 }
