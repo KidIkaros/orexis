@@ -58,6 +58,8 @@ graph TD
   orexis-adapters-protocol-mcp --> orexis-adapters-jsonrpc
   orexis-adapters-protocol-mcp --> orexis-core
   orexis-adapters-protocol-mcp --> orexis-ports
+  orexis-composition --> orexis-adapters-artifacts-fs
+  orexis-composition --> orexis-adapters-board-sqlite
   orexis-composition --> orexis-adapters-codec
   orexis-composition --> orexis-adapters-context-fs
   orexis-composition --> orexis-adapters-entity-sqlite
@@ -65,6 +67,7 @@ graph TD
   orexis-composition --> orexis-adapters-fake
   orexis-composition --> orexis-adapters-http
   orexis-composition --> orexis-adapters-lsp
+  orexis-composition --> orexis-adapters-message-sqlite
   orexis-composition --> orexis-adapters-protocol-a2a
   orexis-composition --> orexis-adapters-protocol-mcp
   orexis-composition --> orexis-adapters-protocol-utcp

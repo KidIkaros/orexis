@@ -254,3 +254,240 @@ pub async fn spawn_worker_turn(
     });
     Ok(handle)
 }
+
+// --- The team loop (M8-09, ADR-0020) ---
+
+use std::collections::BTreeMap;
+use std::time::Duration;
+
+use orexis_core::{BoardTask, DriveOutcome, TaskStatus};
+
+use orexis_usecases::{admit_ready, record_outcome, supervise, SupervisorState, ROSTER_CAP};
+use tokio::sync::Semaphore;
+
+use crate::session::SessionRegistry;
+
+/// How often the team loop ticks.
+const TICK: Duration = Duration::from_millis(250);
+
+/// The team loop: board → scheduler → workers → bus, composed in the
+/// daemon (ADR-0006). Team mode is opt-in (invariant 19); the loop
+/// exists only when it is on.
+pub(crate) struct TeamLoop {
+    config: Arc<DaemonConfig>,
+    registry: Arc<SessionRegistry>,
+    base_tools: Arc<dyn ToolExecutor>,
+    hub: Arc<ApprovalHub>,
+    generation: Arc<Semaphore>,
+    /// A task's session, reused across restarts so a restarted worker
+    /// continues its own transcript. Tokio mutexes: the guards are held
+    /// across awaits.
+    sessions: tokio::sync::Mutex<BTreeMap<String, String>>,
+    supervisor: tokio::sync::Mutex<SupervisorState>,
+    live: tokio::sync::Mutex<BTreeMap<String, tokio::task::JoinHandle<WorkerOutcome>>>,
+}
+
+impl TeamLoop {
+    pub(crate) fn new(
+        config: Arc<DaemonConfig>,
+        registry: Arc<SessionRegistry>,
+        base_tools: Arc<dyn ToolExecutor>,
+        hub: Arc<ApprovalHub>,
+        generation: Arc<Semaphore>,
+    ) -> Self {
+        Self {
+            config,
+            registry,
+            base_tools,
+            hub,
+            generation,
+            sessions: tokio::sync::Mutex::new(BTreeMap::new()),
+            supervisor: tokio::sync::Mutex::new(SupervisorState::new()),
+            live: tokio::sync::Mutex::new(BTreeMap::new()),
+        }
+    }
+
+    /// Spawn the loop; the daemon holds the handle.
+    pub(crate) fn spawn(self: &Arc<Self>) -> tokio::task::JoinHandle<()> {
+        let loop_self = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(TICK).await;
+                if let Err(error) = loop_self.tick().await {
+                    eprintln!("warning: team loop: {error}");
+                }
+            }
+        })
+    }
+
+    async fn tick(&self) -> PortResult<()> {
+        self.reap().await?;
+        self.watch().await?;
+        self.admit().await?;
+        self.start_admitted().await?;
+        Ok(())
+    }
+
+    /// Finished worker turns become board updates, bus messages, and
+    /// entity outcomes — one entity, many workers (invariant 18).
+    async fn reap(&self) -> PortResult<()> {
+        let finished: Vec<String> = {
+            let live = self.live.lock().await;
+            live.iter()
+                .filter(|(_, handle)| handle.is_finished())
+                .map(|(task_id, _)| task_id.clone())
+                .collect()
+        };
+        for task_id in finished {
+            let handle = {
+                let mut live = self.live.lock().await;
+                live.remove(&task_id)
+            };
+            let Some(handle) = handle else {
+                continue;
+            };
+            let outcome = match handle.await {
+                Ok(outcome) => outcome,
+                Err(join_error) => WorkerOutcome {
+                    done: false,
+                    steps: 0,
+                    error: Some(format!("the worker's turn panicked: {join_error}")),
+                },
+            };
+            let task = self.config.board.get(&task_id).await?;
+            let Some(task) = task else { continue };
+            if outcome.done {
+                self.config.board.complete(&task_id).await?;
+                self.post(None, &format!("task {} completed", task.title))
+                    .await?;
+                self.entity_outcome(DriveOutcome::TaskDone).await;
+            } else {
+                let reason = outcome
+                    .error
+                    .unwrap_or_else(|| "the turn ended without finishing".to_string());
+                self.config.board.fail(&task_id, &reason).await?;
+                self.post(None, &format!("task {} failed: {reason}", task.title))
+                    .await?;
+                self.entity_outcome(DriveOutcome::TaskFailed).await;
+            }
+        }
+        Ok(())
+    }
+
+    /// Stalled running tasks: restart within the budget, escalate past
+    /// it. The supervisor plans; the loop executes the restarts.
+    async fn watch(&self) -> PortResult<()> {
+        let live_ids: Vec<String> = {
+            let live = self.live.lock().await;
+            live.keys().cloned().collect()
+        };
+        let plan = {
+            let mut state = self.supervisor.lock().await;
+            supervise(
+                &mut state,
+                self.config.board.as_ref(),
+                self.config.bus.as_ref(),
+                &live_ids,
+                orexis_usecases::MAX_RESTARTS,
+            )
+            .await?
+        };
+        for task in plan.restart {
+            self.spawn_worker(&task).await?;
+        }
+        Ok(())
+    }
+
+    /// The scheduler's admission pass: ready tasks under the provider's
+    /// capacity and the roster.
+    async fn admit(&self) -> PortResult<()> {
+        let capacity = self.config.provider.capacity();
+        admit_ready(self.config.board.as_ref(), capacity, ROSTER_CAP).await?;
+        Ok(())
+    }
+
+    /// Admitted tasks become running workers when a generation slot is
+    /// free; a task left admitted is started on a later tick.
+    async fn start_admitted(&self) -> PortResult<()> {
+        for task in self.config.board.list().await? {
+            if task.status != TaskStatus::Admitted {
+                continue;
+            }
+            if self.live.lock().await.contains_key(&task.id) {
+                continue;
+            }
+            self.spawn_worker(&task).await?;
+        }
+        Ok(())
+    }
+
+    /// Start one task's worker: its own session (reused on restart), the
+    /// strategy's shaping, a generation slot. A task left admitted waits
+    /// for a slot; a running task is re-spawned on its session.
+    async fn spawn_worker(&self, task: &BoardTask) -> PortResult<()> {
+        let Some(strategy_id) = orexis_usecases::StrategyId::parse(&task.required_strategy) else {
+            return Err(orexis_ports::PortError(format!(
+                "task {} needs unknown strategy {}",
+                task.id, task.required_strategy
+            )));
+        };
+        let strategy = orexis_usecases::strategy(strategy_id);
+        let Ok(permit) = self.generation.clone().try_acquire_owned() else {
+            return Ok(()); // no slot now; a later tick starts it
+        };
+        let session_id = {
+            let sessions = self.sessions.lock().await;
+            sessions.get(&task.id).cloned().unwrap_or_default()
+        };
+        let rt = if session_id.is_empty() {
+            let fresh = self.registry.get_or_create(None)?;
+            self.sessions
+                .lock()
+                .await
+                .insert(task.id.clone(), fresh.id.clone());
+            fresh
+        } else {
+            self.registry.get_or_create(Some(&session_id))?
+        };
+        let worker_id = format!("worker-{}", task.id);
+        self.config.board.start(&task.id, &worker_id).await?;
+        let worker = WorkerTurn {
+            prompt_suffix: format!(
+                "You are working on board task {}: {}.\n{}",
+                task.id, task.title, strategy.prompt_fragment
+            ),
+            toolset: strategy.toolset.clone(),
+            max_steps: strategy.budget.max_steps,
+            wall_clock: Duration::from_secs(strategy.budget.wall_clock_secs),
+        };
+        let handle = spawn_worker_turn(
+            &rt,
+            &self.config,
+            &self.base_tools,
+            &self.hub,
+            task.title.clone(),
+            worker,
+            permit,
+        )
+        .await?;
+        self.live.lock().await.insert(task.id.clone(), handle);
+        Ok(())
+    }
+
+    async fn post(&self, to: Option<&str>, text: &str) -> PortResult<()> {
+        self.config.bus.post("team", to, text).await?;
+        Ok(())
+    }
+
+    /// The entity sees worker outcomes as session outcomes (invariant
+    /// 18): one entity, many workers.
+    async fn entity_outcome(&self, outcome: DriveOutcome) {
+        let Ok(refs) = self.config.entity.open() else {
+            return;
+        };
+        let Ok(snapshot) = refs.read.snapshot().await else {
+            return;
+        };
+        let _ = record_outcome(refs.append.as_ref(), &snapshot, outcome).await;
+    }
+}

@@ -20,9 +20,9 @@ use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, ContextSource, EntityFactory, EvolutionStore, ExternalTools, Lsp,
-    PortError, Provider, SessionAppend, SessionFactory, SessionRead, ToolExecutor, Verifier,
-    Workspace,
+    ArtifactStore, BoardStore, Checkpointer, Codec, ContextSource, EntityFactory, EvolutionStore,
+    ExternalTools, Lsp, MessageStore, PortError, Provider, SessionAppend, SessionFactory,
+    SessionRead, ToolExecutor, Verifier, Workspace,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -94,6 +94,9 @@ pub struct Runtime {
     pub sessions: Arc<dyn SessionFactory>,
     pub entity: Arc<dyn EntityFactory>,
     pub evolution: Option<Arc<dyn EvolutionStore>>,
+    pub board: Arc<dyn BoardStore>,
+    pub bus: Arc<dyn MessageStore>,
+    pub blackboard: Arc<dyn ArtifactStore>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
     pub external: Vec<Arc<dyn ExternalTools>>,
@@ -226,6 +229,16 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         external.push(a2a);
     }
     let evolution = evolution_source(&config, &mut warnings);
+    let board: Arc<dyn BoardStore> = Arc::new(orexis_adapters_board_sqlite::SqliteBoard::open(
+        &config.db_path.with_file_name("board.db"),
+    )?);
+    let bus: Arc<dyn MessageStore> = Arc::new(orexis_adapters_message_sqlite::SqliteBus::open(
+        &config.db_path.with_file_name("bus.db"),
+    )?);
+    let blackboard: Arc<dyn ArtifactStore> =
+        Arc::new(orexis_adapters_artifacts_fs::FsBlackboard::open(
+            config.project_root.join(".orexis/blackboard"),
+        )?);
 
     Ok(Runtime {
         provider,
@@ -233,6 +246,9 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         workspace,
         entity,
         evolution,
+        board,
+        bus,
+        blackboard,
         codec,
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: Some(Arc::new(GitCheckpointStore::new(
@@ -408,6 +424,9 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
             db_path.with_file_name("entity.db"),
         )),
         evolution: None,
+        board: Arc::new(orexis_adapters_fake::FakeBoard::new(256)),
+        bus: Arc::new(orexis_adapters_fake::FakeBus::new()),
+        blackboard: Arc::new(orexis_adapters_fake::FakeBlackboard::new()),
         system_prompt: String::new(),
         context_tools: Vec::new(),
         external: Vec::new(),

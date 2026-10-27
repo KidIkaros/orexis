@@ -23,6 +23,9 @@ orexis-adapters-protocol-mcp.workspace = true
 orexis-adapters-protocol-utcp = { path = "../adapters-protocol-utcp" }
 orexis-adapters-protocol-a2a = { path = "../adapters-protocol-a2a" }
 orexis-adapters-evolution-git = { path = "../adapters-evolution-git" }
+orexis-adapters-board-sqlite.workspace = true
+orexis-adapters-message-sqlite = { path = "../adapters-message-sqlite" }
+orexis-adapters-artifacts-fs = { path = "../adapters-artifacts-fs" }
 dirs = "5"
 serde_yaml = "0.9"
 thiserror = "2"

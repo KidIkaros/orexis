@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use orexis_core::{ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, EntityFactory, EvolutionStore, ExternalTools, Provider, SessionFactory,
-    ToolExecutor, Verifier, Workspace,
+    ArtifactStore, BoardStore, Checkpointer, Codec, EntityFactory, EvolutionStore, ExternalTools,
+    MessageStore, Provider, SessionFactory, ToolExecutor, Verifier, Workspace,
 };
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
@@ -15,6 +15,7 @@ use crate::approvals::{ApprovalHub, MemoryOverrides};
 use crate::connection;
 use crate::session::SessionRegistry;
 
+#[derive(Clone)]
 pub struct DaemonConfig {
     pub socket: PathBuf,
     pub profile_id: String,
@@ -25,6 +26,13 @@ pub struct DaemonConfig {
     /// The evolution corridor through its port; `None` is "no evolution"
     /// (off by default per ADR-0015).
     pub evolution: Option<Arc<dyn EvolutionStore>>,
+    /// The team domain's stores (M8, ADR-0020).
+    pub board: Arc<dyn BoardStore>,
+    pub bus: Arc<dyn MessageStore>,
+    pub blackboard: Arc<dyn ArtifactStore>,
+    /// Team mode is opt-in (invariant 19); off is today's single-agent
+    /// behavior.
+    pub team: bool,
     pub external: Vec<Arc<dyn ExternalTools>>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,
@@ -79,6 +87,18 @@ impl Daemon {
             }
         }
         let listener = UnixListener::bind(&self.config.socket)?;
+        // Team mode is opt-in (invariant 19): the loop exists only when
+        // it is on; off is today's single-agent behavior.
+        if self.config.team {
+            let loop_self = Arc::new(crate::team::TeamLoop::new(
+                self.config.clone(),
+                self.registry.clone(),
+                self.base_tools.clone(),
+                self.hub.clone(),
+                self.generation.clone(),
+            ));
+            loop_self.spawn();
+        }
         loop {
             let (stream, _) = listener.accept().await?;
             let config = self.config.clone();

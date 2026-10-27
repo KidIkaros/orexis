@@ -1651,6 +1651,8 @@ version = "0.0.0"
 dependencies = [
  "dirs",
  "futures",
+ "orexis-adapters-artifacts-fs",
+ "orexis-adapters-board-sqlite",
  "orexis-adapters-codec",
  "orexis-adapters-context-fs",
  "orexis-adapters-entity-sqlite",
@@ -1658,6 +1660,7 @@ dependencies = [
  "orexis-adapters-fake",
  "orexis-adapters-http",
  "orexis-adapters-lsp",
+ "orexis-adapters-message-sqlite",
  "orexis-adapters-protocol-a2a",
  "orexis-adapters-protocol-mcp",
  "orexis-adapters-protocol-utcp",
