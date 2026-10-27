@@ -14,6 +14,12 @@ graph TD
   orexis-usecases --> orexis-ports
   orexis-adapters-fake --> orexis-core
   orexis-adapters-fake --> orexis-ports
+  orexis-adapters-board-sqlite --> orexis-core
+  orexis-adapters-board-sqlite --> orexis-ports
+  orexis-adapters-artifacts-fs --> orexis-core
+  orexis-adapters-artifacts-fs --> orexis-ports
+  orexis-adapters-message-sqlite --> orexis-core
+  orexis-adapters-message-sqlite --> orexis-ports
   orexis-adapters-session-sqlite --> orexis-core
   orexis-adapters-session-sqlite --> orexis-ports
   orexis-adapters-entity-sqlite --> orexis-core

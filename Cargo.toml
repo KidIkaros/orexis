@@ -8,6 +8,9 @@ members = [
     "crates/desktop-core",
     "crates/usecases",
     "crates/adapters-fake",
+    "crates/adapters-board-sqlite",
+    "crates/adapters-artifacts-fs",
+    "crates/adapters-message-sqlite",
     "crates/adapters-session-sqlite",
     "crates/adapters-entity-sqlite",
     "crates/adapters-evolution-git",
@@ -48,6 +51,9 @@ orexis-desktop-core = { path = "crates/desktop-core" }
 orexis-usecases = { path = "crates/usecases" }
 orexis-adapters-fake = { path = "crates/adapters-fake" }
 orexis-adapters-session-sqlite = { path = "crates/adapters-session-sqlite" }
+orexis-adapters-board-sqlite = { path = "crates/adapters-board-sqlite" }
+orexis-adapters-message-sqlite = { path = "crates/adapters-message-sqlite" }
+orexis-adapters-artifacts-fs = { path = "crates/adapters-artifacts-fs" }
 orexis-adapters-provider-catalog = { path = "crates/adapters-provider-catalog" }
 orexis-adapters-provider-openai = { path = "crates/adapters-provider-openai" }
 orexis-adapters-codec = { path = "crates/adapters-codec" }

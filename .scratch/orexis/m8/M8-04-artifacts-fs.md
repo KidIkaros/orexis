@@ -2,7 +2,8 @@
 
 - **Blocked by:** M8-01
 - **Blocks:** M8-09
-- **Status:** open
+- **Status:** resolved
+- **Claimed by:** devin, 2026-10-27
 
 ## Goal
 
@@ -15,3 +16,13 @@ a lease names an owner and expires; a stale lease is stealable.
 - [ ] Put/get/list artifacts; artifacts are capped in size.
 - [ ] Lease/acquire/steal-expired; a lease names its owner.
 - [ ] The root is jailed (no path escapes).
+
+## Landed
+
+- `adapters-artifacts-fs` (new): `FsBlackboard` — artifacts as files
+  under a jailed root (normalize + starts_with check; no escapes, no
+  absolutes, no empties), capped at 8MB; leases in a write-through JSON
+  (atomic rename) so a daemon restart does not forget who holds what;
+  expired leases are stealable, live ones are not.
+- Tests: round trip + jail, the cap, lease expiry/steal, reopen
+  preserves leases.

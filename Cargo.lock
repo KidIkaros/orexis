@@ -1352,6 +1352,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis-adapters-artifacts-fs"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "orexis-core",
+ "orexis-ports",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "orexis-adapters-board-sqlite"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "orexis-core",
+ "orexis-ports",
+ "rusqlite",
+ "tempfile",
+ "ulid",
+]
+
+[[package]]
 name = "orexis-adapters-codec"
 version = "0.0.0"
 dependencies = [
@@ -1437,6 +1462,18 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "orexis-adapters-message-sqlite"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "orexis-core",
+ "orexis-ports",
+ "rusqlite",
+ "tempfile",
 ]
 
 [[package]]

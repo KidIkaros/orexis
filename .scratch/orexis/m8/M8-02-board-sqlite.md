@@ -2,7 +2,8 @@
 
 - **Blocked by:** M8-01
 - **Blocks:** M8-06
-- **Status:** open
+- **Status:** resolved
+- **Claimed by:** devin, 2026-10-27
 
 ## Goal
 
@@ -18,3 +19,14 @@ session-sqlite pattern (schema version, migration adjacent).
 - [ ] `ready()` returns queued tasks whose edges are all done.
 - [ ] The 256-task cap is enforced at create (visible refusal).
 - [ ] Reopen preserves tasks (the crash-recovery property).
+
+## Landed
+
+- `adapters-board-sqlite` (new): `SqliteBoard` — tasks with edges in a
+  `task_edge` table; `ready()` is one SQL join (queued + all edges done);
+  transitions are guarded (`from` status checked in the UPDATE, errors
+  name the actual state); the cap (256, `open_with_cap` to tighten)
+  refuses visibly; WAL + synchronous FULL; reopen preserves tasks and
+  their statuses.
+- Tests: the fake's contracts replayed against the real store (edges,
+  cap, ordered transitions, unknown edges/tasks, reopen).

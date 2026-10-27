@@ -2,7 +2,8 @@
 
 - **Blocked by:** M8-01
 - **Blocks:** M8-09
-- **Status:** open
+- **Status:** resolved
+- **Claimed by:** devin, 2026-10-27
 
 ## Goal
 
@@ -15,3 +16,11 @@ global to the team; direct messages address a worker id.
 - [ ] Post direct and room; read since a seq; the seq is monotonic.
 - [ ] Messages are capped (unbounded tool output is an anti-pattern).
 - [ ] Reopen preserves messages.
+
+## Landed
+
+- `adapters-message-sqlite` (new): `SqliteBus` — messages with a
+  monotonic rowid seq; `read_since(seq, for_worker)` filters room +
+  direct-to-worker in SQL; text capped at 64KB; WAL + synchronous FULL;
+  reopen preserves.
+- Tests: seq + filtering, the cap, reopen.
