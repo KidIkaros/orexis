@@ -63,4 +63,4 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 18. ~~[Anthropic message-level cache breakpoints](018-anthropic-message-cache.md)~~ — resolved; the system prefix carries the breakpoint, the tail waits for measured evidence.
 19. ~~[`orexis` binary consolidation](019-binary-consolidation.md)~~ — resolved; one `orexis` binary, the TUI finally launchable, compat shims kept.
 20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved (automated half); key generation is the user's wizard step.
-21. [`orexis upgrade`](021-upgrade-command.md)
+21. ~~[`orexis upgrade`](021-upgrade-command.md)~~ — resolved; Rust-side minisign verification, atomic replace, state untouched.

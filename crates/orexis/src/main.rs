@@ -6,7 +6,9 @@ use std::path::PathBuf;
 
 use orexis_protocol::ServerMsg;
 
+mod minisign;
 mod providers;
+mod upgrade;
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -18,6 +20,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Attach { socket, session } => attach(socket, session),
         Command::Providers { detail } => providers(detail),
         Command::Init { profile, model } => init(profile, model),
+        Command::Upgrade { from } => crate::upgrade::upgrade(from.as_deref())
+            .map(|text| print!("{text}"))
+            .map_err(|error| Box::new(error) as Box<dyn std::error::Error>),
+        Command::Version => {
+            println!("orexis {}", env!("CARGO_PKG_VERSION"));
+            Ok(())
+        }
         Command::NotYet(name) => {
             eprintln!("not yet: {name} has no implementation; see .scratch/orexis/issues/");
             std::process::exit(2);
@@ -82,6 +91,10 @@ pub enum Command {
         socket: PathBuf,
         session: Option<String>,
     },
+    Upgrade {
+        from: Option<PathBuf>,
+    },
+    Version,
     /// A subcommand whose ticket has not landed; named in the error.
     NotYet(&'static str),
     Providers {
@@ -117,10 +130,13 @@ fn parse(args: &[String]) -> Command {
             profile: flag_value(flags, "--profile"),
             model: flag_value(flags, "--model"),
         },
+        "upgrade" => Command::Upgrade {
+            from: flag_value(flags, "--from").map(PathBuf::from),
+        },
+        "--version" | "-V" | "version" => Command::Version,
         "bench" => Command::NotYet("bench"),
         "export" => Command::NotYet("export"),
         "import" => Command::NotYet("import"),
-        "upgrade" => Command::NotYet("upgrade"),
         "--help" | "-h" | "help" => Command::Usage,
         other => {
             eprintln!("unknown subcommand: {other}");
@@ -178,7 +194,9 @@ fn usage() {
          \x20 providers [ID]   list profiles (auth buildability visible) or show one\n\
          \x20 init [--profile P --model M]\n\
          \x20                  select a provider; interactive when flags are absent\n\
-         \x20 export | import | upgrade | bench\n\
+         \x20 upgrade [--from DIR]\n\
+         \x20                  verify and install the newest release; state untouched\n\
+         \x20 export | import | bench\n\
          \x20                  not yet (M9)"
     );
 }
@@ -253,7 +271,7 @@ mod tests {
 
     #[test]
     fn unbuilt_subcommands_report_not_yet() {
-        for name in ["bench", "export", "import", "upgrade"] {
+        for name in ["bench", "export", "import"] {
             assert!(
                 matches!(parse(&args(&[name])), Command::NotYet(_)),
                 "{name} must be a NotYet stub"
