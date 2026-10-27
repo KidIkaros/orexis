@@ -20,8 +20,9 @@ use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::{GitCheckpointStore, LocalTools, ShellVerifier};
 use orexis_core::{Action, ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, ContextSource, EntityFactory, ExternalTools, Lsp, PortError, Provider,
-    SessionAppend, SessionFactory, SessionRead, ToolExecutor, Verifier, Workspace,
+    Checkpointer, Codec, ContextSource, EntityFactory, EvolutionStore, ExternalTools, Lsp,
+    PortError, Provider, SessionAppend, SessionFactory, SessionRead, ToolExecutor, Verifier,
+    Workspace,
 };
 use orexis_usecases::{select_codec, CodecCapabilities};
 
@@ -74,6 +75,9 @@ pub struct BuildConfig {
     pub mcp_dirs: Option<Vec<PathBuf>>,
     pub utcp_dirs: Option<Vec<PathBuf>>,
     pub a2a_dirs: Option<Vec<PathBuf>>,
+    /// The hex-encoded evolution signing seed (ADR-0009 env fallback);
+    /// `None` means no key is configured.
+    pub evolution_key: Option<String>,
     pub verify_command: Option<String>,
     pub system_prompt: String,
     pub context_limit: usize,
@@ -89,6 +93,7 @@ pub struct Runtime {
     pub verifier: Option<Arc<dyn Verifier>>,
     pub sessions: Arc<dyn SessionFactory>,
     pub entity: Arc<dyn EntityFactory>,
+    pub evolution: Option<Arc<dyn EvolutionStore>>,
     pub system_prompt: String,
     pub context_tools: Vec<ToolSpec>,
     pub external: Vec<Arc<dyn ExternalTools>>,
@@ -195,12 +200,14 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
     if let Some(a2a) = a2a_source(&config, &mut warnings) {
         external.push(a2a);
     }
+    let evolution = evolution_source(&config, &mut warnings);
 
     Ok(Runtime {
         provider,
         tools,
         workspace,
         entity,
+        evolution,
         codec,
         policy: Arc::new(PermissionPolicy::standard()),
         checkpointer: Some(Arc::new(GitCheckpointStore::new(
@@ -312,6 +319,48 @@ fn a2a_source(
     }
 }
 
+/// The evolution corridor, when one has been set up (ADR-0015: evolution
+/// is off by default, so a fresh install has no corridor and nothing is
+/// wired). The signing key comes from the configured seed; a corridor
+/// without a key is a visible warning, not a silently hidden overlay.
+fn evolution_source(
+    config: &BuildConfig,
+    warnings: &mut Vec<String>,
+) -> Option<Arc<dyn EvolutionStore>> {
+    let corridor = config.project_root.join(".orexis/evolution");
+    if !corridor.exists() {
+        return None;
+    }
+    let Some(key) = config
+        .evolution_key
+        .as_deref()
+        .filter(|key| !key.is_empty())
+    else {
+        warnings.push(format!(
+            "evolution corridor {} exists but no signing key is configured \
+             (OREXIS_EVOLUTION_KEY); /evolve will show no ledger",
+            corridor.display()
+        ));
+        return None;
+    };
+    let signer = match orexis_adapters_evolution_git::Ed25519Signer::from_hex(key) {
+        Ok(signer) => Arc::new(signer),
+        Err(error) => {
+            warnings.push(format!("evolution signing key: {error}"));
+            return None;
+        }
+    };
+    let store: Arc<dyn EvolutionStore> =
+        match orexis_adapters_evolution_git::GitCorridor::open(corridor, signer) {
+            Ok(store) => Arc::new(store),
+            Err(error) => {
+                warnings.push(format!("evolution corridor: {error}"));
+                return None;
+            }
+        };
+    Some(store)
+}
+
 /// Deterministic wiring for tests and `OREXIS_FAKE=1`.
 pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
     let provider: Arc<dyn Provider> = if std::env::var("OREXIS_FAKE_SLOW").is_ok() {
@@ -333,6 +382,7 @@ pub fn build_fake_runtime(db_path: PathBuf) -> Runtime {
         entity: Arc::new(SqliteEntityFactory::new(
             db_path.with_file_name("entity.db"),
         )),
+        evolution: None,
         system_prompt: String::new(),
         context_tools: Vec::new(),
         external: Vec::new(),

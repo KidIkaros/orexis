@@ -1620,6 +1620,7 @@ dependencies = [
  "futures",
  "orexis-adapters-codec",
  "orexis-adapters-entity-sqlite",
+ "orexis-adapters-evolution-git",
  "orexis-adapters-fake",
  "orexis-adapters-jsonrpc",
  "orexis-adapters-protocol-acp",

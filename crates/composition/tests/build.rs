@@ -42,6 +42,7 @@ fn config(dir: &tempfile::TempDir, providers: PathBuf, model: &str) -> BuildConf
         mcp_dirs: Some(Vec::new()),
         utcp_dirs: Some(Vec::new()),
         a2a_dirs: Some(Vec::new()),
+        evolution_key: None,
         verify_command: None,
         system_prompt: String::new(),
         context_limit: 32768,
@@ -165,4 +166,34 @@ fn utcp_manuals_load_from_explicit_dirs() {
         .external
         .iter()
         .any(|source| source.kind() == "utcp"));
+}
+
+#[test]
+fn an_existing_corridor_is_wired_through_the_port() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let providers = providers_dir("json");
+
+    // No corridor: evolution is off by default (ADR-0015); nothing is wired.
+    let runtime =
+        build_runtime(config(&dir, providers.path().to_path_buf(), "known")).expect("build");
+    assert!(runtime.evolution.is_none());
+
+    // A corridor without a key is a visible warning, not a silent absence.
+    std::fs::create_dir_all(dir.path().join(".orexis/evolution")).expect("corridor dir");
+    let mut wired = config(&dir, providers.path().to_path_buf(), "known");
+    wired.evolution_key = None;
+    let runtime = build_runtime(wired).expect("build");
+    assert!(runtime.evolution.is_none());
+    assert!(runtime
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("OREXIS_EVOLUTION_KEY")));
+
+    // A corridor with a key is wired as the EvolutionStore port.
+    let mut wired = config(&dir, providers.path().to_path_buf(), "known");
+    wired.evolution_key = Some("07".repeat(32));
+    let runtime = build_runtime(wired).expect("build");
+    let store = runtime.evolution.expect("corridor wired");
+    let entries = futures::executor::block_on(store.entries()).expect("entries");
+    assert!(entries.is_empty(), "a fresh corridor has no entries");
 }

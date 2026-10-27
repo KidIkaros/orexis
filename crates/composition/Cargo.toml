@@ -22,6 +22,7 @@ orexis-adapters-context-fs.workspace = true
 orexis-adapters-protocol-mcp.workspace = true
 orexis-adapters-protocol-utcp = { path = "../adapters-protocol-utcp" }
 orexis-adapters-protocol-a2a = { path = "../adapters-protocol-a2a" }
+orexis-adapters-evolution-git = { path = "../adapters-evolution-git" }
 dirs = "5"
 thiserror = "2"
 
@@ -29,4 +30,3 @@ thiserror = "2"
 tempfile = "3"
 futures = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-orexis-adapters-evolution-git = { path = "../adapters-evolution-git" }

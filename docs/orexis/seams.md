@@ -55,6 +55,7 @@ graph TD
   orexis-composition --> orexis-adapters-codec
   orexis-composition --> orexis-adapters-context-fs
   orexis-composition --> orexis-adapters-entity-sqlite
+  orexis-composition --> orexis-adapters-evolution-git
   orexis-composition --> orexis-adapters-fake
   orexis-composition --> orexis-adapters-http
   orexis-composition --> orexis-adapters-lsp

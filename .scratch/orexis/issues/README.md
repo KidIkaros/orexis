@@ -57,5 +57,5 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 12. ~~[Neuron alignment/steering](012-neuron-alignment.md)~~ — research track; ADR-0014.
 13. [Per-dialect provider conformance fixtures](013-provider-wire-conformance-fixtures.md)
 14. [`init` and `providers` surface implemented auth kinds](014-init-auth-kind-visibility.md)
-15. [Serve `/evolve` through the `EvolutionStore` port](015-evolve-through-the-port.md)
+15. ~~[Serve `/evolve` through the `EvolutionStore` port](015-evolve-through-the-port.md)~~ — resolved; the handler goes through the port, last 500 entries.
 16. ~~[Delimit built-in tool output too](016-delimit-builtin-tool-output.md)~~ — resolved; invariant 22 now covers built-ins at the executor boundary.

@@ -18,38 +18,33 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
     let fake = std::env::var("OREXIS_FAKE").is_ok();
     let profile = std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string());
     let model = std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string());
-    let cwd = std::env::current_dir()?;
-    let project_root = std::env::var("OREXIS_PROJECT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| cwd.clone());
-    let identity_path = if fake {
-        None
-    } else {
-        Some(project_root.join(".orexis/IDENTITY.md"))
-    };
-    let evolution_ledger = if fake {
-        None
-    } else {
-        Some(project_root.join(".orexis/evolution/ledger.jsonl"))
-    };
 
-    let runtime = if fake {
-        build_fake_runtime(db.clone())
+    // Fake mode uses neither the workspace nor the project layout; the
+    // current dir is also a failure path fake mode must not gain.
+    let (runtime, identity_path) = if fake {
+        (build_fake_runtime(db.clone()), None)
     } else {
-        build_runtime(BuildConfig {
+        let cwd = std::env::current_dir()?;
+        let project_root = std::env::var("OREXIS_PROJECT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| cwd.clone());
+        let identity_path = Some(project_root.join(".orexis/IDENTITY.md"));
+        let runtime = build_runtime(BuildConfig {
             profile_id: profile.clone(),
             model_id: model.clone(),
             db_path: db,
-            project_root: project_root.clone(),
-            cwd: cwd.clone(),
+            project_root,
+            cwd,
             providers_dir: None,
             mcp_dirs: None,
             utcp_dirs: None,
             a2a_dirs: None,
+            evolution_key: std::env::var("OREXIS_EVOLUTION_KEY").ok(),
             verify_command: std::env::var("OREXIS_VERIFY").ok(),
             system_prompt: String::new(),
             context_limit: 32768,
-        })?
+        })?;
+        (runtime, identity_path)
     };
 
     for warning in &runtime.warnings {
@@ -63,7 +58,7 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
         sessions: runtime.sessions,
         entity: runtime.entity,
         identity_path,
-        evolution_ledger,
+        evolution: runtime.evolution,
         external: runtime.external,
         provider: runtime.provider,
         tools: runtime.tools,

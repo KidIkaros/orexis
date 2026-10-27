@@ -252,14 +252,20 @@ pub(crate) async fn evolution(
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
     let mut entries = Vec::new();
-    if let Some(path) = &config.evolution_ledger {
-        if let Ok(text) = std::fs::read_to_string(path) {
-            entries = text
-                .lines()
-                .filter(|line| !line.trim().is_empty())
-                .take(500)
-                .map(str::to_string)
-                .collect();
+    if let Some(store) = &config.evolution {
+        // The path and format live in the corridor adapter; the overlay
+        // keeps the most recent entries so a growing ledger never hides
+        // the newest decisions.
+        match store.export_jsonl() {
+            Ok(text) => {
+                let lines: Vec<&str> = text
+                    .lines()
+                    .filter(|line| !line.trim().is_empty())
+                    .collect();
+                let start = lines.len().saturating_sub(500);
+                entries = lines[start..].iter().map(|line| line.to_string()).collect();
+            }
+            Err(error) => eprintln!("warning: evolution ledger: {error}"),
         }
     }
     write_msg(write, &ServerMsg::Evolution { entries }).await

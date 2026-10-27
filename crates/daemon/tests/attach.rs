@@ -49,7 +49,7 @@ fn config_with(socket: &Path, db: &Path, script: Vec<Vec<Action>>) -> DaemonConf
             socket.parent().unwrap_or(Path::new(".")).join("entity.db"),
         )),
         identity_path: None,
-        evolution_ledger: None,
+        evolution: None,
         external: Vec::new(),
         provider: Arc::new(ScriptedProvider::new(script)),
         tools: Arc::new(EchoTools),
@@ -1086,14 +1086,53 @@ async fn evolution_returns_the_ledger() {
     let dir = tempfile::tempdir().expect("tempdir");
     let socket = dir.path().join("daemon.sock");
     let db = dir.path().join("sessions.db");
-    let ledger = dir.path().join("ledger.jsonl");
-    std::fs::write(&ledger, "#1 apply\n#2 revert\n").expect("ledger");
+    let corridor = orexis_adapters_evolution_git::GitCorridor::open(
+        dir.path().join("corridor"),
+        test_signer(),
+    )
+    .expect("corridor");
+    std::fs::write(
+        dir.path().join("corridor/ledger.jsonl"),
+        "#1 apply\n#2 revert\n",
+    )
+    .expect("ledger");
     let mut config = config(&socket, &db);
-    config.evolution_ledger = Some(ledger);
+    config.evolution = Some(Arc::new(corridor));
     let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
     send(&mut writer, &ClientMsg::Evolution).await;
     let entries = read_until_evolution(&mut reader, &mut line).await;
     assert_eq!(entries, vec!["#1 apply", "#2 revert"]);
+}
+
+#[tokio::test]
+async fn evolution_shows_the_most_recent_entries() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let corridor = orexis_adapters_evolution_git::GitCorridor::open(
+        dir.path().join("corridor"),
+        test_signer(),
+    )
+    .expect("corridor");
+    let ledger: String = (1..=600)
+        .map(|seq| format!("entry-{seq}\n"))
+        .collect::<Vec<_>>()
+        .concat();
+    std::fs::write(dir.path().join("corridor/ledger.jsonl"), ledger).expect("ledger");
+    let mut config = config(&socket, &db);
+    config.evolution = Some(Arc::new(corridor));
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
+    send(&mut writer, &ClientMsg::Evolution).await;
+    let entries = read_until_evolution(&mut reader, &mut line).await;
+    assert_eq!(entries.len(), 500, "the overlay keeps the last 500");
+    assert_eq!(entries[0], "entry-101", "oldest kept entry");
+    assert_eq!(entries[499], "entry-600", "newest entry");
+}
+
+fn test_signer() -> Arc<dyn orexis_ports::Signer> {
+    Arc::new(orexis_adapters_evolution_git::Ed25519Signer::from_seed(
+        [7u8; 32],
+    ))
 }
 
 #[tokio::test]

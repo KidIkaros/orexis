@@ -20,6 +20,13 @@ impl Ed25519Signer {
             .map_err(|_| PortError("ed25519 seed must be 32 bytes".into()))?;
         Ok(Self::from_seed(seed))
     }
+
+    /// A signing key from its hex-encoded seed — the format the
+    /// environment fallback carries (ADR-0009).
+    pub fn from_hex(text: &str) -> PortResult<Self> {
+        let bytes = crate::git::hex_decode(text)?;
+        Self::from_bytes(&bytes)
+    }
 }
 
 impl Signer for Ed25519Signer {

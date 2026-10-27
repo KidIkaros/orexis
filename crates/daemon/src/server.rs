@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use orexis_core::{ContextFile, PermissionPolicy, ToolSpec};
 use orexis_ports::{
-    Checkpointer, Codec, EntityFactory, ExternalTools, Provider, SessionFactory, ToolExecutor,
-    Verifier, Workspace,
+    Checkpointer, Codec, EntityFactory, EvolutionStore, ExternalTools, Provider, SessionFactory,
+    ToolExecutor, Verifier, Workspace,
 };
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
@@ -22,7 +22,9 @@ pub struct DaemonConfig {
     pub sessions: Arc<dyn SessionFactory>,
     pub entity: Arc<dyn EntityFactory>,
     pub identity_path: Option<PathBuf>,
-    pub evolution_ledger: Option<PathBuf>,
+    /// The evolution corridor through its port; `None` is "no evolution"
+    /// (off by default per ADR-0015).
+    pub evolution: Option<Arc<dyn EvolutionStore>>,
     pub external: Vec<Arc<dyn ExternalTools>>,
     pub provider: Arc<dyn Provider>,
     pub tools: Arc<dyn ToolExecutor>,

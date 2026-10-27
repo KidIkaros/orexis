@@ -2,8 +2,8 @@
 
 - **Type:** feature
 - **Blocks:** —
-- **Status:** open
-- **Claimed by:** —
+- **Status:** resolved
+- **Claimed by:** devin, 2026-10-27
 
 ## Question
 
@@ -28,15 +28,35 @@ evolution ledger".
    unconditionally; fake mode uses neither, and `current_dir()?` becomes a
    new failure path. Fix: compute inside the real branch.
 
-## Acceptance
+## Resolution
 
-- [ ] Daemon holds `Option<Arc<dyn EvolutionStore>>`; no ledger path in
-      `serve.rs`.
-- [ ] Overlay shows the most recent entries (last 500).
-- [ ] Fake runtime serves "no evolution ledger" as today.
-- [ ] `m6-gate.sh` green.
+All three findings fixed. `DaemonConfig` holds
+`Option<Arc<dyn EvolutionStore>>`; the handler calls `export_jsonl()` and
+keeps the last 500 lines; a ledger read error is a startup-visible
+warning, not a silent empty overlay. Composition constructs the corridor
+only when `.orexis/evolution` exists (ADR-0015: evolution is off by
+default, so a fresh install wires nothing and gains no side effects),
+with the signing seed from `OREXIS_EVOLUTION_KEY` (hex, ADR-0009 env
+fallback); a corridor without a key is a visible warning. Fake mode
+passes `None` and serves "no evolution ledger" as before. `env.rs` now
+computes `cwd`/`project_root` only in the real branch.
 
-## Notes
+## Landed
 
-Found by the clean-code review pass before M7; not a regression — the
-surface is read-only and correct for small ledgers.
+- `composition`: `Runtime.evolution`, `BuildConfig.evolution_key`,
+  `evolution_source()`; `orexis-adapters-evolution-git` moved from
+  dev-dep to dep (composition constructs adapters).
+- `adapters-evolution-git`: `Ed25519Signer::from_hex` — the adapter owns
+  its key format.
+- `daemon`: `DaemonConfig.evolution`; handler through the port, last 500;
+  `env.rs` restructured (no `expect` on construction invariants).
+- Tests: `evolution_returns_the_ledger` (through a real corridor),
+  `evolution_shows_the_most_recent_entries` (600 lines → last 500),
+  `an_existing_corridor_is_wired_through_the_port` (no corridor → None;
+  corridor without key → warning; corridor with key → wired).
+- `docs/orexis/seams.md`: the composition → evolution-git edge.
+
+## Follow-ups
+
+Evolution key provisioning (keyring entry, an `evolution init` flow) is
+fog — the env fallback is the ADR-0009 floor, not the full story.

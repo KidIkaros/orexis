@@ -27,3 +27,4 @@ tempfile = "3"
 async-trait = "0.1"
 futures = "0.3"
 orexis-adapters-entity-sqlite = { path = "../adapters-entity-sqlite" }
+orexis-adapters-evolution-git = { path = "../adapters-evolution-git" }
