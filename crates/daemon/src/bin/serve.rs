@@ -1,11 +1,9 @@
-//! `serve`: build the runtime from the catalog and run the daemon.
-//! `OREXIS_FAKE=1` uses deterministic fakes for tests.
+//! Compat entry point for `serve`; the user-facing binary is `orexis
+//! serve` (ticket 019). Kept for the daemon tests' `CARGO_BIN_EXE_serve`.
 
-use orexis_daemon::{daemon_config_from_env, Daemon};
+use orexis_daemon::serve_main;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = daemon_config_from_env()?;
-    Daemon::new(config).run().await?;
-    Ok(())
+    serve_main().await
 }

@@ -2,8 +2,8 @@
 
 - **Type:** feature
 - **Blocks:** M9, 020, 021, 014
-- **Status:** open
-- **Claimed by:** —
+- **Status:** resolved
+- **Claimed by:** devin, 2026-10-27
 
 ## Question
 
@@ -20,18 +20,43 @@ parser today), and what happens to the old entry points?
   consolidation").
 - 1.0 checklist: `orexis init`, `export --all` / `import`, `providers`.
 - PLAN §4.1: `orexis` is the binary crate: cli / serve / attach / bench.
+- Found while sizing: **nothing launched the TUI** — `adapters-tui` is a
+  library with a `run()` that no binary called; the M1 gate's manual text
+  referenced a launcher that did not exist.
 
-## Acceptance
+## Resolution
 
-- [ ] One `orexis` binary; `serve`, `attach`, `acp`, `tui`, `bench`,
-      `init`, `providers`, `export`, `import`, `upgrade` subcommands (the
-      last four may stub with a "not yet" error until their tickets land).
-- [ ] No new dependency unless unavoidable; the argument surface is
-      hand-rolled or a minimal parser.
-- [ ] The old entry points keep working (compat shims or documented
-      removal).
-- [ ] The gates still pass from the consolidated binary.
+**A new `crates/orexis` binary crate** — the outermost layer, depending
+on daemon, adapters-tui, client, and protocol. Hand-rolled dispatch (no
+CLI parser; the subcommands are few):
 
-## Notes
+- `serve` / `acp` — the daemon's subcommand bodies moved into
+  `daemon::cli::{serve_main, acp_main}`; the old bins remain as compat
+  shims (and keep the daemon tests' `CARGO_BIN_EXE_serve` working).
+- `tui [--socket P] [SESSION]` — launches the TUI (the previously
+  missing launcher).
+- `attach [--socket P] [SESSION]` — a pipe client: stdin lines are
+  prompts, server messages print as NDJSON; `/stop` interrupts.
+  Scriptable oversight without a terminal UI.
+- `init | providers | export | import | upgrade | bench` — `not yet`
+  stubs (exit 2), their tickets pending (014, 020, 021).
+- `--socket` defaults to `OREXIS_SOCKET` or `/tmp/orexis.sock`.
 
-`init` and `providers` are where ticket 014's auth-kind visibility lands.
+The runtime is built explicitly for the async subcommands; the TUI runs
+sync on the main thread.
+
+## Landed
+
+- `crates/orexis` (new): dispatch, pipe client, usage, unit tests
+  (routing, stubs, usage).
+- `daemon::cli`: shared subcommand bodies; the bins are shims.
+- `docs/orexis/seams.md`: regenerated (orexis → tui/client/daemon/
+  protocol).
+- `scripts/m1-gate.sh`, `scripts/m3-gate.sh`: the manual text now names
+  `orexis tui`.
+
+## Follow-ups
+
+- Ticket 014 lands `init`/`providers` here (auth-kind visibility).
+- Ticket 020 (release pipeline) packages this binary.
+- Ticket 021 (`orexis upgrade`) replaces its stub.

@@ -30,6 +30,7 @@ members = [
     "crates/adapters-protocol-a2a",
     "crates/composition",
     "crates/slice",
+    "crates/orexis",
 ]
 resolver = "2"
 

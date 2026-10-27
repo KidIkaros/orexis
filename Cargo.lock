@@ -1319,6 +1319,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "orexis"
+version = "0.0.0"
+dependencies = [
+ "orexis-adapters-tui",
+ "orexis-client",
+ "orexis-daemon",
+ "orexis-protocol",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "orexis-adapters-codec"
 version = "0.0.0"
 dependencies = [

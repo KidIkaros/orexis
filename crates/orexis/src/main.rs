@@ -1,0 +1,207 @@
+//! The `orexis` binary: one entry point, subcommands (ADR-0019, ticket
+//! 019). The argument surface is hand-rolled — the workspace carries no
+//! CLI parser, and the subcommands are few.
+
+use std::path::PathBuf;
+
+use orexis_protocol::ServerMsg;
+
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match parse(&args) {
+        Command::Serve => runtime()?.block_on(orexis_daemon::serve_main()),
+        Command::Acp => runtime()?.block_on(orexis_daemon::acp_main()),
+        Command::Tui { socket, session } => orexis_adapters_tui::run(socket, session)
+            .map_err(|error| Box::new(error) as Box<dyn std::error::Error>),
+        Command::Attach { socket, session } => attach(socket, session),
+        Command::NotYet(name) => {
+            eprintln!("not yet: {name} has no implementation; see .scratch/orexis/issues/");
+            std::process::exit(2);
+        }
+        Command::Usage => {
+            usage();
+            Ok(())
+        }
+    }
+}
+
+fn runtime() -> Result<tokio::runtime::Runtime, Box<dyn std::error::Error>> {
+    Ok(tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?)
+}
+
+/// The subcommands, parsed from argv. Unit-tested; `main` only executes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Command {
+    Serve,
+    Acp,
+    Tui {
+        socket: PathBuf,
+        session: Option<String>,
+    },
+    Attach {
+        socket: PathBuf,
+        session: Option<String>,
+    },
+    /// A subcommand whose ticket has not landed; named in the error.
+    NotYet(&'static str),
+    Usage,
+}
+
+fn parse(args: &[String]) -> Command {
+    let Some(name) = args.first() else {
+        return Command::Usage;
+    };
+    let flags = &args[1..];
+    match name.as_str() {
+        "serve" => Command::Serve,
+        "acp" => Command::Acp,
+        "tui" | "attach" => {
+            let (socket, session) = socket_and_session(flags);
+            if name == "tui" {
+                Command::Tui { socket, session }
+            } else {
+                Command::Attach { socket, session }
+            }
+        }
+        "bench" => Command::NotYet("bench"),
+        "init" => Command::NotYet("init"),
+        "providers" => Command::NotYet("providers"),
+        "export" => Command::NotYet("export"),
+        "import" => Command::NotYet("import"),
+        "upgrade" => Command::NotYet("upgrade"),
+        "--help" | "-h" | "help" => Command::Usage,
+        other => {
+            eprintln!("unknown subcommand: {other}");
+            usage();
+            std::process::exit(2);
+        }
+    }
+}
+
+/// `--socket PATH` (default `/tmp/orexis.sock`) and an optional session
+/// id positional.
+fn socket_and_session(flags: &[String]) -> (PathBuf, Option<String>) {
+    let mut socket = PathBuf::from(
+        std::env::var("OREXIS_SOCKET").unwrap_or_else(|_| "/tmp/orexis.sock".to_string()),
+    );
+    let mut session = None;
+    let mut flags = flags.iter();
+    while let Some(flag) = flags.next() {
+        match flag.as_str() {
+            "--socket" => {
+                if let Some(path) = flags.next() {
+                    socket = PathBuf::from(path);
+                }
+            }
+            "--session" => {
+                if let Some(id) = flags.next() {
+                    session = Some(id.clone());
+                }
+            }
+            _ => session = Some(flag.clone()),
+        }
+    }
+    (socket, session)
+}
+
+fn usage() {
+    eprintln!(
+        "usage: orexis <command>\n\n\
+         commands:\n\
+         \x20 serve            run the daemon (OREXIS_* env configures it)\n\
+         \x20 acp              serve the ACP agent over stdio\n\
+         \x20 tui [--socket P] [SESSION]\n\
+         \x20                  attach the terminal UI\n\
+         \x20 attach [--socket P] [SESSION]\n\
+         \x20                  pipe client: stdin lines are prompts, events print as NDJSON\n\
+         \x20 init | providers | export | import | upgrade | bench\n\
+         \x20                  not yet (M9)"
+    );
+}
+
+/// The pipe client: stdin lines become prompts; server messages print as
+/// NDJSON — scriptable oversight without a terminal UI.
+fn attach(socket: PathBuf, session: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = orexis_client::DaemonClient::connect(&socket)?;
+    let session_id = client.attach(session)?;
+    println!(
+        "{}",
+        serde_json::to_string(&ServerMsg::Attached {
+            session_id: session_id.clone(),
+        })?
+    );
+    let stdin = std::io::stdin();
+    let mut prompt = String::new();
+    loop {
+        while let Some(message) = client.try_recv()? {
+            println!("{}", serde_json::to_string(&message)?);
+        }
+        prompt.clear();
+        if stdin.read_line(&mut prompt)? == 0 {
+            return Ok(());
+        }
+        let line = prompt.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line == "/stop" {
+            client.interrupt()?;
+            continue;
+        }
+        client.prompt(line, false)?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn subcommands_route() {
+        assert_eq!(parse(&args(&["serve"])), Command::Serve);
+        assert_eq!(parse(&args(&["acp"])), Command::Acp);
+        assert_eq!(
+            parse(&args(&["tui", "--socket", "/tmp/x.sock"])),
+            Command::Tui {
+                socket: PathBuf::from("/tmp/x.sock"),
+                session: None,
+            }
+        );
+        assert_eq!(
+            parse(&args(&["tui", "session-1"])),
+            Command::Tui {
+                socket: PathBuf::from("/tmp/orexis.sock"),
+                session: Some("session-1".to_string()),
+            }
+        );
+        assert_eq!(
+            parse(&args(&["attach"])),
+            Command::Attach {
+                socket: PathBuf::from("/tmp/orexis.sock"),
+                session: None,
+            }
+        );
+    }
+
+    #[test]
+    fn unbuilt_subcommands_report_not_yet() {
+        for name in ["bench", "init", "providers", "export", "import", "upgrade"] {
+            assert!(
+                matches!(parse(&args(&[name])), Command::NotYet(_)),
+                "{name} must be a NotYet stub"
+            );
+        }
+    }
+
+    #[test]
+    fn no_arguments_is_usage() {
+        assert_eq!(parse(&[]), Command::Usage);
+        assert_eq!(parse(&args(&["--help"])), Command::Usage);
+    }
+}

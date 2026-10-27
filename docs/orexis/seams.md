@@ -90,4 +90,8 @@ graph TD
   orexis-slice --> orexis-core
   orexis-slice --> orexis-ports
   orexis-slice --> orexis-usecases
+  orexis --> orexis-adapters-tui
+  orexis --> orexis-client
+  orexis --> orexis-daemon
+  orexis --> orexis-protocol
 ```
