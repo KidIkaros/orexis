@@ -59,6 +59,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Native adapters are on-demand (wire/fidelity/auth triggers), not milestone-scheduled; M7 stays protocols-only | ADR-0016; ticket 009 |
 | Provider conformance fixtures are capability transcripts with a three-state manifest (expressed / gap / wire-inexpressible); open_ai + anthropic first; thinking and message-cache gaps are adapter tickets, not native triggers | ADR-0018; ticket 013 |
 | Packaging: one `orexis` binary, four targets, minisign-signed artifacts (one keypair with the Tauri updater), GitHub Releases primary, verify-before-execute; upgrade preservation is structural | ADR-0019; ticket 010 |
+| Team-mode domain: workers are in-process turns over sessions sharing the entity; board/bus/blackboard are ports with sqlite/fs adapters; the scheduler asks the provider for capacity; strategies are use cases; the supervisor is a watchdog; opt-in, benchmark-gated | ADR-0020; M8 spec |
 
 ### Frontier
 

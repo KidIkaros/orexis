@@ -65,3 +65,7 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved (automated half); key generation is the user's wizard step.
 21. ~~[`orexis upgrade`](021-upgrade-command.md)~~ — resolved; Rust-side minisign verification, atomic replace, state untouched.
 22. ~~[No silent default](022-no-silent-default.md)~~ — resolved; an unconfigured serve refuses to start, naming `orexis init`.
+
+## M8 — Team mode (spec: `docs/orexis/specs/M8.md`, ADR-0020)
+
+Tickets live in `.scratch/orexis/m8/`; see that directory's README.

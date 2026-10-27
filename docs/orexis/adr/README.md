@@ -59,3 +59,4 @@ What else was on the table, and why it lost.
 | [0017](0017-protocol-surfaces.md) | Protocol surfaces and integration boundary | accepted |
 | [0018](0018-provider-conformance-fixtures.md) | Provider conformance fixtures and the fidelity manifest | accepted |
 | [0019](0019-packaging-signing.md) | Packaging, signing, and upgrade | accepted |
+| [0020](0020-team-mode-domain.md) | The team-mode domain: workers over sessions, three stores, a capacity-bounded scheduler | accepted |
