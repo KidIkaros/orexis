@@ -167,7 +167,7 @@ impl ToolExecutor for LocalTools {
     async fn execute(&self, name: &str, args: &str) -> PortResult<Observation> {
         let value: Value = serde_json::from_str(args)
             .map_err(|error| PortError(format!("invalid args: {error}")))?;
-        match name {
+        let observation = match name {
             "read_file" => self.read_file(&value),
             "write_file" => self.write_file(&value),
             "edit_file" => self.edit_file(&value).await,
@@ -177,8 +177,21 @@ impl ToolExecutor for LocalTools {
             "git_status" => self.git_status(&value),
             "git_diff" => self.git_diff(&value),
             other => Err(PortError(format!("unknown tool '{other}'"))),
-        }
+        }?;
+        Ok(Observation {
+            name: observation.name,
+            output: delimit(name, &observation.output),
+        })
     }
+}
+
+/// Built-in tool output is untrusted content (invariant 22): repository
+/// files, command output, and listings enter the model context delimited,
+/// exactly as external tool output does. A closing tag inside the output
+/// must not end the delimited region early, so it is escaped.
+fn delimit(name: &str, output: &str) -> String {
+    let escaped = output.replace("</tool_result", "<\\/tool_result");
+    format!("<tool_result name=\"{name}\">\n{escaped}\n</tool_result>")
 }
 
 fn arg_str<'a>(value: &'a Value, key: &str) -> PortResult<&'a str> {
