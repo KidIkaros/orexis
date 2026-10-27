@@ -33,16 +33,22 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
             .unwrap_or_else(|_| cwd.clone());
         let identity_path = Some(project_root.join(".orexis/IDENTITY.md"));
         // The selection `orexis init` wrote; the environment overrides it
-        // (ticket 014).
+        // (ticket 014). There is no silent default (the 1.0 checklist):
+        // an unconfigured serve refuses to start, naming the way out.
         let selection = orexis_composition::read_selection(&project_root);
         let profile = std::env::var("OREXIS_PROFILE")
             .ok()
-            .or_else(|| selection.as_ref().map(|s| s.profile_id.clone()))
-            .unwrap_or_else(|| "openai".to_string());
+            .or_else(|| selection.as_ref().map(|s| s.profile_id.clone()));
         let model = std::env::var("OREXIS_MODEL")
             .ok()
-            .or_else(|| selection.as_ref().map(|s| s.model_id.clone()))
-            .unwrap_or_else(|| "gpt-5".to_string());
+            .or_else(|| selection.as_ref().map(|s| s.model_id.clone()));
+        let (Some(profile), Some(model)) = (profile, model) else {
+            return Err(
+                "no provider selected: run `orexis init` (or set OREXIS_PROFILE and \
+                 OREXIS_MODEL)"
+                    .into(),
+            );
+        };
         let runtime = build_runtime(BuildConfig {
             profile_id: profile.clone(),
             model_id: model.clone(),

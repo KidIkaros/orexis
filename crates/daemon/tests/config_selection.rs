@@ -85,3 +85,31 @@ async fn the_environment_overrides_the_written_selection() {
     child.kill().await.ok();
     assert!(connected, "the daemon must start on the env's profile");
 }
+
+#[tokio::test]
+async fn nothing_configured_is_an_error_naming_init() {
+    // The 1.0 checklist: "there is no silent default." A fresh install
+    // with no env and no written selection must refuse to start, naming
+    // the way out.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+
+    let child = serve(&socket, &db, dir.path())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn serve");
+    let output = tokio::time::timeout(Duration::from_secs(30), child.wait_with_output())
+        .await
+        .expect("serve should exit")
+        .expect("wait");
+    assert!(
+        !output.status.success(),
+        "an unconfigured serve must not start"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("orexis init"),
+        "the error names the way out: {stderr}"
+    );
+}

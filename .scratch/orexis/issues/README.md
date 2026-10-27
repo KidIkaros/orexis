@@ -64,3 +64,4 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 19. ~~[`orexis` binary consolidation](019-binary-consolidation.md)~~ — resolved; one `orexis` binary, the TUI finally launchable, compat shims kept.
 20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved (automated half); key generation is the user's wizard step.
 21. ~~[`orexis upgrade`](021-upgrade-command.md)~~ — resolved; Rust-side minisign verification, atomic replace, state untouched.
+22. ~~[No silent default](022-no-silent-default.md)~~ — resolved; an unconfigured serve refuses to start, naming `orexis init`.
