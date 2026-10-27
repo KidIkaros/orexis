@@ -52,7 +52,7 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 7. [Entity model: five vs six drives, affect dimensions](007-entity-model.md)
 8. [Evolution tier defaults and validation ladder](008-evolution-tier-defaults.md)
 9. ~~[Native adapter timing: Gemini / Bedrock / Vertex](009-native-adapter-timing.md)~~ — resolved; ADR-0016.
-10. [Packaging and signing](010-packaging-signing.md)
+10. ~~[Packaging and signing](010-packaging-signing.md)~~ — resolved; ADR-0019.
 11. ~~[Eight per-repo study decisions](011-per-repo-study-decisions.md)~~ — resolved; synthesis drafted.
 12. ~~[Neuron alignment/steering](012-neuron-alignment.md)~~ — research track; ADR-0014.
 13. ~~[Per-dialect provider conformance fixtures](013-provider-wire-conformance-fixtures.md)~~ — resolved; ADR-0018.
@@ -61,3 +61,6 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 16. ~~[Delimit built-in tool output too](016-delimit-builtin-tool-output.md)~~ — resolved; invariant 22 now covers built-ins at the executor boundary.
 17. ~~[Emit thinking configuration per profile](017-thinking-config.md)~~ — resolved; the port carries the thinking request, the posture is the source, adapters own the wire mapping.
 18. ~~[Anthropic message-level cache breakpoints](018-anthropic-message-cache.md)~~ — resolved; the system prefix carries the breakpoint, the tail waits for measured evidence.
+19. [`orexis` binary consolidation](019-binary-consolidation.md)
+20. [Release pipeline](020-release-pipeline.md)
+21. [`orexis upgrade`](021-upgrade-command.md)

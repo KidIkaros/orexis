@@ -58,6 +58,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Study gate cleared: synthesis + ADRs 0001–0004 + vertical slice (six crates) replaying byte-identically | `docs/orexis/slice.md` |
 | Native adapters are on-demand (wire/fidelity/auth triggers), not milestone-scheduled; M7 stays protocols-only | ADR-0016; ticket 009 |
 | Provider conformance fixtures are capability transcripts with a three-state manifest (expressed / gap / wire-inexpressible); open_ai + anthropic first; thinking and message-cache gaps are adapter tickets, not native triggers | ADR-0018; ticket 013 |
+| Packaging: one `orexis` binary, four targets, minisign-signed artifacts (one keypair with the Tauri updater), GitHub Releases primary, verify-before-execute; upgrade preservation is structural | ADR-0019; ticket 010 |
 
 ### Frontier
 
@@ -72,7 +73,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 7. ~~**Entity model: five vs six drives, affect dimensions**~~ — resolved; ADR-0013.
 8. ~~**Evolution tier defaults and validation ladder**~~ — resolved; ADR-0015.
 9. ~~**Native adapter timing: Gemini / Bedrock / Vertex**~~ — resolved; ADR-0016.
-10. **Packaging and signing** — blocks M9.
+10. ~~**Packaging and signing**~~ — resolved; ADR-0019.
 11. ~~**Eight per-repo study decisions**~~ — resolved; synthesis drafted.
 
 ### Not yet specified

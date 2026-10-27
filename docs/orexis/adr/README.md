@@ -58,3 +58,4 @@ What else was on the table, and why it lost.
 | [0016](0016-native-adapter-timing.md) | Native adapters are on-demand, not milestone-scheduled | accepted |
 | [0017](0017-protocol-surfaces.md) | Protocol surfaces and integration boundary | accepted |
 | [0018](0018-provider-conformance-fixtures.md) | Provider conformance fixtures and the fidelity manifest | accepted |
+| [0019](0019-packaging-signing.md) | Packaging, signing, and upgrade | accepted |
