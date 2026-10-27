@@ -1,5 +1,8 @@
 # M7 — Protocols
 
+All tickets resolved (2026-10-26); `scripts/m7-gate.sh` green. Manual
+remaining: one real peer per protocol (see M7-11).
+
 | Ticket | Goal | Blocked by |
 |---|---|---|
 | [M7-01](M7-01-jsonrpc.md) | `adapters-jsonrpc`: envelope, framing, correlation | — |

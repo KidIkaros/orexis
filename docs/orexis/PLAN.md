@@ -300,6 +300,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 **M5 status (2026-10-26):** automated gate green; M5-01 … M5-06 resolved. Manual: `/self` against a real repo and a live model switch. Decision 007 resolved (ADR-0013); neuron alignment is a separate research track (ADR-0014, M5-R01).
 
+**M7 status (2026-10-26):** automated gate green (`scripts/m7-gate.sh`); M7-01 … M7-11 resolved. Protocols: MCP client (stdio + streamable HTTP), ACP server (stdio, fs + permission callbacks), UTCP client (HTTP/CLI/MCP transports), A2A client (card, send, tasks, SSE). Manual: one real peer per protocol. A2A/UTCP adoption beyond fixture-level is decided on M7's evidence.
+
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 
 **Cut rule:** if a milestone misses its gate twice, the previous milestone becomes the release candidate and the missed one moves to 1.1. No milestone silently absorbs another.
