@@ -1322,11 +1322,16 @@ dependencies = [
 name = "orexis"
 version = "0.0.0"
 dependencies = [
+ "orexis-adapters-provider-catalog",
  "orexis-adapters-tui",
  "orexis-client",
+ "orexis-composition",
  "orexis-daemon",
  "orexis-protocol",
  "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.21",
  "tokio",
 ]
 
@@ -1610,6 +1615,7 @@ dependencies = [
  "orexis-core",
  "orexis-ports",
  "orexis-usecases",
+ "serde_yaml",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",

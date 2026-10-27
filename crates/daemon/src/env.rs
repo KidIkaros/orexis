@@ -16,19 +16,33 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/tmp/orexis.db"));
     let fake = std::env::var("OREXIS_FAKE").is_ok();
-    let profile = std::env::var("OREXIS_PROFILE").unwrap_or_else(|_| "openai".to_string());
-    let model = std::env::var("OREXIS_MODEL").unwrap_or_else(|_| "gpt-5".to_string());
 
     // Fake mode uses neither the workspace nor the project layout; the
     // current dir is also a failure path fake mode must not gain.
-    let (runtime, identity_path) = if fake {
-        (build_fake_runtime(db.clone()), None)
+    let (runtime, identity_path, profile, model) = if fake {
+        (
+            build_fake_runtime(db.clone()),
+            None,
+            "fake".to_string(),
+            "fake".to_string(),
+        )
     } else {
         let cwd = std::env::current_dir()?;
         let project_root = std::env::var("OREXIS_PROJECT")
             .map(PathBuf::from)
             .unwrap_or_else(|_| cwd.clone());
         let identity_path = Some(project_root.join(".orexis/IDENTITY.md"));
+        // The selection `orexis init` wrote; the environment overrides it
+        // (ticket 014).
+        let selection = orexis_composition::read_selection(&project_root);
+        let profile = std::env::var("OREXIS_PROFILE")
+            .ok()
+            .or_else(|| selection.as_ref().map(|s| s.profile_id.clone()))
+            .unwrap_or_else(|| "openai".to_string());
+        let model = std::env::var("OREXIS_MODEL")
+            .ok()
+            .or_else(|| selection.as_ref().map(|s| s.model_id.clone()))
+            .unwrap_or_else(|| "gpt-5".to_string());
         let runtime = build_runtime(BuildConfig {
             profile_id: profile.clone(),
             model_id: model.clone(),
@@ -44,7 +58,7 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
             system_prompt: String::new(),
             context_limit: 32768,
         })?;
-        (runtime, identity_path)
+        (runtime, identity_path, profile, model)
     };
 
     for warning in &runtime.warnings {
@@ -53,8 +67,8 @@ pub fn daemon_config_from_env() -> Result<DaemonConfig, Box<dyn std::error::Erro
 
     Ok(DaemonConfig {
         socket,
-        profile_id: if fake { "fake".to_string() } else { profile },
-        model_id: if fake { "fake".to_string() } else { model },
+        profile_id: profile,
+        model_id: model,
         sessions: runtime.sessions,
         entity: runtime.entity,
         identity_path,

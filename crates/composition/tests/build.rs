@@ -197,3 +197,94 @@ fn an_existing_corridor_is_wired_through_the_port() {
     let entries = futures::executor::block_on(store.entries()).expect("entries");
     assert!(entries.is_empty(), "a fresh corridor has no entries");
 }
+
+#[test]
+fn auth_kind_visibility_matches_what_composition_can_build() {
+    use orexis_adapters_provider_catalog::AuthKind;
+    use orexis_composition::auth_kind_implemented;
+
+    // Key and keyless auth build today; OAuth device flow, ADC, and
+    // SigV4 are on-demand adapter work (ADR-0016) and must be visible as
+    // unimplemented before selection.
+    assert!(auth_kind_implemented(AuthKind::ApiKey));
+    assert!(auth_kind_implemented(AuthKind::None));
+    assert!(!auth_kind_implemented(AuthKind::OAuth));
+    assert!(!auth_kind_implemented(AuthKind::Adc));
+    assert!(!auth_kind_implemented(AuthKind::SigV4));
+}
+
+#[test]
+fn selection_round_trips_through_the_project_config() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert!(orexis_composition::read_selection(dir.path()).is_none());
+    orexis_composition::write_selection(
+        dir.path(),
+        &orexis_composition::Selection {
+            profile_id: "openai".to_string(),
+            model_id: "gpt-5".to_string(),
+        },
+    )
+    .expect("write");
+    let selection = orexis_composition::read_selection(dir.path()).expect("selection");
+    assert_eq!(selection.profile_id, "openai");
+    assert_eq!(selection.model_id, "gpt-5");
+}
+
+#[test]
+fn load_catalog_finds_the_vendored_providers() {
+    let catalog = orexis_composition::load_catalog().expect("catalog");
+    let ids: Vec<&str> = catalog.list().map(|profile| profile.id.as_str()).collect();
+    assert!(
+        ids.contains(&"openai") && ids.contains(&"anthropic"),
+        "the shipped profiles are listed: {ids:?}"
+    );
+}
+
+#[test]
+fn unimplemented_auth_fails_at_composition_naming_it() {
+    // A profile whose auth kind is not implemented must fail at
+    // composition with an error that says so — never at the first turn
+    // (ticket 014, ADR-0016).
+    let dir = tempfile::tempdir().expect("tempdir");
+    let providers = tempfile::tempdir().expect("providers");
+    std::fs::write(
+        providers.path().join("oauth.yaml"),
+        r#"
+id: oauth-test
+display_name: OAuth Test
+kind: openai_compatible
+base_url: https://127.0.0.1:1/v1
+auth:
+  kind: o_auth
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+models:
+  - id: known
+    context: 32768
+limits:
+  max_concurrency: 1
+"#,
+    )
+    .expect("write profile");
+    let error = match build_runtime(BuildConfig {
+        profile_id: "oauth-test".to_string(),
+        ..config(&dir, providers.path().to_path_buf(), "known")
+    }) {
+        Err(error) => error,
+        Ok(_) => panic!("expected the build to be refused"),
+    };
+    match error {
+        orexis_composition::BuildError::Unsupported(message) => {
+            assert!(message.contains("oauth"), "names the auth kind: {message}");
+            assert!(
+                message.contains("not implemented"),
+                "says it is not implemented: {message}"
+            );
+        }
+        other => panic!("expected Unsupported, got {other:?}"),
+    }
+}

@@ -41,15 +41,36 @@ pub fn load(path: &Path) -> Result<Vec<ProviderProfile>, CatalogError> {
         if raw.hidden || raw.base_url.is_empty() || raw.base_url.contains('{') {
             continue;
         }
+        // Every profile loads: the catalog is data, and a profile whose
+        // auth or wire is not implemented yet must be visible (marked) in
+        // the providers surface, not silently absent (ticket 014).
         let kind = match raw.api_mode.as_str() {
             "chat_completions" => ProviderKind::OpenAiCompatible,
             "anthropic_messages" => ProviderKind::Anthropic,
-            _ => continue,
+            "bedrock_converse" => ProviderKind::Bedrock,
+            "codex_responses" => ProviderKind::CodexResponses,
+            other => {
+                eprintln!(
+                    "warning: hermes profile {} has unknown api_mode {other}; skipped",
+                    raw.name
+                );
+                continue;
+            }
         };
         let auth_kind = match raw.auth_type.as_str() {
             "api_key" => AuthKind::ApiKey,
             "none" => AuthKind::None,
-            _ => continue,
+            "oauth_external" | "oauth_device_code" | "copilot" => AuthKind::OAuth,
+            "aws_sdk" => AuthKind::SigV4,
+            "vertex" => AuthKind::Adc,
+            "external_process" => AuthKind::ExternalProcess,
+            other => {
+                eprintln!(
+                    "warning: hermes profile {} has unknown auth_type {other}; skipped",
+                    raw.name
+                );
+                continue;
+            }
         };
 
         let env = raw

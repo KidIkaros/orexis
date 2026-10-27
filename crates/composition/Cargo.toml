@@ -24,6 +24,7 @@ orexis-adapters-protocol-utcp = { path = "../adapters-protocol-utcp" }
 orexis-adapters-protocol-a2a = { path = "../adapters-protocol-a2a" }
 orexis-adapters-evolution-git = { path = "../adapters-evolution-git" }
 dirs = "5"
+serde_yaml = "0.9"
 thiserror = "2"
 
 [dev-dependencies]

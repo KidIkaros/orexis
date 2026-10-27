@@ -12,6 +12,13 @@ pub enum ProviderKind {
     Gemini,
     #[serde(rename = "llamacpp")]
     LlamaCpp,
+    /// Bedrock's `converse` wire (ADR-0016 trigger 1: no compatible
+    /// endpoint exists).
+    #[serde(rename = "bedrock")]
+    Bedrock,
+    /// OpenAI's `codex_responses` wire (on demand, same trigger).
+    #[serde(rename = "codex_responses")]
+    CodexResponses,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -22,6 +29,8 @@ pub enum AuthKind {
     OAuth,
     Adc,
     SigV4,
+    /// Auth delegated to an external process (hermes's `external_process`).
+    ExternalProcess,
     None,
 }
 

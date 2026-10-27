@@ -136,6 +136,17 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
         warnings.push(warning);
     }
 
+    // Auth buildability is refused here, naming the kind (ADR-0016: auth
+    // work is on demand) — a profile that cannot build must fail at
+    // composition, not at the first turn (ticket 014).
+    if !auth_kind_implemented(profile.auth.kind) {
+        return Err(BuildError::Unsupported(format!(
+            "profile {} uses {:?} auth, which is not implemented yet; \
+             adapter work is on demand (ADR-0016)",
+            profile.id, profile.auth.kind
+        )));
+    }
+
     let secret = KeyringSecrets::new("dev.orexis")
         .get(&profile)
         .or_else(|| EnvSecrets.get(&profile));
@@ -158,6 +169,20 @@ pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
             return Err(BuildError::Unsupported(
                 "the native Gemini wire is on demand; use an openai_compatible profile \
                  (generativelanguage.googleapis.com/v1beta/openai) until a trigger fires"
+                    .to_string(),
+            ))
+        }
+        ProviderKind::Bedrock => {
+            return Err(BuildError::Unsupported(
+                "the bedrock_converse wire is on demand; no compatible endpoint \
+                 exists for it (ADR-0016 trigger 1)"
+                    .to_string(),
+            ))
+        }
+        ProviderKind::CodexResponses => {
+            return Err(BuildError::Unsupported(
+                "the codex_responses wire is on demand; no compatible endpoint \
+                 exists for it (ADR-0016 trigger 1)"
                     .to_string(),
             ))
         }
@@ -433,4 +458,60 @@ impl Workspace for NoWorkspace {
     fn changed(&self) -> Result<Vec<String>, PortError> {
         Ok(Vec::new())
     }
+}
+
+/// The provider selection `orexis init` writes; the environment overrides
+/// it (ticket 014).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Selection {
+    pub profile_id: String,
+    pub model_id: String,
+}
+
+/// Read `.orexis/config.yaml` under the project root, if one is written.
+pub fn read_selection(project_root: &std::path::Path) -> Option<Selection> {
+    let text = std::fs::read_to_string(project_root.join(".orexis/config.yaml")).ok()?;
+    let value: serde_yaml::Value = serde_yaml::from_str(&text).ok()?;
+    Some(Selection {
+        profile_id: value.get("profile")?.as_str()?.to_string(),
+        model_id: value.get("model")?.as_str()?.to_string(),
+    })
+}
+
+/// Write the selection for `serve` to pick up.
+pub fn write_selection(
+    project_root: &std::path::Path,
+    selection: &Selection,
+) -> Result<(), std::io::Error> {
+    let dir = project_root.join(".orexis");
+    std::fs::create_dir_all(&dir)?;
+    std::fs::write(
+        dir.join("config.yaml"),
+        format!(
+            "profile: {}\nmodel: {}\n",
+            selection.profile_id, selection.model_id
+        ),
+    )
+}
+
+/// Which auth kinds the adapters can build today (ADR-0016: auth work is
+/// on demand). Composition is the honest home — it is the only crate that
+/// knows what it constructs; the catalog stays pure data.
+pub fn auth_kind_implemented(kind: orexis_adapters_provider_catalog::AuthKind) -> bool {
+    use orexis_adapters_provider_catalog::AuthKind;
+    matches!(kind, AuthKind::ApiKey | AuthKind::None)
+}
+
+/// Load the catalog from the same directories `build_runtime` uses, for
+/// the `providers` and `init` surfaces.
+pub fn load_catalog() -> Result<orexis_adapters_provider_catalog::Catalog, BuildError> {
+    let providers_dir = providers_dir()?;
+    let mut dirs = vec![providers_dir];
+    if let Some(user) = dirs::config_dir() {
+        dirs.push(user.join("orexis/providers"));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        dirs.push(cwd.join(".orexis/providers"));
+    }
+    Ok(orexis_adapters_provider_catalog::Catalog::load(&dirs)?)
 }

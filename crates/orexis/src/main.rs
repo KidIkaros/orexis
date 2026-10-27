@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 use orexis_protocol::ServerMsg;
 
+mod providers;
+
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match parse(&args) {
@@ -14,6 +16,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Tui { socket, session } => orexis_adapters_tui::run(socket, session)
             .map_err(|error| Box::new(error) as Box<dyn std::error::Error>),
         Command::Attach { socket, session } => attach(socket, session),
+        Command::Providers { detail } => providers(detail),
+        Command::Init { profile, model } => init(profile, model),
         Command::NotYet(name) => {
             eprintln!("not yet: {name} has no implementation; see .scratch/orexis/issues/");
             std::process::exit(2);
@@ -23,6 +27,40 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
     }
+}
+
+fn providers(detail: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let catalog = orexis_composition::load_catalog()?;
+    match detail {
+        Some(id) => match crate::providers::show(&catalog, &id) {
+            Some(text) => print!("{text}"),
+            None => {
+                eprintln!("unknown profile: {id}");
+                std::process::exit(2);
+            }
+        },
+        None => print!("{}", crate::providers::list(&catalog)),
+    }
+    Ok(())
+}
+
+fn init(profile: Option<String>, model: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let project_root = match std::env::var("OREXIS_PROJECT") {
+        Ok(project) => PathBuf::from(project),
+        Err(_) => std::env::current_dir()?,
+    };
+    let text = match (profile, model) {
+        (Some(profile), Some(model)) => {
+            crate::providers::init_selection(&project_root, &profile, &model)?
+        }
+        (None, None) => crate::providers::init_interactive(&project_root)?,
+        _ => {
+            eprintln!("init needs both --profile and --model, or neither (interactive)");
+            std::process::exit(2);
+        }
+    };
+    print!("{text}");
+    Ok(())
 }
 
 fn runtime() -> Result<tokio::runtime::Runtime, Box<dyn std::error::Error>> {
@@ -46,6 +84,13 @@ pub enum Command {
     },
     /// A subcommand whose ticket has not landed; named in the error.
     NotYet(&'static str),
+    Providers {
+        detail: Option<String>,
+    },
+    Init {
+        profile: Option<String>,
+        model: Option<String>,
+    },
     Usage,
 }
 
@@ -65,9 +110,14 @@ fn parse(args: &[String]) -> Command {
                 Command::Attach { socket, session }
             }
         }
+        "providers" => Command::Providers {
+            detail: flags.first().cloned(),
+        },
+        "init" => Command::Init {
+            profile: flag_value(flags, "--profile"),
+            model: flag_value(flags, "--model"),
+        },
         "bench" => Command::NotYet("bench"),
-        "init" => Command::NotYet("init"),
-        "providers" => Command::NotYet("providers"),
         "export" => Command::NotYet("export"),
         "import" => Command::NotYet("import"),
         "upgrade" => Command::NotYet("upgrade"),
@@ -78,6 +128,15 @@ fn parse(args: &[String]) -> Command {
             std::process::exit(2);
         }
     }
+}
+
+/// The value of a `--flag VALUE` pair, if present.
+fn flag_value(flags: &[String], flag: &str) -> Option<String> {
+    flags
+        .iter()
+        .position(|candidate| candidate == flag)
+        .and_then(|index| flags.get(index + 1))
+        .cloned()
 }
 
 /// `--socket PATH` (default `/tmp/orexis.sock`) and an optional session
@@ -116,7 +175,10 @@ fn usage() {
          \x20                  attach the terminal UI\n\
          \x20 attach [--socket P] [SESSION]\n\
          \x20                  pipe client: stdin lines are prompts, events print as NDJSON\n\
-         \x20 init | providers | export | import | upgrade | bench\n\
+         \x20 providers [ID]   list profiles (auth buildability visible) or show one\n\
+         \x20 init [--profile P --model M]\n\
+         \x20                  select a provider; interactive when flags are absent\n\
+         \x20 export | import | upgrade | bench\n\
          \x20                  not yet (M9)"
     );
 }
@@ -191,12 +253,40 @@ mod tests {
 
     #[test]
     fn unbuilt_subcommands_report_not_yet() {
-        for name in ["bench", "init", "providers", "export", "import", "upgrade"] {
+        for name in ["bench", "export", "import", "upgrade"] {
             assert!(
                 matches!(parse(&args(&[name])), Command::NotYet(_)),
                 "{name} must be a NotYet stub"
             );
         }
+    }
+
+    #[test]
+    fn providers_and_init_parse() {
+        assert_eq!(
+            parse(&args(&["providers"])),
+            Command::Providers { detail: None }
+        );
+        assert_eq!(
+            parse(&args(&["providers", "openai"])),
+            Command::Providers {
+                detail: Some("openai".to_string())
+            }
+        );
+        assert_eq!(
+            parse(&args(&["init", "--profile", "openai", "--model", "gpt-5"])),
+            Command::Init {
+                profile: Some("openai".to_string()),
+                model: Some("gpt-5".to_string()),
+            }
+        );
+        assert_eq!(
+            parse(&args(&["init"])),
+            Command::Init {
+                profile: None,
+                model: None
+            }
+        );
     }
 
     #[test]

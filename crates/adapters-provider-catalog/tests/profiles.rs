@@ -15,8 +15,11 @@ fn every_shipped_profile_is_structurally_usable() {
     let mut llamacpp = 0;
 
     for profile in catalog.list() {
+        // http(s) is the provider transport; acp:// is a peer reference
+        // hermes models as a provider — loaded as data, refused at
+        // composition.
         assert!(
-            profile.base_url.starts_with("http"),
+            profile.base_url.starts_with("http") || profile.base_url.starts_with("acp://"),
             "{}: {}",
             profile.id,
             profile.base_url
@@ -54,6 +57,8 @@ fn every_shipped_profile_is_structurally_usable() {
             }
             ProviderKind::Gemini => gemini += 1,
             ProviderKind::LlamaCpp => llamacpp += 1,
+            ProviderKind::Bedrock => {}
+            ProviderKind::CodexResponses => {}
         }
 
         if let Some(model) = profile.models.first() {
