@@ -62,5 +62,5 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 17. ~~[Emit thinking configuration per profile](017-thinking-config.md)~~ — resolved; the port carries the thinking request, the posture is the source, adapters own the wire mapping.
 18. ~~[Anthropic message-level cache breakpoints](018-anthropic-message-cache.md)~~ — resolved; the system prefix carries the breakpoint, the tail waits for measured evidence.
 19. ~~[`orexis` binary consolidation](019-binary-consolidation.md)~~ — resolved; one `orexis` binary, the TUI finally launchable, compat shims kept.
-20. [Release pipeline](020-release-pipeline.md)
+20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved (automated half); key generation is the user's wizard step.
 21. [`orexis upgrade`](021-upgrade-command.md)

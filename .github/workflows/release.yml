@@ -1,0 +1,82 @@
+name: release
+
+# The release pipeline (ADR-0019, ticket 020): a tag push builds every
+# target, signs the artifacts with minisign, and publishes the release
+# with the signed manifest. The private key is a CI secret; local builds
+# are never published.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, cross: true }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install cross (aarch64 linux cross-compiles on x86_64)
+        if: matrix.cross
+        run: cargo install cross --locked
+      - name: Install minisign
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install minisign; else sudo apt-get update && sudo apt-get install -y minisign; fi
+      - name: Restore the signing key
+        run: |
+          printf '%s' "${{ secrets.OREXIS_SIGNING_KEY }}" > "$RUNNER_TEMP/signing.key"
+          chmod 600 "$RUNNER_TEMP/signing.key"
+          echo "OREXIS_SIGNING_KEY=$RUNNER_TEMP/signing.key" >> "$GITHUB_ENV"
+      - name: Build, archive, checksum, sign
+        env:
+          CARGO: ${{ matrix.cross && 'cross' || 'cargo' }}
+        run: scripts/release.sh archive ${{ matrix.target }} "dist/${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/${{ matrix.target }}/
+
+  publish:
+    needs: archive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+      - name: Install minisign
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Restore the signing key
+        run: |
+          printf '%s' "${{ secrets.OREXIS_SIGNING_KEY }}" > "$RUNNER_TEMP/signing.key"
+          chmod 600 "$RUNNER_TEMP/signing.key"
+          echo "OREXIS_SIGNING_KEY=$RUNNER_TEMP/signing.key" >> "$GITHUB_ENV"
+      - name: Flatten the artifact directories
+        run: |
+          mkdir -p artifacts
+          find dist -name '*.tar.gz*' -exec mv {} artifacts/ \;
+      - name: Build and sign the manifest
+        env:
+          OREXIS_RELEASE_REPO: ${{ github.repository }}
+        run: scripts/release.sh manifest artifacts publish
+      - name: Publish the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "orexis ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            publish/latest.json publish/latest.json.minisig \
+            artifacts/*.tar.gz artifacts/*.tar.gz.sha256 artifacts/*.tar.gz.minisig
+        env:
+          GH_TOKEN: ${{ github.token }}
