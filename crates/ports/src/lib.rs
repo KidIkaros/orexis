@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use orexis_core::{
     Action, Candidate, CandidateManifest, CandidateRef, ContextFile, EntityEvent, EntitySnapshot,
     EventRef, LedgerEntry, Message, Mutation, Observation, ProviderResponse, Seal, SessionEvent,
-    StoredEvent, ToolSpec,
+    StoredEvent, Thinking, ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +50,7 @@ pub trait Provider: Send + Sync {
         messages: &[Message],
         tools: &[ToolSpec],
         step: usize,
+        thinking: Thinking,
     ) -> PortResult<ProviderResponse>;
 
     /// Streaming variant. The default emits the final text as one delta.
@@ -58,9 +59,10 @@ pub trait Provider: Send + Sync {
         messages: &[Message],
         tools: &[ToolSpec],
         step: usize,
+        thinking: Thinking,
         sink: &dyn DeltaSink,
     ) -> PortResult<ProviderResponse> {
-        let response = self.complete(messages, tools, step).await?;
+        let response = self.complete(messages, tools, step, thinking).await?;
         if let Some(Action::Say { text }) = response
             .actions
             .iter()

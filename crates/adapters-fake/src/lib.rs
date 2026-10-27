@@ -5,7 +5,8 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, EventRef, Message, Observation, ProviderResponse, SessionEvent, StoredEvent, ToolSpec,
+    Action, EventRef, Message, Observation, ProviderResponse, SessionEvent, StoredEvent, Thinking,
+    ToolSpec,
 };
 use orexis_ports::{
     EventSink, PortError, PortResult, Provider, SessionAppend, SessionRead, ToolExecutor,
@@ -38,6 +39,7 @@ impl Provider for SlowProvider {
         _messages: &[Message],
         _tools: &[ToolSpec],
         _step: usize,
+        _thinking: Thinking,
     ) -> PortResult<ProviderResponse> {
         tokio::time::sleep(self.delay).await;
         Ok(ProviderResponse {
@@ -56,6 +58,7 @@ impl Provider for ScriptedProvider {
         _messages: &[Message],
         _tools: &[ToolSpec],
         step: usize,
+        _thinking: Thinking,
     ) -> PortResult<ProviderResponse> {
         let actions = self.script.get(step).cloned().unwrap_or_else(|| {
             vec![Action::Done {

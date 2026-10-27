@@ -17,7 +17,7 @@
 
 use orexis_adapters_provider_anthropic::AnthropicProvider;
 use orexis_adapters_provider_catalog::ProviderProfile;
-use orexis_core::{Message, Role, ToolSpec};
+use orexis_core::{Message, Role, Thinking, ToolSpec};
 
 /// The shipped Anthropic profile: `cache.breakpoints: true` (dialect
 /// `anthropic`), `thinking: { supported: true, param: thinking }`.
@@ -82,7 +82,7 @@ fn canonical_tools() -> Vec<ToolSpec> {
 
 #[test]
 fn tool_call_shape_is_expressed() {
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    let body = provider().request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
     // System messages are extracted to the `system` field, so the
     // message array starts at the user turn.
     assert_eq!(
@@ -101,7 +101,7 @@ fn tool_call_shape_is_expressed() {
 
 #[test]
 fn cache_breakpoints_are_expressed_on_tools() {
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    let body = provider().request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
     assert_eq!(
         body["tools"][0]["cache_control"]["type"], "ephemeral",
         "the last tool carries the cache breakpoint"
@@ -109,16 +109,40 @@ fn cache_breakpoints_are_expressed_on_tools() {
 }
 
 #[test]
-fn thinking_config_is_a_recorded_gap() {
+fn thinking_config_is_expressed() {
     // The shipped profile declares `thinking: { supported: true, param:
-    // thinking }`; the native wire carries the parameter; the adapter
-    // never emits it. Ratchet: this asserts ABSENCE — closing the gap
-    // turns this test red, forcing a real fixture here and the manifest
-    // flip. Follow-up ticket 017.
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    // thinking, levels: [low, medium, high] }`. The anthropic wire takes
+    // an enabled flag plus a token budget; the adapter scales the budget
+    // with the declared level's position (1024 << (index + 1)), and
+    // Off/Auto omit the parameter — anthropic's default is off.
+    let tools = canonical_tools();
+    let messages = canonical_messages();
+    let provider = provider();
+    let on = provider.request_body(&messages, &tools, Thinking::Level(2));
+    assert_eq!(on["thinking"]["type"], "enabled");
+    assert_eq!(on["thinking"]["budget_tokens"], 8192, "1024 << (2 + 1)");
     assert!(
-        body.get("thinking").is_none(),
-        "the gap is closed — write the real fixture and flip the manifest"
+        on["max_tokens"].as_u64().expect("max_tokens") > 8192,
+        "max_tokens must exceed the thinking budget"
+    );
+    assert!(
+        provider
+            .request_body(&messages, &tools, Thinking::Off)
+            .get("thinking")
+            .is_none(),
+        "Off omits the parameter: anthropic's default is off"
+    );
+    assert!(
+        provider
+            .request_body(&messages, &tools, Thinking::Auto)
+            .get("thinking")
+            .is_none(),
+        "Auto omits the parameter"
+    );
+    assert_eq!(
+        provider.request_body(&messages, &tools, Thinking::On)["thinking"]["budget_tokens"],
+        8192,
+        "On is the strongest declared level"
     );
 }
 
@@ -129,7 +153,7 @@ fn message_level_cache_is_a_recorded_gap() {
     // emits it on tools only. Ratchet: this asserts ABSENCE — closing the
     // gap turns this test red, forcing a real fixture here and the
     // manifest flip. Follow-up ticket 018.
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    let body = provider().request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
     assert!(
         body["messages"]
             .as_array()

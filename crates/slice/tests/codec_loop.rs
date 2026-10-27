@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use futures::executor::block_on;
 use orexis_adapters_codec::{JsonCodec, NativeCodec, XmlManualCodec};
 use orexis_adapters_fake::{InMemorySession, RecordingSink};
-use orexis_core::{Action, Message, ProviderResponse, SessionEvent, ToolSpec};
+use orexis_core::{Action, Message, ProviderResponse, SessionEvent, Thinking, ToolSpec};
 use orexis_ports::{Codec, PortResult, Provider, SessionRead};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 
@@ -30,6 +30,7 @@ impl Provider for TextProvider {
         _messages: &[Message],
         _tools: &[ToolSpec],
         _step: usize,
+        _thinking: Thinking,
     ) -> PortResult<ProviderResponse> {
         let text = self.outputs.lock().expect("outputs").remove(0);
         Ok(ProviderResponse {
@@ -48,6 +49,7 @@ impl Provider for NativeProvider {
         _messages: &[Message],
         _tools: &[ToolSpec],
         _step: usize,
+        _thinking: Thinking,
     ) -> PortResult<ProviderResponse> {
         Ok(ProviderResponse {
             actions: vec![Action::Done {
@@ -74,6 +76,7 @@ fn run(provider: &dyn Provider, codec: &dyn Codec, max_steps: usize) -> (bool, V
         checkpointer: None,
         verifier: None,
         skip_verify: false,
+        thinking: Thinking::Auto,
         delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",

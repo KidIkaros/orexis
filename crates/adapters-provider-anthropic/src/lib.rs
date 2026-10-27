@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use orexis_adapters_http::{ByteStream, Transport};
 use orexis_adapters_provider_catalog::ProviderProfile;
-use orexis_core::{Action, Message, ProviderResponse, Role, ToolSpec};
+use orexis_core::{Action, Message, ProviderResponse, Role, Thinking, ToolSpec};
 use orexis_ports::{DeltaSink, NullDeltaSink, PortError, PortResult, Provider};
 use serde_json::{json, Value};
 
@@ -46,7 +46,12 @@ impl<T: Transport> AnthropicProvider<T> {
             .unwrap_or(4096)
     }
 
-    pub fn request_body(&self, messages: &[Message], tools: &[ToolSpec]) -> Value {
+    pub fn request_body(
+        &self,
+        messages: &[Message],
+        tools: &[ToolSpec],
+        thinking: Thinking,
+    ) -> Value {
         let system = messages
             .iter()
             .filter(|message| message.role == Role::System)
@@ -107,6 +112,27 @@ impl<T: Transport> AnthropicProvider<T> {
             body["system"] = json!(system);
         }
 
+        // Per-provider conditioning (PLAN §4.4): the profile declares the
+        // parameter name and the level vocabulary; the anthropic wire
+        // takes an enabled flag plus a token budget, so the adapter scales
+        // the budget with the declared level's position. Off and Auto omit
+        // the parameter — anthropic's default is off, so omission is the
+        // honest minimum. On is the strongest declared level.
+        if self.profile.thinking.supported && !self.profile.thinking.levels.is_empty() {
+            let budget = match thinking {
+                Thinking::Off | Thinking::Auto => None,
+                Thinking::On => Some(self.profile.thinking.levels.len() - 1),
+                Thinking::Level(index) => Some(index.min(self.profile.thinking.levels.len() - 1)),
+            }
+            .map(|index| 1024u32 << (index + 1));
+            if let Some(budget) = budget {
+                body["thinking"] = json!({ "type": "enabled", "budget_tokens": budget });
+                // The wire requires max_tokens to exceed the budget.
+                let max_tokens = self.max_tokens().max(budget + 1024);
+                body["max_tokens"] = json!(max_tokens);
+            }
+        }
+
         if !tools.is_empty() {
             let mut tools_json: Vec<Value> = tools
                 .iter()
@@ -137,8 +163,9 @@ impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
+        thinking: Thinking,
     ) -> PortResult<ProviderResponse> {
-        request(self, messages, tools, &NullDeltaSink).await
+        request(self, messages, tools, thinking, &NullDeltaSink).await
     }
 
     async fn stream(
@@ -146,9 +173,10 @@ impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
+        thinking: Thinking,
         sink: &dyn DeltaSink,
     ) -> PortResult<ProviderResponse> {
-        request(self, messages, tools, sink).await
+        request(self, messages, tools, thinking, sink).await
     }
 }
 
@@ -156,6 +184,7 @@ async fn request<T: Transport>(
     provider: &AnthropicProvider<T>,
     messages: &[Message],
     tools: &[ToolSpec],
+    thinking: Thinking,
     sink: &dyn DeltaSink,
 ) -> PortResult<ProviderResponse> {
     let url = format!(
@@ -178,7 +207,7 @@ async fn request<T: Transport>(
         .post_stream(
             &url,
             headers,
-            provider.request_body(messages, tools).to_string(),
+            provider.request_body(messages, tools, thinking).to_string(),
         )
         .await
     {
@@ -331,7 +360,7 @@ mod tests {
             "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
         ]);
         let actions = provider
-            .complete(&messages(), &[], 0)
+            .complete(&messages(), &[], 0, Thinking::Auto)
             .await
             .expect("complete")
             .actions;
@@ -357,7 +386,7 @@ mod tests {
             "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"}}\n\n",
         ]);
         let actions = provider
-            .complete(&messages(), &[], 0)
+            .complete(&messages(), &[], 0, Thinking::Auto)
             .await
             .expect("complete")
             .actions;
@@ -382,7 +411,7 @@ mod tests {
                 message: "boom".to_string(),
             },
         );
-        let result = provider.complete(&messages(), &[], 0).await;
+        let result = provider.complete(&messages(), &[], 0, Thinking::Auto).await;
         assert!(result.is_err());
     }
 
@@ -408,7 +437,7 @@ mod tests {
                 tool_calls: Vec::new(),
             },
         ];
-        let body = provider.request_body(&messages, &[]);
+        let body = provider.request_body(&messages, &[], Thinking::Auto);
         assert_eq!(body["messages"][0]["content"][0]["type"], "tool_use");
         assert_eq!(body["messages"][0]["content"][0]["id"], "t1");
         assert_eq!(body["messages"][1]["content"][0]["type"], "tool_result");
@@ -423,7 +452,7 @@ mod tests {
             description: "read a file".to_string(),
             schema: json!({"type": "object"}),
         }];
-        let body = provider.request_body(&messages(), &tools);
+        let body = provider.request_body(&messages(), &tools, Thinking::Auto);
         assert_eq!(body["model"], "claude-sonnet-4-5");
         assert_eq!(body["max_tokens"], 64000);
         assert_eq!(body["tools"][0]["input_schema"]["type"], "object");
@@ -447,7 +476,7 @@ mod tests {
                 tool_calls: Vec::new(),
             },
         ];
-        let body = provider.request_body(&messages, &[]);
+        let body = provider.request_body(&messages, &[], Thinking::Auto);
         assert_eq!(body["system"], "be helpful");
         assert_eq!(body["messages"].as_array().unwrap().len(), 1);
     }
@@ -465,7 +494,7 @@ mod tests {
                 "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n".to_string(),
             ]),
         );
-        let _ = provider.complete(&messages(), &[], 0).await;
+        let _ = provider.complete(&messages(), &[], 0, Thinking::Auto).await;
         let headers = provider.transport().headers.lock().unwrap();
         assert!(headers
             .iter()
@@ -477,7 +506,7 @@ mod tests {
         let provider = provider(vec![
             "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
         ]);
-        let _ = provider.complete(&messages(), &[], 0).await;
+        let _ = provider.complete(&messages(), &[], 0, Thinking::Auto).await;
         let headers = provider.transport().headers.lock().unwrap();
         assert!(headers
             .iter()
@@ -506,7 +535,7 @@ mod tests {
             deltas: std::sync::Mutex::new(Vec::new()),
         };
         let actions = provider
-            .stream(&messages(), &[], 0, &sink)
+            .stream(&messages(), &[], 0, Thinking::Auto, &sink)
             .await
             .expect("stream")
             .actions;

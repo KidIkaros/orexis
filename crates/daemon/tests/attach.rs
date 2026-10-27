@@ -879,6 +879,7 @@ async fn self_view_returns_entity_state() {
 struct RecordingProvider {
     calls: Arc<Mutex<Vec<Vec<Message>>>>,
     tool_lists: Arc<Mutex<Vec<Vec<ToolSpec>>>>,
+    thinkings: Arc<Mutex<Vec<orexis_core::Thinking>>>,
 }
 
 #[async_trait::async_trait]
@@ -888,12 +889,14 @@ impl Provider for RecordingProvider {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
+        thinking: orexis_core::Thinking,
     ) -> PortResult<ProviderResponse> {
         self.calls.lock().expect("calls").push(messages.to_vec());
         self.tool_lists
             .lock()
             .expect("tool lists")
             .push(tools.to_vec());
+        self.thinkings.lock().expect("thinkings").push(thinking);
         Ok(ProviderResponse {
             actions: vec![Action::Done {
                 summary: "done".to_string(),
@@ -955,6 +958,7 @@ async fn identity_is_injected_only_on_the_first_turn() {
     config.provider = Arc::new(RecordingProvider {
         calls: calls.clone(),
         tool_lists: Arc::new(Mutex::new(Vec::new())),
+        thinkings: Arc::new(Mutex::new(Vec::new())),
     });
     config.entity = Arc::new(SqliteEntityFactory::new(entity_db));
     let daemon = Daemon::new(config);
@@ -1147,6 +1151,7 @@ async fn mcp_tools_register_into_the_session() {
     config.provider = Arc::new(RecordingProvider {
         calls: calls.clone(),
         tool_lists: tool_lists.clone(),
+        thinkings: Arc::new(Mutex::new(Vec::new())),
     });
     config.external = vec![Arc::new(FakeExternalTools {
         kind: "mcp",
@@ -1262,4 +1267,53 @@ async fn utcp_tools_register_and_route_through_the_surface() {
         )
     });
     assert!(observed, "the utcp call did not route through the surface");
+}
+
+#[tokio::test]
+async fn the_posture_reaches_the_provider() {
+    // The posture is the thinking level's source (ADR-0013): the turn
+    // loop reads it from the entity snapshot and hands it to the
+    // provider, which conditions the wire on it.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let entity = Arc::new(SqliteEntityFactory::new(dir.path().join("entity.db")));
+    {
+        let refs = orexis_ports::EntityFactory::open(&*entity).expect("entity");
+        refs.append
+            .append(orexis_core::EntityEvent::PostureChange {
+                posture: orexis_core::Posture {
+                    thinking: orexis_core::Thinking::On,
+                    ..orexis_core::Posture::default()
+                },
+                reason: "test".to_string(),
+            })
+            .await
+            .expect("posture change");
+    }
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let thinkings = Arc::new(Mutex::new(Vec::new()));
+    let mut config = config(&socket, &db);
+    config.entity = entity;
+    config.provider = Arc::new(RecordingProvider {
+        calls: calls.clone(),
+        tool_lists: Arc::new(Mutex::new(Vec::new())),
+        thinkings: thinkings.clone(),
+    });
+    let (_, mut reader, mut writer, mut line) = spawn_and_attach(config, &socket).await;
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "hi".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+    let thinkings = thinkings.lock().expect("thinkings");
+    assert_eq!(
+        thinkings.last(),
+        Some(&orexis_core::Thinking::On),
+        "the provider saw the posture's thinking"
+    );
 }

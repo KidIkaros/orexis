@@ -110,6 +110,10 @@ pub enum Thinking {
     #[default]
     Auto,
     On,
+    /// Thinking on at a specific level, indexing the profile's declared
+    /// `thinking.levels` by position — the harness-side refinement over
+    /// `On`, kept positional so it stays model-agnostic.
+    Level(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

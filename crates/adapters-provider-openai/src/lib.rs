@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use orexis_adapters_http::{ByteStream, Transport};
 use orexis_adapters_provider_catalog::ProviderProfile;
-use orexis_core::{Action, Message, ProviderResponse, Role, ToolSpec};
+use orexis_core::{Action, Message, ProviderResponse, Role, Thinking, ToolSpec};
 use orexis_ports::{DeltaSink, NullDeltaSink, PortError, PortResult, Provider};
 use serde_json::{json, Value};
 
@@ -36,7 +36,12 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
         &self.transport
     }
 
-    pub fn request_body(&self, messages: &[Message], tools: &[ToolSpec]) -> Value {
+    pub fn request_body(
+        &self,
+        messages: &[Message],
+        tools: &[ToolSpec],
+        thinking: Thinking,
+    ) -> Value {
         let messages: Vec<Value> = messages
             .iter()
             .map(|message| match message.role {
@@ -95,6 +100,25 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
                 .collect::<Vec<_>>());
         }
 
+        // Per-provider conditioning (PLAN §4.4): the profile declares the
+        // parameter name and the level vocabulary; the request's thinking
+        // level indexes it. Auto omits the parameter (the endpoint's
+        // default). Off emits the lowest declared level — reasoning
+        // endpoints default on, so omission is not off. On emits the
+        // strongest declared level.
+        if self.profile.thinking.supported && !self.profile.thinking.levels.is_empty() {
+            let levels = &self.profile.thinking.levels;
+            let level = match thinking {
+                Thinking::Off => Some(levels[0].clone()),
+                Thinking::Auto => None,
+                Thinking::On => Some(levels[levels.len() - 1].clone()),
+                Thinking::Level(index) => Some(levels[index.min(levels.len() - 1)].clone()),
+            };
+            if let (Some(param), Some(level)) = (&self.profile.thinking.param, level) {
+                body[param.clone()] = json!(level);
+            }
+        }
+
         body
     }
 }
@@ -106,8 +130,9 @@ impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
+        thinking: Thinking,
     ) -> PortResult<ProviderResponse> {
-        request(self, messages, tools, &NullDeltaSink).await
+        request(self, messages, tools, thinking, &NullDeltaSink).await
     }
 
     async fn stream(
@@ -115,9 +140,10 @@ impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
         messages: &[Message],
         tools: &[ToolSpec],
         _step: usize,
+        thinking: Thinking,
         sink: &dyn DeltaSink,
     ) -> PortResult<ProviderResponse> {
-        request(self, messages, tools, sink).await
+        request(self, messages, tools, thinking, sink).await
     }
 }
 
@@ -125,6 +151,7 @@ async fn request<T: Transport>(
     provider: &OpenAiCompatibleProvider<T>,
     messages: &[Message],
     tools: &[ToolSpec],
+    thinking: Thinking,
     sink: &dyn DeltaSink,
 ) -> PortResult<ProviderResponse> {
     let url = format!(
@@ -144,7 +171,7 @@ async fn request<T: Transport>(
         .post_stream(
             &url,
             headers,
-            provider.request_body(messages, tools).to_string(),
+            provider.request_body(messages, tools, thinking).to_string(),
         )
         .await
     {
@@ -290,7 +317,7 @@ mod tests {
             "data: [DONE]\n\n",
         ]);
         let actions = provider
-            .complete(&messages(), &[], 0)
+            .complete(&messages(), &[], 0, Thinking::Auto)
             .await
             .expect("complete")
             .actions;
@@ -315,7 +342,7 @@ mod tests {
             "data: [DONE]\n\n",
         ]);
         let actions = provider
-            .complete(&messages(), &[], 0)
+            .complete(&messages(), &[], 0, Thinking::Auto)
             .await
             .expect("complete")
             .actions;
@@ -332,7 +359,7 @@ mod tests {
     #[tokio::test]
     async fn auth_header_uses_the_profile() {
         let provider = provider(vec!["data: [DONE]\n\n"]);
-        let _ = provider.complete(&messages(), &[], 0).await;
+        let _ = provider.complete(&messages(), &[], 0, Thinking::Auto).await;
         let headers = provider.transport().headers.lock().unwrap();
         assert!(headers
             .iter()
@@ -350,7 +377,7 @@ mod tests {
                 message: "boom".to_string(),
             },
         );
-        let result = provider.complete(&messages(), &[], 0).await;
+        let result = provider.complete(&messages(), &[], 0, Thinking::Auto).await;
         assert!(result.is_err());
     }
 
@@ -376,7 +403,7 @@ mod tests {
                 tool_calls: Vec::new(),
             },
         ];
-        let body = provider.request_body(&messages, &[]);
+        let body = provider.request_body(&messages, &[], Thinking::Auto);
         assert_eq!(body["messages"][0]["tool_calls"][0]["id"], "call_1");
         assert_eq!(body["messages"][1]["role"], "tool");
         assert_eq!(body["messages"][1]["tool_call_id"], "call_1");
@@ -390,7 +417,7 @@ mod tests {
             description: "read a file".to_string(),
             schema: json!({"type": "object"}),
         }];
-        let body = provider.request_body(&messages(), &tools);
+        let body = provider.request_body(&messages(), &tools, Thinking::Auto);
         assert_eq!(body["model"], "gpt-5");
         assert_eq!(body["tools"][0]["function"]["name"], "read");
         assert_eq!(body["stream"], true);
@@ -418,7 +445,7 @@ mod tests {
             deltas: std::sync::Mutex::new(Vec::new()),
         };
         let actions = provider
-            .stream(&messages(), &[], 0, &sink)
+            .stream(&messages(), &[], 0, Thinking::Auto, &sink)
             .await
             .expect("stream")
             .actions;

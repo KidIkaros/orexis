@@ -59,5 +59,5 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 14. [`init` and `providers` surface implemented auth kinds](014-init-auth-kind-visibility.md)
 15. ~~[Serve `/evolve` through the `EvolutionStore` port](015-evolve-through-the-port.md)~~ — resolved; the handler goes through the port, last 500 entries.
 16. ~~[Delimit built-in tool output too](016-delimit-builtin-tool-output.md)~~ — resolved; invariant 22 now covers built-ins at the executor boundary.
-17. [Emit thinking configuration per profile](017-thinking-config.md)
+17. ~~[Emit thinking configuration per profile](017-thinking-config.md)~~ — resolved; the port carries the thinking request, the posture is the source, adapters own the wire mapping.
 18. [Anthropic message-level cache breakpoints](018-anthropic-message-cache.md)

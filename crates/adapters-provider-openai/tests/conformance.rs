@@ -17,7 +17,7 @@
 
 use orexis_adapters_provider_catalog::ProviderProfile;
 use orexis_adapters_provider_openai::OpenAiCompatibleProvider;
-use orexis_core::{Message, Role, ToolSpec};
+use orexis_core::{Message, Role, Thinking, ToolSpec};
 
 /// The shipped OpenAI profile: `cache.breakpoints: true` (dialect
 /// `open_ai`), `thinking: { supported: true, param: reasoning_effort }`.
@@ -82,7 +82,7 @@ fn canonical_tools() -> Vec<ToolSpec> {
 
 #[test]
 fn tool_call_shape_is_expressed() {
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    let body = provider().request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
     assert_eq!(
         body["tools"][0]["function"]["name"], "read_file",
         "tools carry the function shape"
@@ -104,7 +104,7 @@ fn cache_is_automatic_on_the_open_ai_dialect() {
     // the wire. This is a no-op pass, not a gap — recorded so a future
     // dialect change (e.g. an explicit-cache compatible endpoint) has a
     // fixture to extend rather than a silent assumption.
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    let body = provider().request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
     assert!(
         body.get("cache_control").is_none()
             && body["messages"]
@@ -117,15 +117,34 @@ fn cache_is_automatic_on_the_open_ai_dialect() {
 }
 
 #[test]
-fn thinking_config_is_a_recorded_gap() {
+fn thinking_config_is_expressed() {
     // The shipped profile declares `thinking: { supported: true, param:
-    // reasoning_effort }`; the wire carries the parameter; the adapter
-    // never emits it. Ratchet: this asserts ABSENCE — closing the gap
-    // turns this test red, forcing a real fixture here and the manifest
-    // flip. Follow-up ticket 017.
-    let body = provider().request_body(&canonical_messages(), &canonical_tools());
+    // reasoning_effort, levels: [low, medium, high] }`. The request's
+    // thinking level indexes the declared vocabulary; Auto omits the
+    // parameter (the endpoint's default).
+    let tools = canonical_tools();
+    let messages = canonical_messages();
+    let provider = provider();
+    assert_eq!(
+        provider.request_body(&messages, &tools, Thinking::Level(2))["reasoning_effort"],
+        "high",
+        "Level(2) indexes the declared levels"
+    );
+    assert_eq!(
+        provider.request_body(&messages, &tools, Thinking::Off)["reasoning_effort"],
+        "low",
+        "Off is the honest minimum: reasoning endpoints default on"
+    );
     assert!(
-        body.get("reasoning_effort").is_none(),
-        "the gap is closed — write the real fixture and flip the manifest"
+        provider
+            .request_body(&messages, &tools, Thinking::Auto)
+            .get("reasoning_effort")
+            .is_none(),
+        "Auto omits the parameter"
+    );
+    assert_eq!(
+        provider.request_body(&messages, &tools, Thinking::On)["reasoning_effort"],
+        "high",
+        "On is the strongest declared level"
     );
 }

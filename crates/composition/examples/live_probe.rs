@@ -9,7 +9,7 @@
 //! Secrets resolve through the keyring first (`secret-tool`), then env.
 
 use orexis_composition::{build_runtime, BuildConfig};
-use orexis_core::{Message, Role, SessionEvent};
+use orexis_core::{Message, Role, SessionEvent, Thinking};
 use orexis_ports::{EventSink, SessionRefs};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 
@@ -91,7 +91,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tool_call_id: None,
             tool_calls: Vec::new(),
         }];
-        let response = runtime.provider.complete(&messages, &[], 0).await?;
+        let response = runtime
+            .provider
+            .complete(&messages, &[], 0, Thinking::Auto)
+            .await?;
         for action in response.actions {
             println!("{action:?}");
         }
@@ -120,6 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         verifier: runtime.verifier.as_deref(),
         skip_verify: runtime.verifier.is_none(),
         delta_sink: &orexis_ports::NullDeltaSink,
+        thinking: Thinking::Auto,
         context,
     })
     .await?;

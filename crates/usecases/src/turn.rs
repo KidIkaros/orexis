@@ -1,6 +1,6 @@
 //! The turn loop: a use case over core + ports. No adapter, no runtime.
 
-use orexis_core::{hash_messages, Action, SessionEvent, FORMAT_VERSION};
+use orexis_core::{hash_messages, Action, SessionEvent, Thinking, FORMAT_VERSION};
 use orexis_ports::{
     Checkpointer, Codec, DeltaSink, EventSink, PortResult, Provider, SessionAppend, SessionRead,
     ToolExecutor, Verifier,
@@ -26,6 +26,9 @@ pub struct TurnDeps<'a> {
     pub verifier: Option<&'a dyn Verifier>,
     pub skip_verify: bool,
     pub delta_sink: &'a dyn DeltaSink,
+    /// The turn-boundary thinking request; the provider conditions its
+    /// wire on it (per-provider conditioning, PLAN §4.4).
+    pub thinking: Thinking,
 }
 
 pub struct TurnOutcome {
@@ -49,6 +52,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         verifier,
         skip_verify,
         delta_sink,
+        thinking,
     } = deps;
 
     append(
@@ -133,7 +137,13 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         .await?;
 
         let response = match provider
-            .stream(&assembled.messages, context.tools, step, delta_sink)
+            .stream(
+                &assembled.messages,
+                context.tools,
+                step,
+                thinking,
+                delta_sink,
+            )
             .await
         {
             Ok(response) => response,

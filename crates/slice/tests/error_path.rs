@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{RecordingSink, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionStore;
-use orexis_core::{Action, Observation, SessionEvent};
+use orexis_core::{Action, Observation, SessionEvent, Thinking};
 use orexis_ports::{PortError, PortResult, SessionRead, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 
@@ -42,6 +42,7 @@ fn tool_failure_is_persisted_and_returned() {
         checkpointer: None,
         verifier: None,
         skip_verify: false,
+        thinking: Thinking::Auto,
         delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",

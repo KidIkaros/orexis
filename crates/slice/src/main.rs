@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::render_transcript;
 use orexis_composition::build;
-use orexis_core::{derive_messages, SessionEvent};
+use orexis_core::{derive_messages, SessionEvent, Thinking};
 use orexis_usecases::{run_turn, verify_replay, ContextConfig, TurnDeps};
 
 fn main() {
@@ -23,6 +23,7 @@ fn main() {
         checkpointer: None,
         verifier: None,
         skip_verify: false,
+        thinking: Thinking::Auto,
         delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",

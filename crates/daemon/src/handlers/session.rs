@@ -4,7 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use orexis_adapters_tools::{GatedTools, NamespaceTools, RouterTools};
-use orexis_core::{EntitySnapshot, SessionEvent};
+use orexis_core::{EntitySnapshot, SessionEvent, Thinking};
 use orexis_ports::{Checkpointer, PortResult, ToolExecutor};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 use tokio::net::unix::OwnedWriteHalf;
@@ -220,6 +220,19 @@ pub(crate) async fn spawn_turn(
             context_files: &config.context_files,
             context_limit: config.context_limit,
         };
+        // The posture is the thinking level's source (ADR-0013): read at
+        // the turn boundary, so an affect-driven posture change lands on
+        // the next turn, never mid-session.
+        let thinking = match config.entity.open() {
+            Ok(refs) => refs
+                .read
+                .snapshot()
+                .await
+                .ok()
+                .map(|snapshot| snapshot.posture.thinking)
+                .unwrap_or_default(),
+            Err(_) => Thinking::default(),
+        };
         let _ = run_turn(TurnDeps {
             provider: config.provider.as_ref(),
             tools: gated.as_ref(),
@@ -235,6 +248,7 @@ pub(crate) async fn spawn_turn(
             verifier: config.verifier.as_deref(),
             skip_verify,
             delta_sink: delta_sink.as_ref(),
+            thinking,
         })
         .await;
         if let Ok(mut turn) = rt_for_task.turn.lock() {

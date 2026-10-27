@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{EchoTools, RecordingSink, ScriptedProvider};
 use orexis_adapters_session_sqlite::SqliteSessionStore;
-use orexis_core::{Action, SessionEvent};
+use orexis_core::{Action, SessionEvent, Thinking};
 use orexis_ports::SessionRead;
 use orexis_usecases::{run_turn, verify_replay, ContextConfig, TurnDeps};
 
@@ -40,6 +40,7 @@ fn sqlite_store_replays_the_turn() {
         checkpointer: None,
         verifier: None,
         skip_verify: false,
+        thinking: Thinking::Auto,
         delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",

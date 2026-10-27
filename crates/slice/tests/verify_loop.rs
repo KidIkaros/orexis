@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use futures::executor::block_on;
 use orexis_adapters_codec::NativeCodec;
 use orexis_adapters_fake::{InMemorySession, RecordingSink, ScriptedProvider};
-use orexis_core::{Action, SessionEvent};
+use orexis_core::{Action, SessionEvent, Thinking};
 use orexis_ports::{PortResult, SessionRead, Verifier, VerifyResult};
 use orexis_usecases::{run_turn, ContextConfig, TurnDeps};
 
@@ -61,6 +61,7 @@ fn run(verifier: Option<&dyn Verifier>, skip_verify: bool) -> (bool, usize, Vec<
         checkpointer: None,
         verifier,
         skip_verify,
+        thinking: Thinking::Auto,
         delta_sink: &orexis_ports::NullDeltaSink,
         context: ContextConfig {
             system_prompt: "",

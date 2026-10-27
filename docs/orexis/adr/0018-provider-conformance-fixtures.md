@@ -53,16 +53,16 @@ cover 45/50 hermes profiles and every shipped profile. Gemini native,
 Bedrock, and `codex_responses` get suites when a trigger fires and an
 adapter exists to test.
 
-**Today's manifest** (all state 2, no wire-inexpressible capability known):
+**Today's manifest** (no wire-inexpressible capability known):
 
 | Dialect | Capability | State | Follow-up |
 |---|---|---|---|
 | `open_ai` | tool-call shape | expressed | — |
 | `open_ai` | cache breakpoints | expressed (no-op: automatic caching, nothing on the wire) | — |
-| `open_ai` | thinking config | gap | ticket 017 |
+| `open_ai` | thinking config | expressed (ticket 017: `reasoning_effort` from the declared levels; Off emits the lowest — reasoning endpoints default on) | — |
 | `anthropic` | tool-call shape | expressed | — |
 | `anthropic` | cache breakpoints | expressed (tools only) | — |
-| `anthropic` | thinking config | gap | ticket 017 |
+| `anthropic` | thinking config | expressed (ticket 017: enabled flag + position-scaled budget, 1024 << (index + 1); Off/Auto omit — anthropic's default is off) | — |
 | `anthropic` | message-level cache | gap | ticket 018 |
 
 ## Consequences
