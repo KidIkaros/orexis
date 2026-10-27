@@ -9,3 +9,6 @@ orexis-core.workspace = true
 orexis-ports.workspace = true
 async-trait.workspace = true
 tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+futures = "0.3"

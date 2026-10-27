@@ -2,8 +2,10 @@
 
 mod entity;
 mod evolution;
+mod team;
 pub use entity::*;
 pub use evolution::*;
+pub use team::*;
 
 use serde::{Deserialize, Serialize};
 

@@ -33,10 +33,10 @@ fn spawn(socket: &Path, db: &Path) -> Child {
 }
 
 async fn connect(path: &Path) -> UnixStream {
-    // Generous under load: the gate chain compiles and runs suites in
-    // parallel, and this budget proves the daemon starts, not how fast
-    // the machine is.
-    for _ in 0..3000 {
+    // Generous under load: the gate chain runs the full suite at every
+    // level, so child daemons starve; this budget proves the daemon
+    // starts, not how fast the machine is.
+    for _ in 0..12000 {
         if let Ok(stream) = UnixStream::connect(path).await {
             return stream;
         }
@@ -53,10 +53,10 @@ async fn send(writer: &mut OwnedWriteHalf, message: &ClientMsg) {
 }
 
 async fn read_server(reader: &mut BufReader<OwnedReadHalf>, line: &mut String) -> ServerMsg {
-    // Generous under load: the gate chain compiles and runs suites in
-    // parallel; recovery itself takes well under a second in isolation.
+    // Generous under load: the gate chain runs the full suite at every
+    // level; recovery itself takes well under a second in isolation.
     line.clear();
-    let read = timeout(Duration::from_secs(30), reader.read_line(line))
+    let read = timeout(Duration::from_secs(120), reader.read_line(line))
         .await
         .expect("timeout")
         .expect("read");

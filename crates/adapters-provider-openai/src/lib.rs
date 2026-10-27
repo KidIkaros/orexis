@@ -125,6 +125,10 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
 
 #[async_trait]
 impl<T: Transport + 'static> Provider for OpenAiCompatibleProvider<T> {
+    fn capacity(&self) -> usize {
+        self.profile.limits.max_concurrency.max(1) as usize
+    }
+
     async fn complete(
         &self,
         messages: &[Message],

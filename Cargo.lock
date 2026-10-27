@@ -1403,6 +1403,7 @@ name = "orexis-adapters-fake"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
  "orexis-core",
  "orexis-ports",
  "tokio",

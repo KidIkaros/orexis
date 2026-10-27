@@ -2,9 +2,9 @@
 
 use async_trait::async_trait;
 use orexis_core::{
-    Action, Candidate, CandidateManifest, CandidateRef, ContextFile, EntityEvent, EntitySnapshot,
-    EventRef, LedgerEntry, Message, Mutation, Observation, ProviderResponse, Seal, SessionEvent,
-    StoredEvent, Thinking, ToolSpec,
+    Action, BoardTask, BusMessage, Candidate, CandidateManifest, CandidateRef, ContextFile,
+    EntityEvent, EntitySnapshot, EventRef, Lease, LedgerEntry, Message, Mutation, Observation,
+    ProviderResponse, Seal, SessionEvent, StoredEvent, Thinking, ToolSpec,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +45,12 @@ impl DeltaSink for NullDeltaSink {
 
 #[async_trait]
 pub trait Provider: Send + Sync {
+    /// How many generations this provider allows concurrently — the
+    /// scheduler asks, never guesses (invariant 17).
+    fn capacity(&self) -> usize {
+        1
+    }
+
     async fn complete(
         &self,
         messages: &[Message],
@@ -356,4 +362,53 @@ pub trait ApprovalOverrides: Send + Sync {
 
 pub trait EventSink: Send + Sync {
     fn emit(&self, event: &SessionEvent, seq: u64);
+}
+
+// --- Team domain (M8, ADR-0020) ---
+
+/// The board: durable tasks with owner, required strategy, blocking edges.
+#[async_trait]
+pub trait BoardStore: Send + Sync {
+    async fn create(
+        &self,
+        title: &str,
+        required_strategy: &str,
+        depends_on: Vec<String>,
+    ) -> PortResult<BoardTask>;
+    async fn get(&self, id: &str) -> PortResult<Option<BoardTask>>;
+    async fn list(&self) -> PortResult<Vec<BoardTask>>;
+    /// Queued tasks whose edges are all done — the scheduler's intake.
+    async fn ready(&self) -> PortResult<Vec<BoardTask>>;
+    /// `queued → admitted`: the scheduler reserves capacity.
+    async fn admit(&self, id: &str) -> PortResult<BoardTask>;
+    /// `admitted → running`: a worker claims it.
+    async fn start(&self, id: &str, owner: &str) -> PortResult<BoardTask>;
+    async fn complete(&self, id: &str) -> PortResult<BoardTask>;
+    async fn fail(&self, id: &str, reason: &str) -> PortResult<BoardTask>;
+}
+
+/// The bus: direct and room messages, persisted as events (CONTEXT.md —
+/// never ephemeral chat).
+#[async_trait]
+pub trait MessageStore: Send + Sync {
+    async fn post(&self, from: &str, to: Option<&str>, text: &str) -> PortResult<BusMessage>;
+    /// Messages after `seq`. `for_worker` receives the room plus its own
+    /// direct messages; `None` receives everything (the supervisor).
+    async fn read_since(&self, seq: u64, for_worker: Option<&str>) -> PortResult<Vec<BusMessage>>;
+}
+
+/// The blackboard: durable outputs and leases on workspace paths
+/// (ADR-0020).
+#[async_trait]
+pub trait ArtifactStore: Send + Sync {
+    async fn put(&self, name: &str, bytes: &[u8]) -> PortResult<()>;
+    async fn get(&self, name: &str) -> PortResult<Option<Vec<u8>>>;
+    async fn list(&self) -> PortResult<Vec<String>>;
+    /// Lease a workspace path for `ttl_secs`; an existing unexpired lease
+    /// held by another owner is refused.
+    async fn lease(&self, path: &str, owner: &str, ttl_secs: u64) -> PortResult<Lease>;
+    /// Take over an expired lease; `None` when the lease is live.
+    async fn steal(&self, path: &str, owner: &str) -> PortResult<Option<Lease>>;
+    /// The live lease on a path, if any.
+    async fn lease_of(&self, path: &str) -> PortResult<Option<Lease>>;
 }

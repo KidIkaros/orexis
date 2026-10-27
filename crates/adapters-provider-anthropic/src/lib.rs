@@ -171,6 +171,10 @@ impl<T: Transport> AnthropicProvider<T> {
 
 #[async_trait]
 impl<T: Transport + 'static> Provider for AnthropicProvider<T> {
+    fn capacity(&self) -> usize {
+        self.profile.limits.max_concurrency.max(1) as usize
+    }
+
     async fn complete(
         &self,
         messages: &[Message],
