@@ -147,19 +147,40 @@ fn thinking_config_is_expressed() {
 }
 
 #[test]
-fn message_level_cache_is_a_recorded_gap() {
-    // The anthropic cache dialect can carry cache_control on the system
-    // prompt and on messages, not only on tool definitions; the adapter
-    // emits it on tools only. Ratchet: this asserts ABSENCE — closing the
-    // gap turns this test red, forcing a real fixture here and the
-    // manifest flip. Follow-up ticket 018.
+fn system_prefix_carries_the_cache_breakpoint() {
+    // The stable prefix — system prompt, tool docs, project context — is
+    // assembled as one system message (invariant 3: the prefix is stable
+    // within a session; only compaction breaks it), so that is where a
+    // breakpoint earns its keep. The conversation tail gets none: it
+    // changes every turn, and a moving breakpoint's write cost needs
+    // measured evidence first. Two of the wire's four breakpoints are
+    // used (system + last tool).
     let body = provider().request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
-    assert!(
-        body["messages"]
-            .as_array()
-            .expect("messages")
-            .iter()
-            .all(|message| message.get("cache_control").is_none()),
-        "the gap is closed — write the real fixture and flip the manifest"
+    let system = body["system"].as_array().expect("system blocks");
+    let last = system.last().expect("system block");
+    assert_eq!(last["cache_control"]["type"], "ephemeral");
+}
+
+#[test]
+fn breakpoints_off_leave_the_system_a_plain_string() {
+    // openrouter-anthropic declares `breakpoints: false` (cache dialect
+    // none): the wire form must not change for profiles that ask for
+    // nothing.
+    let profile: ProviderProfile = serde_yaml::from_str(include_str!(
+        "../../adapters-provider-catalog/providers/openrouter-anthropic.yaml"
+    ))
+    .expect("profile");
+    let provider = AnthropicProvider::new(
+        profile,
+        "anthropic/claude-haiku-5.5",
+        Some("test-key".to_string()),
+        orexis_adapters_http::MockTransport::new(Vec::new()),
     );
+    let body = provider.request_body(&canonical_messages(), &canonical_tools(), Thinking::Auto);
+    assert!(body["system"].is_string(), "no breakpoint, no block array");
+    assert!(body["tools"]
+        .as_array()
+        .expect("tools")
+        .iter()
+        .all(|tool| tool.get("cache_control").is_none()));
 }

@@ -109,7 +109,20 @@ impl<T: Transport> AnthropicProvider<T> {
             "messages": messages,
         });
         if !system.is_empty() {
-            body["system"] = json!(system);
+            // The stable prefix (invariant 3) is where a breakpoint earns
+            // its keep: system prompt, tool docs, and project context are
+            // one system message, unchanged within a session. The wire
+            // takes the system as blocks when it carries cache_control;
+            // without breakpoints it stays a plain string.
+            if self.profile.cache.breakpoints {
+                body["system"] = json!([{
+                    "type": "text",
+                    "text": system,
+                    "cache_control": { "type": "ephemeral" },
+                }]);
+            } else {
+                body["system"] = json!(system);
+            }
         }
 
         // Per-provider conditioning (PLAN §4.4): the profile declares the
@@ -477,7 +490,11 @@ mod tests {
             },
         ];
         let body = provider.request_body(&messages, &[], Thinking::Auto);
-        assert_eq!(body["system"], "be helpful");
+        // The shipped profile declares cache breakpoints, so the system
+        // travels as blocks with the breakpoint on the stable prefix.
+        let system = body["system"].as_array().expect("system blocks");
+        assert_eq!(system[0]["text"], "be helpful");
+        assert_eq!(system[0]["cache_control"]["type"], "ephemeral");
         assert_eq!(body["messages"].as_array().unwrap().len(), 1);
     }
 

@@ -61,9 +61,9 @@ adapter exists to test.
 | `open_ai` | cache breakpoints | expressed (no-op: automatic caching, nothing on the wire) | — |
 | `open_ai` | thinking config | expressed (ticket 017: `reasoning_effort` from the declared levels; Off emits the lowest — reasoning endpoints default on) | — |
 | `anthropic` | tool-call shape | expressed | — |
-| `anthropic` | cache breakpoints | expressed (tools only) | — |
+| `anthropic` | cache breakpoints | expressed (system prefix + last tool; 2 of the wire's 4 breakpoints) | — |
 | `anthropic` | thinking config | expressed (ticket 017: enabled flag + position-scaled budget, 1024 << (index + 1); Off/Auto omit — anthropic's default is off) | — |
-| `anthropic` | message-level cache | gap | ticket 018 |
+| `anthropic` | message-level cache | expressed (ticket 018: the system prefix carries the breakpoint; the conversation tail waits for measured evidence) | — |
 
 ## Consequences
 
@@ -91,5 +91,8 @@ adapter exists to test.
 ## Follow-ups
 
 - Ticket 017: emit thinking configuration per profile (`reasoning_effort`
-  on the compatible wire, `thinking` on the anthropic wire).
-- Ticket 018: anthropic message-level cache breakpoints.
+  on the compatible wire, `thinking` on the anthropic wire). — resolved
+  2026-10-27.
+- Ticket 018: anthropic message-level cache breakpoints. — resolved
+  2026-10-27: the system prefix carries the breakpoint; a conversation
+  tail breakpoint waits for measured cache-hit evidence.

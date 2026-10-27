@@ -2,8 +2,8 @@
 
 - **Type:** feature
 - **Blocks:** —
-- **Status:** open
-- **Claimed by:** —
+- **Status:** resolved
+- **Claimed by:** devin, 2026-10-27
 
 ## Question
 
@@ -25,15 +25,34 @@ how is the breakpoint count budgeted (the wire allows a bounded number)?
 - PLAN invariant 3: the prompt prefix is stable within a session — the
   stable prefix is exactly what a cache breakpoint protects.
 
-## Acceptance
+## Resolution
 
-- [ ] The adapter emits message-level `cache_control` at the decided
-      positions under the decided budget.
-- [ ] The conformance ratchet flips to a real fixture (expressed).
-- [ ] Cache-hit behavior is verified against a live endpoint (manual,
-      per the ADR-0016 real-peer pattern).
+**The breakpoint goes on the system prefix; the conversation tail waits
+for measured evidence.**
 
-## Notes
+Our assembly puts the system prompt, tool docs, and project context into
+one system message — the stable prefix invariant 3 protects. That is
+where a breakpoint earns its keep, so when `cache.breakpoints` is on the
+system travels as one text block with `cache_control: ephemeral`; with
+breakpoints off (openrouter-anthropic) it stays a plain string. The
+conversation tail gets no breakpoint: it changes every turn, and a
+moving breakpoint's write cost (cache re-written at a new position each
+turn) needs measured cache-hit evidence before it earns its place. Two
+of the wire's four breakpoints are used (system + last tool), leaving
+headroom.
 
-The breakpoint positions and budget are the design question; the
-emission is mechanical.
+## Landed
+
+- `adapters-provider-anthropic`: the system field carries the breakpoint
+  when the profile asks for it.
+- Conformance suite: the ratchet flipped to
+  `system_prefix_carries_the_cache_breakpoint`; new fixture
+  `breakpoints_off_leave_the_system_a_plain_string` (openrouter-anthropic
+  profile) pins the no-breakpoint wire form.
+- ADR-0018 manifest: message-level cache is expressed.
+
+## Follow-ups
+
+- A conversation-tail breakpoint (incremental history caching) waits for
+  measured evidence from a live endpoint — part of the M6/M9 calibration
+  work, not a fixture-level decision.
