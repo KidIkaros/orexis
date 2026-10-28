@@ -62,8 +62,15 @@ impl Daemon {
         let generation = Arc::new(Semaphore::new(config.generation_slots.max(1)));
         let registry = Arc::new(SessionRegistry::new(config.sessions.clone()));
         // Team mode gains the board tools: the model's write surface for
-        // the board (M8-11), inside the same permission gate.
+        // the board (M8-11), inside the same permission gate. The prompt
+        // says so — tools a model cannot discover are tools it won't use.
         let base_tools: Arc<dyn ToolExecutor> = if config.team {
+            config.system_prompt.push_str(
+                "\n\nThis is a team session. You may decompose work onto the shared board \
+                 with board_add (title, strategy: plan, build, review, or mine; optional \
+                 depends_on) and read it with board_list. Workers claim board tasks and \
+                 run them under your oversight.",
+            );
             let board = config.board.clone();
             config
                 .context_tools

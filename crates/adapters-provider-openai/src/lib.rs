@@ -84,6 +84,9 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
             "model": self.model,
             "messages": messages,
             "stream": true,
+            // The final chunk then carries `usage` — the bench's token
+            // metrics (§10).
+            "stream_options": { "include_usage": true },
         });
 
         if !tools.is_empty() {
@@ -180,7 +183,7 @@ async fn request<T: Transport>(
         .await
     {
         Ok(stream) => {
-            let actions = parse_stream(stream, sink).await;
+            let (actions, usage) = parse_stream(stream, sink).await;
             let raw_text = actions
                 .iter()
                 .filter_map(|action| match action {
@@ -189,7 +192,11 @@ async fn request<T: Transport>(
                 })
                 .collect::<Vec<_>>()
                 .join("");
-            Ok(ProviderResponse { actions, raw_text })
+            Ok(ProviderResponse {
+                actions,
+                raw_text,
+                usage,
+            })
         }
         Err(error) => Err(PortError(error.to_string())),
     }
@@ -202,11 +209,15 @@ struct ToolCallAccum {
     args: String,
 }
 
-async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Action> {
+async fn parse_stream(
+    mut stream: ByteStream,
+    sink: &dyn DeltaSink,
+) -> (Vec<Action>, Option<orexis_core::TokenUsage>) {
     let mut buffer = String::new();
     let mut content = String::new();
     let mut tool_calls: BTreeMap<usize, ToolCallAccum> = BTreeMap::new();
     let mut finish_reason: Option<String> = None;
+    let mut usage = None;
 
     while let Some(chunk) = stream.next().await {
         let Ok(bytes) = chunk else {
@@ -250,6 +261,14 @@ async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Actio
                 if let Some(reason) = choice["finish_reason"].as_str() {
                     finish_reason = Some(reason.to_string());
                 }
+                // With include_usage the last chunk's choices are empty
+                // and the counts ride on the chunk itself.
+                let u = &value["usage"];
+                if let (Some(prompt), Some(completion)) =
+                    (u["prompt_tokens"].as_u64(), u["completion_tokens"].as_u64())
+                {
+                    usage = Some(orexis_core::TokenUsage { prompt, completion });
+                }
             }
         }
     }
@@ -279,7 +298,7 @@ async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Actio
             summary: "done".to_string(),
         });
     }
-    actions
+    (actions, usage)
 }
 
 #[cfg(test)]

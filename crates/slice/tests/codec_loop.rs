@@ -36,6 +36,7 @@ impl Provider for TextProvider {
         Ok(ProviderResponse {
             actions: vec![Action::Say { text: text.clone() }],
             raw_text: text,
+            usage: None,
         })
     }
 }
@@ -56,6 +57,7 @@ impl Provider for NativeProvider {
                 summary: "native".to_string(),
             }],
             raw_text: "ignored by the native codec".to_string(),
+            usage: None,
         })
     }
 }

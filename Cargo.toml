@@ -33,6 +33,7 @@ members = [
     "crates/adapters-protocol-a2a",
     "crates/composition",
     "crates/slice",
+    "crates/bench",
     "crates/orexis",
 ]
 resolver = "2"
@@ -70,5 +71,6 @@ orexis-adapters-protocol-mcp = { path = "crates/adapters-protocol-mcp" }
 orexis-adapters-protocol-a2a = { path = "crates/adapters-protocol-a2a" }
 orexis-adapters-protocol-acp = { path = "crates/adapters-protocol-acp" }
 orexis-composition = { path = "crates/composition" }
+orexis-bench = { path = "crates/bench" }
 async-trait = "0.1"
 futures = "0.3"

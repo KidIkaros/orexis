@@ -1,7 +1,7 @@
 //! Rendering tests for every state and overlay.
 
 use orexis_adapters_tui::render::draw;
-use orexis_adapters_tui::{Focus, Overlay, PlanTask, TuiApp, TuiState};
+use orexis_adapters_tui::{Focus, PlanTask, TuiApp, TuiState};
 use orexis_core::SessionEvent;
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
@@ -41,6 +41,7 @@ fn streaming_state_renders_transcript() {
     app.push_event(&SessionEvent::ModelResponse {
         text: "I'll read it first.".into(),
         actions: Vec::new(),
+        usage: None,
     });
     let out = render(&app, 80, 24);
     assert!(out.contains("you › refactor the store"));

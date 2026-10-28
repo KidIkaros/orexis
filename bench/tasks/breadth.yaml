@@ -1,0 +1,145 @@
+# Breadth tasks (M8-10): work that decomposes into independent subtasks —
+# the shape parallelism should win on. Held-out variants verify the gate
+# wasn't tuned to the public set.
+
+- name: fix-four-modules
+  fixture:
+    files:
+      alpha.txt: |
+        status: broken
+        note: the flag must read enabled
+      beta.txt: |
+        mode: off
+        note: the mode must read on
+      gamma.txt: |
+        level: 3
+        note: the level must read 7
+      delta.txt: |
+        color: red
+        note: the color must read blue
+  prompt: >-
+    Four files each need one fix: alpha.txt's status must become "enabled",
+    beta.txt's mode must become "on", gamma.txt's level must become "7",
+    and delta.txt's color must become "blue". Make all four edits, then
+    finish.
+  judges:
+    - type: file_grep
+      path: alpha.txt
+      pattern: 'status: enabled'
+    - type: file_grep
+      path: beta.txt
+      pattern: 'mode: on'
+    - type: file_grep
+      path: gamma.txt
+      pattern: 'level: 7'
+    - type: file_grep
+      path: delta.txt
+      pattern: 'color: blue'
+
+- name: write-four-reports
+  fixture:
+    files:
+      data/north.txt: "revenue: 10\ncost: 6\n"
+      data/south.txt: "revenue: 20\ncost: 12\n"
+      data/east.txt: "revenue: 30\ncost: 10\n"
+      data/west.txt: "revenue: 5\ncost: 9\n"
+  prompt: >-
+    For each region file in data/ (north, south, east, west), write a
+    report file reports/<region>.txt containing one line
+    "margin: <revenue minus cost>". Create all four reports, then finish.
+  judges:
+    - type: file_eq
+      path: reports/north.txt
+      expected: "margin: 4"
+    - type: file_eq
+      path: reports/south.txt
+      expected: "margin: 8"
+    - type: file_eq
+      path: reports/east.txt
+      expected: "margin: 20"
+    - type: file_eq
+      path: reports/west.txt
+      expected: "margin: -4"
+
+- name: rename-three-constants
+  fixture:
+    files:
+      src/limits.txt: "MAX_RETRIES = 3\n"
+      src/names.txt: "SERVICE = old-api\n"
+      src/paths.txt: "LOG_DIR = /tmp/old\n"
+  prompt: >-
+    Three files each hold one constant to rename: change MAX_RETRIES in
+    src/limits.txt to 5, change SERVICE in src/names.txt to new-api, and
+    change LOG_DIR in src/paths.txt to /var/log/new. Make all three edits,
+    then finish.
+  judges:
+    - type: file_grep
+      path: src/limits.txt
+      pattern: 'MAX_RETRIES = 5'
+    - type: file_grep
+      path: src/names.txt
+      pattern: 'SERVICE = new-api'
+    - type: file_grep
+      path: src/paths.txt
+      pattern: 'LOG_DIR = /var/log/new'
+
+- name: fix-four-modules-ho
+  held_out: true
+  fixture:
+    files:
+      alpha.txt: |
+        status: disabled
+        note: the flag must read active
+      beta.txt: |
+        mode: standby
+        note: the mode must read live
+      gamma.txt: |
+        level: 2
+        note: the level must read 9
+      delta.txt: |
+        color: green
+        note: the color must read amber
+  prompt: >-
+    Four files each need one fix: alpha.txt's status must become "active",
+    beta.txt's mode must become "live", gamma.txt's level must become "9",
+    and delta.txt's color must become "amber". Make all four edits, then
+    finish.
+  judges:
+    - type: file_grep
+      path: alpha.txt
+      pattern: 'status: active'
+    - type: file_grep
+      path: beta.txt
+      pattern: 'mode: live'
+    - type: file_grep
+      path: gamma.txt
+      pattern: 'level: 9'
+    - type: file_grep
+      path: delta.txt
+      pattern: 'color: amber'
+
+- name: write-four-reports-ho
+  held_out: true
+  fixture:
+    files:
+      data/north.txt: "revenue: 12\ncost: 4\n"
+      data/south.txt: "revenue: 18\ncost: 8\n"
+      data/east.txt: "revenue: 25\ncost: 5\n"
+      data/west.txt: "revenue: 7\ncost: 15\n"
+  prompt: >-
+    For each region file in data/ (north, south, east, west), write a
+    report file reports/<region>.txt containing one line
+    "margin: <revenue minus cost>". Create all four reports, then finish.
+  judges:
+    - type: file_eq
+      path: reports/north.txt
+      expected: "margin: 8"
+    - type: file_eq
+      path: reports/south.txt
+      expected: "margin: 10"
+    - type: file_eq
+      path: reports/east.txt
+      expected: "margin: 20"
+    - type: file_eq
+      path: reports/west.txt
+      expected: "margin: -8"

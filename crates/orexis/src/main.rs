@@ -23,6 +23,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Upgrade { from } => crate::upgrade::upgrade(from.as_deref())
             .map(|text| print!("{text}"))
             .map_err(|error| Box::new(error) as Box<dyn std::error::Error>),
+        Command::Bench { args } => runtime()?.block_on(orexis_bench::cli::cli(&args)),
         Command::Version => {
             println!("orexis {}", env!("CARGO_PKG_VERSION"));
             Ok(())
@@ -94,6 +95,9 @@ pub enum Command {
     Upgrade {
         from: Option<PathBuf>,
     },
+    Bench {
+        args: Vec<String>,
+    },
     Version,
     /// A subcommand whose ticket has not landed; named in the error.
     NotYet(&'static str),
@@ -134,7 +138,9 @@ fn parse(args: &[String]) -> Command {
             from: flag_value(flags, "--from").map(PathBuf::from),
         },
         "--version" | "-V" | "version" => Command::Version,
-        "bench" => Command::NotYet("bench"),
+        "bench" => Command::Bench {
+            args: flags.to_vec(),
+        },
         "export" => Command::NotYet("export"),
         "import" => Command::NotYet("import"),
         "--help" | "-h" | "help" => Command::Usage,
@@ -271,7 +277,7 @@ mod tests {
 
     #[test]
     fn unbuilt_subcommands_report_not_yet() {
-        for name in ["bench", "export", "import"] {
+        for name in ["export", "import"] {
             assert!(
                 matches!(parse(&args(&[name])), Command::NotYet(_)),
                 "{name} must be a NotYet stub"

@@ -906,6 +906,7 @@ impl Provider for RecordingProvider {
                 summary: "done".to_string(),
             }],
             raw_text: String::new(),
+            usage: None,
         })
     }
 }

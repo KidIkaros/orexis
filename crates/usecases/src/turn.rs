@@ -202,6 +202,7 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
             SessionEvent::ModelResponse {
                 text,
                 actions: actions.clone(),
+                usage: response.usage,
             },
         )
         .await?;

@@ -61,6 +61,15 @@ pub struct Observation {
 pub struct ProviderResponse {
     pub actions: Vec<Action>,
     pub raw_text: String,
+    /// Tokens the provider reports for this call, when it reports them.
+    pub usage: Option<TokenUsage>,
+}
+
+/// Token accounting for one provider call (§10 bench metrics).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub prompt: u64,
+    pub completion: u64,
 }
 
 /// A tool the model may call. `schema` is a JSON Schema object.
@@ -341,6 +350,10 @@ pub enum SessionEvent {
     ModelResponse {
         text: String,
         actions: Vec<Action>,
+        /// Tokens the provider reported for this response (§10 bench;
+        /// absent on providers that do not report and on old logs).
+        #[serde(default)]
+        usage: Option<TokenUsage>,
     },
     ToolCall {
         call_id: String,
@@ -425,7 +438,7 @@ pub fn derive_messages(events: &[SessionEvent]) -> Vec<Message> {
                 tool_call_id: None,
                 tool_calls: Vec::new(),
             }),
-            SessionEvent::ModelResponse { text, actions } => {
+            SessionEvent::ModelResponse { text, actions, .. } => {
                 let tool_calls: Vec<ToolCall> = actions
                     .iter()
                     .filter_map(|action| match action {
@@ -542,9 +555,14 @@ pub fn redact_event(event: &SessionEvent) -> SessionEvent {
             profile_id: profile_id.clone(),
             request_hash: request_hash.clone(),
         },
-        SessionEvent::ModelResponse { text, actions } => SessionEvent::ModelResponse {
+        SessionEvent::ModelResponse {
+            text,
+            actions,
+            usage,
+        } => SessionEvent::ModelResponse {
             text: redact_text(text),
             actions: actions.iter().map(redact_action).collect(),
+            usage: *usage,
         },
         SessionEvent::ToolCall {
             call_id,
@@ -650,6 +668,7 @@ mod tests {
                 actions: vec![Action::Say {
                     text: "hello".into(),
                 }],
+                usage: None,
             },
             SessionEvent::ToolCall {
                 call_id: "c1".into(),
@@ -701,6 +720,7 @@ mod tests {
                     name: "read".into(),
                     args: "{}".into(),
                 }],
+                usage: None,
             },
             SessionEvent::Observation {
                 call_id: "c1".into(),

@@ -91,6 +91,7 @@ impl Provider for RecordingProvider {
         Ok(ProviderResponse {
             actions,
             raw_text: String::new(),
+            usage: None,
         })
     }
 }

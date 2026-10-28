@@ -407,6 +407,7 @@ mod tests {
         state.apply(event(SessionEvent::ModelResponse {
             text: "reading".to_string(),
             actions: Vec::new(),
+            usage: None,
         }));
         assert_eq!(state.transcript.len(), 2);
         assert_eq!(
@@ -481,6 +482,7 @@ mod tests {
         state.apply(event(SessionEvent::ModelResponse {
             text: "hello".to_string(),
             actions: Vec::new(),
+            usage: None,
         }));
         assert!(state.live.is_none());
         assert!(state

@@ -229,7 +229,7 @@ async fn request<T: Transport>(
         .await
     {
         Ok(stream) => {
-            let actions = parse_stream(stream, sink).await;
+            let (actions, usage) = parse_stream(stream, sink).await;
             let raw_text = actions
                 .iter()
                 .filter_map(|action| match action {
@@ -238,7 +238,11 @@ async fn request<T: Transport>(
                 })
                 .collect::<Vec<_>>()
                 .join("");
-            Ok(ProviderResponse { actions, raw_text })
+            Ok(ProviderResponse {
+                actions,
+                raw_text,
+                usage,
+            })
         }
         Err(error) => Err(PortError(error.to_string())),
     }
@@ -251,11 +255,16 @@ struct ToolAccum {
     json: String,
 }
 
-async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Action> {
+async fn parse_stream(
+    mut stream: ByteStream,
+    sink: &dyn DeltaSink,
+) -> (Vec<Action>, Option<orexis_core::TokenUsage>) {
     let mut buffer = String::new();
     let mut text = String::new();
     let mut tools: BTreeMap<usize, ToolAccum> = BTreeMap::new();
     let mut stop_reason: Option<String> = None;
+    let mut prompt_tokens = None;
+    let mut completion_tokens = 0u64;
 
     while let Some(chunk) = stream.next().await {
         let Ok(bytes) = chunk else {
@@ -297,9 +306,19 @@ async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Actio
                         tools.entry(index).or_default().json.push_str(fragment);
                     }
                 }
+                // Usage rides on message_start (input) and message_delta
+                // (output) — the bench's token metrics (§10).
+                Some("message_start") => {
+                    if let Some(input) = value["message"]["usage"]["input_tokens"].as_u64() {
+                        prompt_tokens = Some(input);
+                    }
+                }
                 Some("message_delta") => {
                     if let Some(reason) = value["delta"]["stop_reason"].as_str() {
                         stop_reason = Some(reason.to_string());
+                    }
+                    if let Some(output) = value["usage"]["output_tokens"].as_u64() {
+                        completion_tokens = output;
                     }
                 }
                 _ => {}
@@ -335,7 +354,11 @@ async fn parse_stream(mut stream: ByteStream, sink: &dyn DeltaSink) -> Vec<Actio
             summary: "done".to_string(),
         });
     }
-    actions
+    let usage = prompt_tokens.map(|prompt| orexis_core::TokenUsage {
+        prompt,
+        completion: completion_tokens,
+    });
+    (actions, usage)
 }
 
 #[cfg(test)]

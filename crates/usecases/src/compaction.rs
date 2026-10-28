@@ -75,6 +75,7 @@ mod tests {
             SessionEvent::ModelResponse {
                 text: "two".to_string(),
                 actions: Vec::new(),
+                usage: None,
             },
             SessionEvent::UserMessage {
                 text: "three".to_string(),
@@ -112,6 +113,7 @@ mod tests {
             SessionEvent::ModelResponse {
                 text: "two".to_string(),
                 actions: Vec::new(),
+                usage: None,
             },
             SessionEvent::UserMessage {
                 text: "three".to_string(),

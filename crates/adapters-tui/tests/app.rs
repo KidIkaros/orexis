@@ -174,6 +174,7 @@ fn delta_stream_appends_and_final_clears() {
     app.push_event(&SessionEvent::ModelResponse {
         text: "hello".to_string(),
         actions: Vec::new(),
+        usage: None,
     });
     assert!(app.live.is_none());
     assert!(app

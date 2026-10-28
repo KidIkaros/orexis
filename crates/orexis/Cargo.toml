@@ -10,6 +10,7 @@ orexis-adapters-tui.workspace = true
 orexis-client.workspace = true
 orexis-protocol.workspace = true
 orexis-composition.workspace = true
+orexis-bench.workspace = true
 orexis-adapters-provider-catalog.workspace = true
 thiserror = "2"
 ed25519-dalek = "2"

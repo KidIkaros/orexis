@@ -1339,6 +1339,7 @@ dependencies = [
  "orexis-adapters-http",
  "orexis-adapters-provider-catalog",
  "orexis-adapters-tui",
+ "orexis-bench",
  "orexis-client",
  "orexis-composition",
  "orexis-daemon",
@@ -1633,6 +1634,25 @@ dependencies = [
  "ratatui",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "orexis-bench"
+version = "0.0.0"
+dependencies = [
+ "orexis-client",
+ "orexis-composition",
+ "orexis-core",
+ "orexis-daemon",
+ "orexis-ports",
+ "orexis-protocol",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

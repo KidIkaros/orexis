@@ -49,6 +49,7 @@ impl Provider for SlowProvider {
                 summary: "slow".to_string(),
             }],
             raw_text: "slow".to_string(),
+            usage: None,
         })
     }
 }
@@ -70,6 +71,12 @@ impl Provider for ScriptedProvider {
         Ok(ProviderResponse {
             actions,
             raw_text: String::new(),
+            // Scripted usage keeps the bench's token accounting honest
+            // in dry runs: one prompt token per step, none generated.
+            usage: Some(orexis_core::TokenUsage {
+                prompt: step as u64 + 1,
+                completion: 0,
+            }),
         })
     }
 }
