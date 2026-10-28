@@ -99,9 +99,16 @@ graph TD
   orexis-slice --> orexis-core
   orexis-slice --> orexis-ports
   orexis-slice --> orexis-usecases
+  orexis-bench --> orexis-client
+  orexis-bench --> orexis-composition
+  orexis-bench --> orexis-core
+  orexis-bench --> orexis-daemon
+  orexis-bench --> orexis-ports
+  orexis-bench --> orexis-protocol
   orexis --> orexis-adapters-http
   orexis --> orexis-adapters-provider-catalog
   orexis --> orexis-adapters-tui
+  orexis --> orexis-bench
   orexis --> orexis-client
   orexis --> orexis-composition
   orexis --> orexis-daemon

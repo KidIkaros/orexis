@@ -60,6 +60,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Provider conformance fixtures are capability transcripts with a three-state manifest (expressed / gap / wire-inexpressible); open_ai + anthropic first; thinking and message-cache gaps are adapter tickets, not native triggers | ADR-0018; ticket 013 |
 | Packaging: one `orexis` binary, four targets, minisign-signed artifacts (one keypair with the Tauri updater), GitHub Releases primary, verify-before-execute; upgrade preservation is structural | ADR-0019; ticket 010 |
 | Team-mode domain: workers are in-process turns over sessions sharing the entity; board/bus/blackboard are ports with sqlite/fs adapters; the scheduler asks the provider for capacity; strategies are use cases; the supervisor is a watchdog; opt-in, benchmark-gated | ADR-0020; M8 spec |
+| Team-mode gate measured: paired breadth run on Qwen3.5-2B — pass 4/5 → 5/5 (the one flip is M8-16's listing trap), wall −1,720%, tokens 1.80×; the team arm was the driver's serial work while the plan worker stalled on an unanswerable `board_add` approval (M8-17) ⇒ **team mode stays experimental** | §9; M8-10; `bench-results-qwen35-gate.jsonl` |
 
 ### Frontier
 
@@ -304,6 +305,8 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 **M5 status (2026-10-26):** automated gate green; M5-01 … M5-06 resolved. Manual: `/self` against a real repo and a live model switch. Decision 007 resolved (ADR-0013); neuron alignment is a separate research track (ADR-0014, M5-R01).
 
 **M7 status (2026-10-26):** automated gate green (`scripts/m7-gate.sh`); M7-01 … M7-11 resolved. Protocols: MCP client (stdio + streamable HTTP), ACP server (stdio, fs + permission callbacks), UTCP client (HTTP/CLI/MCP transports), A2A client (card, send, tasks, SSE). Manual: one real peer per protocol. A2A/UTCP adoption beyond fixture-level is decided on M7's evidence.
+
+**M8 status (2026-10-28):** team domain implemented (M8-01 … M8-15 resolved; M8-16 and M8-17 open); `scripts/m8-gate.sh` green on the automated suites. The §9 benchmark says **experimental**: one local model, five breadth pairs, team 5/5 against serial 4/5 — the single flip is M8-16's trap, not a team win — at ≈18× mean wall clock and 1.80× tokens. The team arm was not parallel work: the driver did each task while the plan worker stalled on `board_add`, whose approval no client can answer (M8-17), so the wall column is that 300 s wait. Team mode stays opt-in; the next gate run needs M8-17, M8-16, and the rest of the §10 model matrix.
 
 **Ordering (2026-10-26): M3 before M2.** The M1 real-task gate needs the coding surface, and the desktop should display a working agent rather than a fake one.
 

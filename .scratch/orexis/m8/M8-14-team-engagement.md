@@ -65,3 +65,14 @@ Refuseless glm-5.3-abliterated followed the *contract* on its own
 (wrk=4 via board_add, no seeding — the binary predated this change):
 scale does change spontaneous engagement. Planner phase is correct for
 both cases.
+
+## Planner phase under the gate (2026-10-28)
+
+The plan task is claimed on every team run — engagement is now structural,
+as intended. What the plan worker then does is stall: its first `board_add`
+waits on an approval no client can answer, and the hub's 300 s clock ends
+the turn (`approval timed out`, M8-17). The board never gains the subtasks,
+never drains, and the driver does the work itself. So the gate's team arm
+measures the driver, not the team, until M8-17 is fixed. The decision
+itself (option 2) stands; it is the approval routing beneath it that
+blocks the evidence.
