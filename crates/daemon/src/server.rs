@@ -66,11 +66,11 @@ impl Daemon {
         // says so — tools a model cannot discover are tools it won't use.
         let base_tools: Arc<dyn ToolExecutor> = if config.team {
             config.system_prompt.push_str(
-                "\n\nThis is a team session. Workers claim board tasks and run them for \
-                 you. RULE: when a task has two or more independent pieces of work, first \
-                 call board_add once per piece (title, strategy: plan, build, review, or \
-                 mine; optional depends_on), then let workers do the pieces. Check progress \
-                 with board_list. Do not do the decomposed pieces yourself.",
+                "\n\nThis is a team session. A plan worker decomposes each task you \
+                 receive onto the shared board; workers claim and run those tasks. \
+                 Your role is oversight: check progress with board_list, add tasks \
+                 yourself with board_add when the plan misses something, and \
+                 synthesize the results when the board drains.",
             );
             let board = config.board.clone();
             config

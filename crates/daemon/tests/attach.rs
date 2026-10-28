@@ -1322,3 +1322,46 @@ async fn the_posture_reaches_the_provider() {
         "the provider saw the posture's thinking"
     );
 }
+
+#[tokio::test]
+async fn team_prompt_seeds_a_plan_task() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let socket = dir.path().join("daemon.sock");
+    let db = dir.path().join("sessions.db");
+    let board = Arc::new(orexis_adapters_fake::FakeBoard::new(256));
+    let mut config = config(&socket, &db);
+    config.team = true;
+    config.board = board.clone();
+    let daemon = Daemon::new(config);
+    tokio::spawn(async move {
+        let _ = daemon.run().await;
+    });
+    wait_for(&socket).await;
+
+    let (mut reader, mut writer) = connect(&socket).await;
+    let mut line = String::new();
+    send(&mut writer, &ClientMsg::Attach { session: None }).await;
+    let ServerMsg::Attached { .. } = read_server(&mut reader, &mut line).await else {
+        panic!("expected attached");
+    };
+    send(
+        &mut writer,
+        &ClientMsg::Prompt {
+            text: "fix alpha and beta\nsecond line".to_string(),
+            skip_verify: false,
+        },
+    )
+    .await;
+    let _ = read_until_done(&mut reader, &mut line).await;
+
+    let tasks = orexis_ports::BoardStore::list(board.as_ref())
+        .await
+        .expect("board list");
+    assert!(
+        tasks
+            .iter()
+            .any(|task| task.required_strategy == "plan"
+                && task.title.starts_with("fix alpha and beta")),
+        "team prompt must seed a plan task on the board: {tasks:?}"
+    );
+}

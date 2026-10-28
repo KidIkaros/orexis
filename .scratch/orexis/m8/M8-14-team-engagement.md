@@ -50,3 +50,18 @@ Driver session supervises and synthesizes. Remote/larger models
 scale changes spontaneous engagement — the planner phase is correct
 regardless: it removes a behavioral dependency on the model choosing
 to decompose.
+
+## Implemented — planner phase (option 2)
+
+`handlers::session::prompt` seeds `board.create(title=<prompt first
+line>, strategy="plan")` before spawning the driver turn when team is
+on. Driver preamble rewritten: oversight role (board_list/board_add/
+synthesize). Test: `attach::team_prompt_seeds_a_plan_task`.
+
+Live checks: LFM3-1.7B probe — the seeded plan task was claimed and the
+plan worker spawned (workers=1); run still timed out on a worker-side
+path error (`.orexis/alpha.txt` read — separate bug, ticket-worthy).
+Refuseless glm-5.3-abliterated followed the *contract* on its own
+(wrk=4 via board_add, no seeding — the binary predated this change):
+scale does change spontaneous engagement. Planner phase is correct for
+both cases.

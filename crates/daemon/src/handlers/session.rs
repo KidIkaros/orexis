@@ -138,6 +138,25 @@ pub(crate) async fn prompt(
     )
     .await?;
 
+    // Team mode enters through a plan task (M8-14): a plan worker
+    // decomposes the prompt onto the board. Small models never choose to
+    // decompose on their own — three bench architectures confirmed it —
+    // so the harness makes decomposition a phase, not a request.
+    if config.team {
+        let title: String = text
+            .lines()
+            .next()
+            .unwrap_or("task")
+            .chars()
+            .take(200)
+            .collect();
+        config
+            .board
+            .create(&title, "plan", Vec::new())
+            .await
+            .map_err(io_err)?;
+    }
+
     let handle = spawn_turn(&rt, config, base_tools, hub, text, skip_verify, permit)
         .await
         .map_err(io_err)?;
