@@ -51,6 +51,11 @@ pub struct RunResult {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub wall_ms: u64,
+    /// When the work actually finished: the board's drain time for team
+    /// runs — the driver's turn may idle to the timeout after workers
+    /// complete, so wall_ms overstates the team's real time (the gate's
+    /// ≥25%-faster arm reads this, not wall_ms).
+    pub work_ms: u64,
     /// Every session the run touched, driver first — workers included.
     /// The bench's failure diagnosis lives or dies on this list (M8-15
     /// showed a stop_reason alone can't say who failed).
@@ -104,6 +109,7 @@ pub async fn run_suite(args: &SuiteArgs) -> Result<(), Box<dyn std::error::Error
                     prompt_tokens: 0,
                     completion_tokens: 0,
                     wall_ms: 0,
+                    work_ms: 0,
                     sessions: Vec::new(),
                     errors: vec![format!("runner: {error}")],
                 },
@@ -207,6 +213,7 @@ async fn run_once(
     let mut error: Option<String> = None;
     let mut tasks: Vec<BoardTask> = Vec::new();
     let mut last_activity = Instant::now();
+    let mut drained_at: Option<Instant> = None;
     let mut finished = false;
     while Instant::now() < deadline {
         if mode == Mode::Team {
@@ -235,6 +242,9 @@ async fn run_once(
                     orexis_core::TaskStatus::Done | orexis_core::TaskStatus::Failed
                 )
             });
+        if drained && drained_at.is_none() {
+            drained_at = Some(Instant::now());
+        }
         finished = match mode {
             Mode::Serial => session_done,
             // A drained, quiet board is the team's finish line — the
@@ -298,6 +308,13 @@ async fn run_once(
     for judge in &task.judges {
         pass &= judge.check(dir.path()).map_err(|e| e.to_string())?;
     }
+    // A run's evidence is its session log and board; the fixture workspace
+    // is deleted on drop unless the caller asks for it (the M8 gate needed
+    // it to tell a team pass from a driver pass).
+    if std::env::var_os("OREXIS_BENCH_KEEP").is_some() {
+        let kept = dir.keep();
+        eprintln!("kept workspace: {}", kept.display());
+    }
 
     Ok(RunResult {
         task: task.name.clone(),
@@ -314,6 +331,10 @@ async fn run_once(
         prompt_tokens: usage.prompt,
         completion_tokens: usage.completion,
         wall_ms: t0.elapsed().as_millis() as u64,
+        work_ms: drained_at
+            .unwrap_or(t0 + t0.elapsed())
+            .duration_since(t0)
+            .as_millis() as u64,
         sessions: session_ids,
         errors,
     })

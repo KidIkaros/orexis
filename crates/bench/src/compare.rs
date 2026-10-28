@@ -24,6 +24,10 @@ struct Row {
     prompt_tokens: u64,
     completion_tokens: u64,
     wall_ms: u64,
+    /// Board-drain time when the run recorded it (the team's real finish);
+    /// falls back to wall_ms for rows written before it existed.
+    #[serde(default)]
+    work_ms: Option<u64>,
 }
 
 /// Pairing key: same task on the same model, serial vs team.
@@ -111,9 +115,12 @@ pub fn run_compare(
         team_tokens += c.prompt_tokens + c.completion_tokens;
         pass_diffs.push(c.pass as i32 as f64 - b.pass as i32 as f64);
         // Wall gain is normalized per pair so a long task doesn't
-        // dominate the mean.
-        if b.wall_ms > 0 {
-            wall_diffs.push((b.wall_ms as f64 - c.wall_ms as f64) / b.wall_ms as f64);
+        // dominate the mean. Team rows use work_ms when present — the
+        // board's drain time, not the driver's timeout.
+        let base_ms = b.work_ms.unwrap_or(b.wall_ms) as f64;
+        let cand_ms = c.work_ms.unwrap_or(c.wall_ms) as f64;
+        if base_ms > 0.0 {
+            wall_diffs.push((base_ms - cand_ms) / base_ms);
         }
     }
     let pairs = pass_diffs.len();
@@ -127,7 +134,10 @@ pub fn run_compare(
     } else {
         team_tokens as f64 / serial_tokens as f64
     };
-    let wins = pass_ci.0 >= PASS_MARGIN || wall_ci.0 >= WALL_MARGIN;
+    // Each axis is judged by the lower bound of its noise band, never the
+    // point estimate: one flipped pair moves a mean, and a small-N mean is
+    // the lucky run §11 warns about. A tie on the band is not a win.
+    let wins = pass_ci.1 >= PASS_MARGIN || wall_ci.1 >= WALL_MARGIN;
     let verdict = if wins && token_ratio <= TOKEN_CAP {
         "ship"
     } else {
@@ -246,6 +256,44 @@ mod tests {
         // Faster but 3× the tokens: loses the gate.
         let team = file(dir.path(), "t.jsonl", &[row("t1", "team", true, 3000, 400)]);
         let report = run_compare(&serial, &team).expect("compare");
+        assert_eq!(report.verdict, "experimental");
+    }
+
+    #[test]
+    fn a_lucky_flip_does_not_ship_a_slower_team() {
+        // The shape the M8 gate hit: one pair flips, so the mean pass
+        // diff clears 15%, while the team is an order of magnitude
+        // slower. The noise band exists for exactly this run.
+        let dir = tempfile::tempdir().expect("dir");
+        let serial = file(
+            dir.path(),
+            "s.jsonl",
+            &[
+                row("t1", "serial", true, 1000, 1_000),
+                row("t2", "serial", false, 1000, 1_000),
+                row("t3", "serial", true, 1000, 1_000),
+                row("t4", "serial", true, 1000, 1_000),
+                row("t5", "serial", true, 1000, 1_000),
+            ],
+        );
+        let team = file(
+            dir.path(),
+            "t.jsonl",
+            &[
+                row("t1", "team", true, 1000, 20_000),
+                row("t2", "team", true, 1000, 20_000),
+                row("t3", "team", true, 1000, 20_000),
+                row("t4", "team", true, 1000, 20_000),
+                row("t5", "team", true, 1000, 20_000),
+            ],
+        );
+        let report = run_compare(&serial, &team).expect("compare");
+        assert!(report.pass_diff.0 > PASS_MARGIN, "the mean clears the bar");
+        assert!(
+            report.pass_diff.1 < PASS_MARGIN,
+            "the noise band does not: {:?}",
+            report.pass_diff
+        );
         assert_eq!(report.verdict, "experimental");
     }
 
