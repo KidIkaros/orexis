@@ -220,9 +220,10 @@ fn git_status_and_diff_are_read_only() {
 }
 
 #[test]
-fn git_status_fails_outside_a_repo() {
+fn git_status_reports_clean_message_outside_a_repo() {
     let (_dir, tools) = setup();
-    assert!(run(&tools, "git_status", "{}").is_err());
+    let status = run(&tools, "git_status", "{}").expect("status");
+    assert!(status.output.contains("not a git repository"));
 }
 
 struct RecordingLsp;
