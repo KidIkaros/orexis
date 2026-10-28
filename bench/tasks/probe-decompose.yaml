@@ -1,0 +1,33 @@
+- name: fix-four-modules
+  fixture:
+    files:
+      alpha.txt: |
+        status: broken
+        note: the flag must read enabled
+      beta.txt: |
+        mode: off
+        note: the mode must read on
+      gamma.txt: |
+        level: 3
+        note: the level must read 7
+      delta.txt: |
+        color: red
+        note: the color must read blue
+  prompt: >-
+    Four files each need one fix: alpha.txt's status must become "enabled",
+    beta.txt's mode must become "on", gamma.txt's level must become "7",
+    and delta.txt's color must become "blue". Make all four edits, then
+    finish.
+  judges:
+    - type: file_grep
+      path: alpha.txt
+      pattern: 'status: enabled'
+    - type: file_grep
+      path: beta.txt
+      pattern: 'mode: on'
+    - type: file_grep
+      path: gamma.txt
+      pattern: 'level: 7'
+    - type: file_grep
+      path: delta.txt
+      pattern: 'color: blue'

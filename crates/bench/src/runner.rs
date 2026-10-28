@@ -71,6 +71,7 @@ pub async fn run_suite(args: &SuiteArgs) -> Result<(), Box<dyn std::error::Error
     let mut out = std::io::BufWriter::new(
         std::fs::OpenOptions::new()
             .create(true)
+            .write(true)
             .append(args.append)
             .truncate(!args.append)
             .open(&args.out)?,

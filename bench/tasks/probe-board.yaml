@@ -1,0 +1,8 @@
+- name: must-use-board
+  fixture:
+    files:
+      a.txt: "one\n"
+  prompt: >-
+    First, call the board_add tool exactly once with title "probe task" and
+    strategy "build". Then finish with a one-line summary.
+  judges: []
