@@ -133,3 +133,37 @@ fn append_diagnostics(output: &mut String, diagnostics: &[Diagnostic]) {
         ));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn write_creates_missing_parents() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let tools = LocalTools::new(dir.path()).expect("tools");
+        tools
+            .write_file(&json!({
+                "path": "reports/north.txt",
+                "content": "margin: 4",
+            }))
+            .expect("write through missing dirs");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("reports/north.txt")).expect("read"),
+            "margin: 4"
+        );
+    }
+
+    #[test]
+    fn write_still_rejects_escapes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let tools = LocalTools::new(dir.path()).expect("tools");
+        assert!(tools
+            .write_file(&json!({
+                "path": "../outside/x.txt",
+                "content": "nope",
+            }))
+            .is_err());
+    }
+}

@@ -151,18 +151,30 @@ impl LocalTools {
             }
             return Ok(canonical);
         }
-        let parent = normalized
-            .parent()
-            .ok_or_else(|| PortError(format!("invalid path: {path}")))?;
-        let parent = fs::canonicalize(parent)
+        // The path is missing — possibly several ancestors deep (writes
+        // create dirs). Canonicalize the deepest existing ancestor for
+        // the escape check, then hang the missing tail under it.
+        let mut tail: Vec<&std::ffi::OsStr> = Vec::new();
+        let mut ancestor = normalized.as_path();
+        while !ancestor.exists() {
+            let Some(name) = ancestor.file_name() else {
+                return Err(PortError(format!("invalid path: {path}")));
+            };
+            tail.push(name);
+            ancestor = ancestor
+                .parent()
+                .ok_or_else(|| PortError(format!("invalid path: {path}")))?;
+        }
+        let base = fs::canonicalize(ancestor)
             .map_err(|error| PortError(format!("resolve parent of {path}: {error}")))?;
-        if !parent.starts_with(&self.root) {
+        if !base.starts_with(&self.root) {
             return Err(PortError(format!("path escapes the workspace: {path}")));
         }
-        let name = normalized
-            .file_name()
-            .ok_or_else(|| PortError(format!("invalid path: {path}")))?;
-        Ok(parent.join(name))
+        let mut resolved = base;
+        for part in tail.iter().rev() {
+            resolved.push(part);
+        }
+        Ok(resolved)
     }
 }
 

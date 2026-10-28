@@ -1,6 +1,10 @@
 # M8-12 — write_file should create missing parent dirs
 
-- **Status:** open
+- **Status:** done — devin
+- **Landed:** `resolve` canonicalizes the deepest *existing* ancestor and
+  hangs the missing tail under it, so `write_file`'s `create_dir_all` is
+  reachable. Red repro → regression tests in `files.rs`
+  (`write_creates_missing_parents`, `write_still_rejects_escapes`).
 
 ## Bug
 
@@ -11,5 +15,5 @@ mkdir parents, or the error should instruct the model to.
 
 ## Acceptance
 
-- [ ] Command that goes red on this bug, then a regression test.
-- [ ] write_file creates missing parents inside the sandbox root.
+- [x] Command that goes red on this bug, then a regression test.
+- [x] write_file creates missing parents inside the sandbox root.
