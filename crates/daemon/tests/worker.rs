@@ -11,7 +11,9 @@ use orexis_adapters_entity_sqlite::SqliteEntityFactory;
 use orexis_adapters_fake::SlowProvider;
 use orexis_adapters_session_sqlite::SqliteSessionFactory;
 use orexis_adapters_tools::LocalTools;
-use orexis_core::{Action, EntityEvent, Message, PermissionPolicy, ProviderResponse, ToolSpec};
+use orexis_core::{
+    Action, EntityEvent, Message, PermissionPolicy, ProviderResponse, SessionEvent, ToolSpec,
+};
 use orexis_daemon::{
     spawn_worker_turn, ApprovalHub, DaemonConfig, MemoryOverrides, SessionRegistry, SessionRuntime,
     WorkerTurn,
@@ -303,5 +305,126 @@ async fn the_wall_clock_exhausts_visibly() {
             .as_deref()
             .is_some_and(|error| error.contains("wall clock")),
         "the timeout is the error: {outcome:?}"
+    );
+}
+
+/// A worker that reads a relative path: the tools' root is the project
+/// root, whatever else lives in the workspace (M8-15). The bench's own
+/// `.orexis/` and state files sit beside the fixture; a worker's path
+/// must still resolve at the root, not under them.
+#[tokio::test]
+async fn a_workers_relative_path_resolves_under_the_project_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("alpha.txt"), "status: broken").expect("fixture");
+    std::fs::create_dir(dir.path().join(".orexis")).expect("harness dir");
+    std::fs::write(dir.path().join(".orexis/IDENTITY.md"), "not the task").expect("identity");
+    let (provider, _calls) = RecordingProvider::new(vec![
+        vec![Action::CallTool {
+            call_id: "call-1".into(),
+            name: "read_file".into(),
+            args: r#"{"path":"alpha.txt"}"#.into(),
+        }],
+        vec![Action::Done {
+            summary: "done".into(),
+        }],
+    ]);
+    let config = Arc::new(config(dir.path(), Arc::new(provider)));
+    let registry = SessionRegistry::new(config.sessions.clone());
+    let rt = registry.get_or_create(None).expect("session");
+    let hub = Arc::new(ApprovalHub::new(Arc::new(MemoryOverrides::default())));
+    let permit = Arc::new(Semaphore::new(1))
+        .acquire_owned()
+        .await
+        .expect("permit");
+    let build = strategy(StrategyId::Build);
+    let handle = spawn_worker_turn(
+        &rt,
+        &config,
+        &config.tools,
+        &hub,
+        "read alpha.txt".to_string(),
+        WorkerTurn {
+            prompt_suffix: build.prompt_fragment.to_string(),
+            toolset: build.toolset.clone(),
+            max_steps: build.budget.max_steps,
+            wall_clock: Duration::from_secs(60),
+        },
+        permit,
+    )
+    .await
+    .expect("spawn worker");
+    let outcome = handle.await.expect("worker task");
+    assert!(outcome.done, "outcome: {outcome:?}");
+
+    let events = rt.read.events().await.expect("events");
+    let observation = events
+        .iter()
+        .find_map(|stored| match &stored.event {
+            SessionEvent::Observation { name, output, .. } if name == "read_file" => {
+                Some(output.clone())
+            }
+            _ => None,
+        })
+        .expect("the read's observation");
+    assert!(
+        observation.contains("status: broken"),
+        "the read resolved at the root: {observation}"
+    );
+}
+
+/// The complement: a path that names the harness dir is taken literally.
+/// M8-15's message (`read <root>/.orexis/alpha.txt: No such file`) names
+/// the root joined with the argument as sent, so the log identifies the
+/// wrong one only when the argument is recorded beside it.
+#[tokio::test]
+async fn a_path_naming_the_harness_dir_is_taken_literally() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("alpha.txt"), "status: broken").expect("fixture");
+    std::fs::create_dir(dir.path().join(".orexis")).expect("harness dir");
+    let (provider, _calls) = RecordingProvider::new(vec![vec![Action::CallTool {
+        call_id: "call-1".into(),
+        name: "read_file".into(),
+        args: r#"{"path":".orexis/alpha.txt"}"#.into(),
+    }]]);
+    let config = Arc::new(config(dir.path(), Arc::new(provider)));
+    let registry = SessionRegistry::new(config.sessions.clone());
+    let rt = registry.get_or_create(None).expect("session");
+    let hub = Arc::new(ApprovalHub::new(Arc::new(MemoryOverrides::default())));
+    let permit = Arc::new(Semaphore::new(1))
+        .acquire_owned()
+        .await
+        .expect("permit");
+    let build = strategy(StrategyId::Build);
+    let handle = spawn_worker_turn(
+        &rt,
+        &config,
+        &config.tools,
+        &hub,
+        "read the file".to_string(),
+        WorkerTurn {
+            prompt_suffix: build.prompt_fragment.to_string(),
+            toolset: build.toolset.clone(),
+            max_steps: build.budget.max_steps,
+            wall_clock: Duration::from_secs(60),
+        },
+        permit,
+    )
+    .await
+    .expect("spawn worker");
+    let outcome = handle.await.expect("worker task");
+    assert!(!outcome.done, "outcome: {outcome:?}");
+
+    let events = rt.read.events().await.expect("events");
+    let error = events
+        .iter()
+        .find_map(|stored| match &stored.event {
+            SessionEvent::Error { message } => Some(message.clone()),
+            _ => None,
+        })
+        .expect("the failure is logged");
+    let expected = dir.path().join(".orexis/alpha.txt");
+    assert!(
+        error.contains(&format!("read {}:", expected.display())),
+        "the message names the root joined with the argument as sent: {error}"
     );
 }
