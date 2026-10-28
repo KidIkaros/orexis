@@ -51,6 +51,12 @@ pub struct RunResult {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub wall_ms: u64,
+    /// Every session the run touched, driver first — workers included.
+    /// The bench's failure diagnosis lives or dies on this list (M8-15
+    /// showed a stop_reason alone can't say who failed).
+    pub sessions: Vec<String>,
+    /// `session_id: message` for every Error event in the run.
+    pub errors: Vec<String>,
 }
 
 pub struct SuiteArgs {
@@ -98,6 +104,8 @@ pub async fn run_suite(args: &SuiteArgs) -> Result<(), Box<dyn std::error::Error
                     prompt_tokens: 0,
                     completion_tokens: 0,
                     wall_ms: 0,
+                    sessions: Vec::new(),
+                    errors: vec![format!("runner: {error}")],
                 },
             };
             eprintln!(
@@ -257,11 +265,14 @@ async fn run_once(
     let mut workers = 0;
     let mut usage = TokenUsage::default();
     let mut done = false;
+    let mut session_ids = Vec::new();
+    let mut errors = Vec::new();
     for id in sessions.list()? {
         let refs = sessions.open(Some(&id))?;
         let events = refs.read.events().await?;
         if id != session_id && !events.is_empty() {
             workers += 1;
+            session_ids.push(id.clone());
         }
         for stored in events {
             match stored.event {
@@ -274,10 +285,14 @@ async fn run_once(
                 }
                 SessionEvent::ToolCall { .. } => tool_calls += 1,
                 SessionEvent::Done { .. } if id == session_id => done = true,
+                SessionEvent::Error { message } => {
+                    errors.push(format!("{id}: {message}"));
+                }
                 _ => {}
             }
         }
     }
+    session_ids.insert(0, session_id);
 
     let mut pass = done || finished;
     for judge in &task.judges {
@@ -299,5 +314,7 @@ async fn run_once(
         prompt_tokens: usage.prompt,
         completion_tokens: usage.completion,
         wall_ms: t0.elapsed().as_millis() as u64,
+        sessions: session_ids,
+        errors,
     })
 }
