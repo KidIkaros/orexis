@@ -51,17 +51,9 @@ fn text_lines(text: &Option<String>, empty: &str) -> Vec<Line<'static>> {
 
 fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
     match overlay {
-        Overlay::Fleet => vec![
-            Line::from("● 1  builder   claude-sonnet   running  task 12   $0.04"),
-            Line::from("● 2  reviewer  gpt-5           waiting  task 12   $0.01"),
-            Line::from("○ 3  planner   local 8b        idle               $0.00"),
-            Line::from("○ 4  miner     deepseek        queued   task 14   $0.00"),
-        ],
-        Overlay::Board => vec![
-            Line::from("#12  rewrite store     build    worker 1   running"),
-            Line::from("#13  review store      review   worker 2   blocked by #12"),
-            Line::from("#14  migrate tests     build    —          queued"),
-        ],
+        Overlay::Fleet => text_lines(&app.fleet_text, "no live workers"),
+        Overlay::Board => text_lines(&app.board_text, "no board tasks"),
+        Overlay::Artifacts => text_lines(&app.artifacts_text, "no artifacts"),
         Overlay::Evolution => text_lines(&app.evolution_text, "no evolution ledger"),
         Overlay::SelfState => text_lines(&app.self_text, "no entity state yet"),
         Overlay::Palette => {

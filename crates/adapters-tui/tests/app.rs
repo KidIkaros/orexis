@@ -205,6 +205,73 @@ fn self_view_sets_overlay() {
 }
 
 #[test]
+fn board_sets_overlay_and_renders_tasks() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Board {
+        tasks: vec![orexis_core::BoardTask {
+            id: "task-1".to_string(),
+            title: "fix the bug".to_string(),
+            required_strategy: "build".to_string(),
+            owner: Some("worker-task-1".to_string()),
+            status: orexis_core::TaskStatus::Running,
+            depends_on: vec![],
+            seq: 1,
+        }],
+    });
+    let text = app.board_text.as_deref().expect("board text");
+    assert!(text.contains("fix the bug"));
+    assert!(text.contains("running"));
+    assert!(text.contains("build"));
+    assert!(matches!(app.overlay, Some(Overlay::Board)));
+
+    // An empty board says so instead of rendering nothing.
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Board { tasks: vec![] });
+    assert_eq!(app.board_text.as_deref(), Some("no board tasks"));
+}
+
+#[test]
+fn fleet_sets_overlay_and_renders_workers() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Fleet {
+        workers: vec![orexis_core::BoardTask {
+            id: "task-1".to_string(),
+            title: "fix the bug".to_string(),
+            required_strategy: "build".to_string(),
+            owner: Some("worker-task-1".to_string()),
+            status: orexis_core::TaskStatus::Running,
+            depends_on: vec![],
+            seq: 1,
+        }],
+    });
+    let text = app.fleet_text.as_deref().expect("fleet text");
+    assert!(text.contains("worker-task-1"));
+    assert!(text.contains("running"));
+    assert!(text.contains("fix the bug"));
+    assert!(matches!(app.overlay, Some(Overlay::Fleet)));
+
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Fleet { workers: vec![] });
+    assert_eq!(app.fleet_text.as_deref(), Some("no live workers"));
+}
+
+#[test]
+fn artifacts_set_overlay() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Artifacts {
+        items: vec![orexis_protocol::Artifact {
+            id: "notes.md".to_string(),
+            kind: "artifact".to_string(),
+            title: "notes.md".to_string(),
+            detail: String::new(),
+        }],
+    });
+    let text = app.artifacts_text.as_deref().expect("artifacts text");
+    assert!(text.contains("notes.md"));
+    assert!(matches!(app.overlay, Some(Overlay::Artifacts)));
+}
+
+#[test]
 fn evolution_sets_overlay() {
     let mut app = TuiApp::new();
     app.apply(ServerMsg::Evolution {

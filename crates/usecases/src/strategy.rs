@@ -16,6 +16,9 @@ pub enum StrategyId {
 }
 
 impl StrategyId {
+    /// The shipped strategies; the set board tasks may name.
+    pub const ALL: [StrategyId; 4] = [Self::Plan, Self::Build, Self::Review, Self::Mine];
+
     pub fn parse(name: &str) -> Option<Self> {
         match name {
             "plan" => Some(Self::Plan),
@@ -70,6 +73,8 @@ pub fn strategy(id: StrategyId) -> Strategy {
                 "search",
                 "git_status",
                 "git_diff",
+                "board_add",
+                "board_list",
             ]),
             verify: VerifyLevel::OnRisk,
             budget: BudgetDefaults {
@@ -152,6 +157,19 @@ mod tests {
         assert_eq!(StrategyId::parse("review"), Some(StrategyId::Review));
         assert_eq!(StrategyId::parse("execute"), None);
         assert_eq!(StrategyId::parse(""), None);
+    }
+
+    #[test]
+    fn the_plan_strategy_can_write_the_board() {
+        // M8-11: the plan strategy produces the task breakdown, so the
+        // board tools must survive its toolset filter.
+        let plan = strategy(StrategyId::Plan);
+        assert!(plan.toolset.permits("board_add"));
+        assert!(plan.toolset.permits("board_list"));
+        // The other strategies keep a closed toolset without them.
+        for id in [StrategyId::Review, StrategyId::Mine] {
+            assert!(!strategy(id).toolset.permits("board_add"));
+        }
     }
 
     #[test]

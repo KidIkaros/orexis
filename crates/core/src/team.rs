@@ -3,6 +3,10 @@
 
 use serde::{Deserialize, Serialize};
 
+/// The board's task cap (M8 limits: 256; a team may tighten, never
+/// exceed).
+pub const BOARD_CAP: usize = 256;
+
 /// A board task's stage. `queued → admitted → running`, `blocked` when
 /// edges wait, terminal `done` / `failed`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -28,6 +32,38 @@ pub struct BoardTask {
     /// Task ids that must be `done` before this one is ready.
     pub depends_on: Vec<String>,
     pub seq: u64,
+}
+
+impl TaskStatus {
+    /// The label the panels and the board tools share.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Admitted => "admitted",
+            Self::Running => "running",
+            Self::Blocked => "blocked",
+            Self::Done => "done",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+/// One task row — the shared rendering for the board panel, the fleet
+/// panel, and the model's board tools (M8-11).
+pub fn render_task(task: &BoardTask) -> String {
+    let owner = task.owner.as_deref().unwrap_or("-");
+    let mut line = format!(
+        "{} [{}] {} — {} (owner {})",
+        task.id,
+        task.status.label(),
+        task.required_strategy,
+        task.title,
+        owner
+    );
+    if !task.depends_on.is_empty() {
+        line.push_str(&format!(" after {}", task.depends_on.join(", ")));
+    }
+    line
 }
 
 /// A bus message: direct (to one worker) or room (to the team).

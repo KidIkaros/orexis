@@ -185,9 +185,20 @@ fn no_color_still_renders_text() {
 #[test]
 fn fleet_overlay_renders() {
     let mut app = TuiApp::new();
-    app.overlay = Some(Overlay::Fleet);
+    app.apply(orexis_protocol::ServerMsg::Fleet {
+        workers: vec![orexis_core::BoardTask {
+            id: "task-12".to_string(),
+            title: "rewrite store".to_string(),
+            required_strategy: "build".to_string(),
+            owner: Some("worker-task-12".to_string()),
+            status: orexis_core::TaskStatus::Running,
+            depends_on: vec![],
+            seq: 12,
+        }],
+    });
     app.focus = Focus::Overlay;
     let out = render(&app, 120, 40);
     assert!(out.contains("fleet"));
-    assert!(out.contains("builder"));
+    assert!(out.contains("worker-task-12"));
+    assert!(out.contains("running"));
 }

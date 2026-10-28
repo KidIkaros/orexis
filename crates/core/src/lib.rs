@@ -157,7 +157,9 @@ impl PermissionPolicy {
 
     fn default_decision(&self, tool: &str) -> Decision {
         match tool {
-            "read_file" | "list_dir" | "search" | "git_status" | "git_diff" => Decision::Allow,
+            "read_file" | "list_dir" | "search" | "git_status" | "git_diff" | "board_list" => {
+                Decision::Allow
+            }
             "write_file" | "edit_file" | "shell" | "verify" => Decision::Ask,
             "git_commit" => Decision::Deny,
             _ => Decision::Ask,
@@ -245,6 +247,15 @@ mod policy_tests {
         assert_eq!(policy.decide("edit_file"), Decision::Ask);
         assert_eq!(policy.decide("git_commit"), Decision::Deny);
         assert_eq!(policy.decide("unknown_tool"), Decision::Ask);
+    }
+
+    #[test]
+    fn board_tools_read_free_write_asks() {
+        // The board's write surface goes through the same gate as any
+        // mutation (M8-11); reads are free like any read tool.
+        let policy = PermissionPolicy::standard();
+        assert_eq!(policy.decide("board_list"), Decision::Allow);
+        assert_eq!(policy.decide("board_add"), Decision::Ask);
     }
 
     #[test]

@@ -2,7 +2,8 @@
 
 - **Blocked by:** M8-09
 - **Blocks:** M8-10
-- **Status:** open
+- **Status:** done
+- **Claimed by:** devin, 2026-10-27
 
 ## Goal
 
@@ -15,7 +16,7 @@ breakdown — through the same permission gate.
 
 ## Acceptance
 
-- [ ] The fleet panel shows live workers (id, strategy, task, status).
-- [ ] The board panel shows real tasks with statuses and edges.
-- [ ] The artifacts panel reads the blackboard.
-- [ ] The model's board tools exist, pass the gate, and are capped.
+- [x] The fleet panel shows live workers (id, strategy, task, status).
+- [x] The board panel shows real tasks with statuses and edges.
+- [x] The artifacts panel reads the blackboard.
+- [x] The model's board tools exist, pass the gate, and are capped.

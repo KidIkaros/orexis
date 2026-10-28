@@ -77,6 +77,14 @@ impl DesktopBridge {
         self.client.artifacts()
     }
 
+    pub fn board(&mut self) -> io::Result<()> {
+        self.client.board()
+    }
+
+    pub fn fleet(&mut self) -> io::Result<()> {
+        self.client.fleet()
+    }
+
     pub fn diff(&mut self) -> io::Result<()> {
         self.client.diff()
     }

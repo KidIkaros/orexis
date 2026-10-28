@@ -9,6 +9,7 @@ pub mod router;
 mod search;
 mod shell;
 mod strategy_tools;
+mod team_tools;
 pub mod verify;
 mod workspace;
 
@@ -16,6 +17,7 @@ pub use checkpoints::GitCheckpointStore;
 pub use gate::{AutoApprove, DenyAll, GatedTools};
 pub use router::{NamespaceTools, RouterTools};
 pub use strategy_tools::StrategyTools;
+pub use team_tools::TeamTools;
 pub use verify::ShellVerifier;
 
 use std::fs;

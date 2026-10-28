@@ -84,11 +84,7 @@ impl TuiApp {
             KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 TuiAction::Detach
             }
-            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.overlay = Some(Overlay::Fleet);
-                self.focus = Focus::Overlay;
-                TuiAction::None
-            }
+            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => TuiAction::Fleet,
             KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.overlay = Some(Overlay::Palette);
                 self.focus = Focus::Overlay;
@@ -99,11 +95,7 @@ impl TuiApp {
                 self.focus = Focus::Overlay;
                 TuiAction::None
             }
-            KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.overlay = Some(Overlay::Board);
-                self.focus = Focus::Overlay;
-                TuiAction::None
-            }
+            KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => TuiAction::Board,
             KeyCode::Char('?') => {
                 self.overlay = Some(Overlay::Help);
                 self.focus = Focus::Overlay;

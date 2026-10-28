@@ -2,10 +2,11 @@
 
 use std::sync::Arc;
 
-use orexis_ports::{Checkpointer, Workspace};
+use orexis_ports::Workspace;
 use tokio::net::unix::OwnedWriteHalf;
 
 use crate::proto::{write_msg, Artifact, FileEntry, ServerMsg};
+use crate::server::DaemonConfig;
 use crate::session::SessionRuntime;
 
 use super::session::latest_checkpoint;
@@ -68,13 +69,37 @@ pub(crate) async fn read_file(
     .await
 }
 
+/// Team mode reads the blackboard — the real artifact store (M8-11);
+/// off, the session projection (changed files plus a checkpoint diff).
 pub(crate) async fn artifacts(
     rt: &Arc<SessionRuntime>,
-    workspace: &Arc<dyn Workspace>,
-    checkpointer: Option<&Arc<dyn Checkpointer>>,
+    config: &Arc<DaemonConfig>,
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
-    let changed = match workspace.changed() {
+    if config.team {
+        let items = match config.blackboard.list().await {
+            Ok(names) => names
+                .into_iter()
+                .map(|name| Artifact {
+                    id: name.clone(),
+                    kind: "artifact".to_string(),
+                    title: name,
+                    detail: String::new(),
+                })
+                .collect(),
+            Err(error) => {
+                return write_msg(
+                    write,
+                    &ServerMsg::Error {
+                        message: error.to_string(),
+                    },
+                )
+                .await
+            }
+        };
+        return write_msg(write, &ServerMsg::Artifacts { items }).await;
+    }
+    let changed = match config.workspace.changed() {
         Ok(changed) => changed,
         Err(error) => {
             write_msg(
@@ -97,7 +122,7 @@ pub(crate) async fn artifacts(
         });
     }
     if let Some(id) = latest_checkpoint(rt).await? {
-        if let Some(checkpointer) = checkpointer {
+        if let Some(checkpointer) = &config.checkpointer {
             if let Ok(diff) = checkpointer.diff(&id) {
                 items.push(Artifact {
                     id: format!("checkpoint:{id}"),

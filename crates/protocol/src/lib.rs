@@ -1,6 +1,6 @@
 //! The NDJSON client/server protocol shared by the daemon and its clients.
 
-pub use orexis_core::SessionEvent;
+pub use orexis_core::{BoardTask, SessionEvent};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,6 +36,8 @@ pub enum ClientMsg {
     Undo,
     Diff,
     ListSessions,
+    Board,
+    Fleet,
     Detach,
 }
 
@@ -93,6 +95,12 @@ pub enum ServerMsg {
     },
     Evolution {
         entries: Vec<String>,
+    },
+    Board {
+        tasks: Vec<orexis_core::BoardTask>,
+    },
+    Fleet {
+        workers: Vec<orexis_core::BoardTask>,
     },
     Diff {
         diff: String,

@@ -106,6 +106,8 @@ pub struct AppState {
     pub artifacts: Vec<Artifact>,
     pub settings: Option<SettingsInfo>,
     pub self_text: Option<String>,
+    pub board_text: Option<String>,
+    pub fleet_text: Option<String>,
 }
 
 impl Default for AppState {
@@ -129,6 +131,8 @@ impl Default for AppState {
             artifacts: Vec::new(),
             settings: None,
             self_text: None,
+            board_text: None,
+            fleet_text: None,
         }
     }
 }
@@ -182,6 +186,28 @@ impl AppState {
             ServerMsg::Audit { .. } => {}
             ServerMsg::SelfView { text } => self.self_text = Some(text),
             ServerMsg::Evolution { .. } => {}
+            ServerMsg::Board { tasks } => {
+                self.board_text = Some(if tasks.is_empty() {
+                    "no board tasks".to_string()
+                } else {
+                    tasks
+                        .iter()
+                        .map(orexis_core::render_task)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+            }
+            ServerMsg::Fleet { workers } => {
+                self.fleet_text = Some(if workers.is_empty() {
+                    "no live workers".to_string()
+                } else {
+                    workers
+                        .iter()
+                        .map(orexis_core::render_task)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+            }
             ServerMsg::Error { message } => {
                 self.status = Status::Error;
                 self.transcript.push(DesktopEntry::Error { message });

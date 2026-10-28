@@ -64,6 +64,9 @@ fn run_loop(
                         TuiAction::Undo => client.undo()?,
                         TuiAction::SelfView => client.self_view()?,
                         TuiAction::Evolution => client.evolution()?,
+                        TuiAction::Board => client.board()?,
+                        TuiAction::Fleet => client.fleet()?,
+                        TuiAction::Artifacts => client.artifacts()?,
                         TuiAction::Detach | TuiAction::Quit => {
                             let _ = client.detach();
                             break;

@@ -58,10 +58,27 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn new(config: DaemonConfig) -> Self {
+    pub fn new(mut config: DaemonConfig) -> Self {
         let generation = Arc::new(Semaphore::new(config.generation_slots.max(1)));
         let registry = Arc::new(SessionRegistry::new(config.sessions.clone()));
-        let base_tools = config.tools.clone();
+        // Team mode gains the board tools: the model's write surface for
+        // the board (M8-11), inside the same permission gate.
+        let base_tools: Arc<dyn ToolExecutor> = if config.team {
+            let board = config.board.clone();
+            config
+                .context_tools
+                .extend(orexis_adapters_tools::TeamTools::specs());
+            Arc::new(orexis_adapters_tools::TeamTools::new(
+                board,
+                config.tools.clone(),
+                orexis_usecases::StrategyId::ALL
+                    .iter()
+                    .map(|id| id.name().to_string())
+                    .collect(),
+            ))
+        } else {
+            config.tools.clone()
+        };
         let hub = Arc::new(ApprovalHub::new(Arc::new(MemoryOverrides::default())));
         Self {
             config: Arc::new(config),

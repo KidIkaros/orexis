@@ -35,6 +35,9 @@ pub struct TuiApp {
     pub live: Option<String>,
     pub self_text: Option<String>,
     pub evolution_text: Option<String>,
+    pub board_text: Option<String>,
+    pub fleet_text: Option<String>,
+    pub artifacts_text: Option<String>,
     pub pending_approval: Option<u64>,
     pub palette_query: String,
     pub palette_selected: usize,
@@ -69,6 +72,9 @@ impl Default for TuiApp {
             live: None,
             self_text: None,
             evolution_text: None,
+            board_text: None,
+            fleet_text: None,
+            artifacts_text: None,
             pending_approval: None,
             palette_query: String::new(),
             palette_selected: 0,
@@ -206,8 +212,46 @@ impl TuiApp {
             ServerMsg::Diff { .. } => {}
             ServerMsg::Dir { .. } => {}
             ServerMsg::File { .. } => {}
-            ServerMsg::Artifacts { .. } => {}
+            ServerMsg::Artifacts { items } => {
+                self.artifacts_text = Some(if items.is_empty() {
+                    "no artifacts".to_string()
+                } else {
+                    items
+                        .iter()
+                        .map(|item| format!("{} [{}] {}", item.id, item.kind, item.title))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+                self.overlay = Some(Overlay::Artifacts);
+                self.revision += 1;
+            }
             ServerMsg::Settings { .. } => {}
+            ServerMsg::Board { tasks } => {
+                self.board_text = Some(if tasks.is_empty() {
+                    "no board tasks".to_string()
+                } else {
+                    tasks
+                        .iter()
+                        .map(orexis_core::render_task)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+                self.overlay = Some(Overlay::Board);
+                self.revision += 1;
+            }
+            ServerMsg::Fleet { workers } => {
+                self.fleet_text = Some(if workers.is_empty() {
+                    "no live workers".to_string()
+                } else {
+                    workers
+                        .iter()
+                        .map(orexis_core::render_task)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+                self.overlay = Some(Overlay::Fleet);
+                self.revision += 1;
+            }
             ServerMsg::Evolution { entries } => {
                 self.evolution_text = Some(if entries.is_empty() {
                     "no evolution ledger".to_string()
@@ -243,6 +287,9 @@ impl TuiApp {
             ("undo the last turn".to_string(), TuiAction::Undo),
             ("show self".to_string(), TuiAction::SelfView),
             ("show evolution".to_string(), TuiAction::Evolution),
+            ("show board".to_string(), TuiAction::Board),
+            ("show fleet".to_string(), TuiAction::Fleet),
+            ("show artifacts".to_string(), TuiAction::Artifacts),
             ("interrupt the turn".to_string(), TuiAction::Interrupt),
             ("detach".to_string(), TuiAction::Detach),
             ("cancel".to_string(), TuiAction::Cancel),

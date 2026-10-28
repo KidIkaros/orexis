@@ -93,6 +93,11 @@ pub(crate) async fn assemble_turn(
     };
     let mut context_tools = config.context_tools.clone();
     context_tools.extend(external_specs);
+    // The advertised list matches the toolset's verdicts (M8-05): a
+    // worker is not promised tools the filter would deny.
+    if let Some(worker) = worker {
+        context_tools.retain(|spec| worker.toolset.permits(&spec.name));
+    }
     // Tool output is delimited at the executor boundary (invariant 22) —
     // built-ins and external alike — so the note is unconditional: a repo
     // file is as capable of carrying injected instructions as a hostile

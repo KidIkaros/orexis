@@ -109,6 +109,14 @@ impl DaemonClient {
         self.send(&ClientMsg::SelfView)
     }
 
+    pub fn board(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::Board)
+    }
+
+    pub fn fleet(&mut self) -> std::io::Result<()> {
+        self.send(&ClientMsg::Fleet)
+    }
+
     pub fn audit(&mut self) -> std::io::Result<()> {
         self.send(&ClientMsg::Audit)
     }

@@ -103,6 +103,8 @@ async fn append_session_event(rt: &SessionRuntime, event: SessionEvent) -> std::
     Ok(())
 }
 
+/// Assemble the turn context (identity, router, gate, MCP specs) and spawn
+/// the turn task. Shared by the socket prompt handler and the ACP server.
 pub(crate) async fn prompt(
     context: PromptContext<'_>,
     rt: Arc<SessionRuntime>,
@@ -145,8 +147,31 @@ pub(crate) async fn prompt(
     Ok(())
 }
 
-/// Assemble the turn context (identity, router, gate, MCP specs) and spawn
-/// the turn task. Shared by the socket prompt handler and the ACP server.
+pub(crate) async fn board(
+    config: &Arc<DaemonConfig>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let tasks = config.board.list().await.unwrap_or_default();
+    write_msg(write, &ServerMsg::Board { tasks }).await
+}
+
+/// The fleet is the board's live workers: tasks a worker has claimed
+/// (running) carry their owner; finished workers drop out.
+pub(crate) async fn fleet(
+    config: &Arc<DaemonConfig>,
+    write: &mut OwnedWriteHalf,
+) -> std::io::Result<()> {
+    let workers = config
+        .board
+        .list()
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|task| task.status == orexis_core::TaskStatus::Running)
+        .collect();
+    write_msg(write, &ServerMsg::Fleet { workers }).await
+}
+
 pub(crate) async fn evolution(
     config: &Arc<DaemonConfig>,
     write: &mut OwnedWriteHalf,

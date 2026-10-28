@@ -46,6 +46,7 @@ pub enum Focus {
 pub enum Overlay {
     Fleet,
     Board,
+    Artifacts,
     SelfState,
     Evolution,
     Help,
@@ -58,6 +59,7 @@ impl Overlay {
         match self {
             Self::Fleet => "fleet",
             Self::Board => "board",
+            Self::Artifacts => "artifacts",
             Self::SelfState => "self",
             Self::Evolution => "evolution",
             Self::Help => "help",
@@ -122,6 +124,9 @@ pub enum TuiAction {
     Undo,
     SelfView,
     Evolution,
+    Board,
+    Fleet,
+    Artifacts,
     EditExternal,
 }
 

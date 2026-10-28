@@ -74,6 +74,12 @@ pub(crate) async fn handle(
                     ClientMsg::Evolution => {
                         handlers::evolution(&config, &mut write_half).await?;
                     }
+                    ClientMsg::Board => {
+                        handlers::board(&config, &mut write_half).await?;
+                    }
+                    ClientMsg::Fleet => {
+                        handlers::fleet(&config, &mut write_half).await?;
+                    }
                     ClientMsg::SelfView => {
                         handlers::self_view(&config, &mut write_half).await?;
                     }
@@ -98,13 +104,7 @@ pub(crate) async fn handle(
                             write_msg(&mut write_half, &ServerMsg::Error { message: "attach first".into() }).await?;
                             continue;
                         };
-                        handlers::artifacts(
-                            rt,
-                            &config.workspace,
-                            config.checkpointer.as_ref(),
-                            &mut write_half,
-                        )
-                        .await?;
+                        handlers::artifacts(rt, &config, &mut write_half).await?;
                     }
                     ClientMsg::Approve { id, yes, always } => {
                         let Some(rt) = &runtime else {
