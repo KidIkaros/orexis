@@ -33,3 +33,20 @@ Conclusion: conditional prompt contracts do not reliably trigger
 decomposition at the ≤2B scale — small models default to doing the work
 themselves. Option 2 (planner phase / structural decomposition) is the
 remaining honest path; prompt hardening alone does not engage team mode.
+
+## Third model — Qwen3.5-2B (bench-results-qwen35.jsonl)
+
+Same outcome: serial 4/5 pass; team 2/5; workers=0 all runs. Three
+architectures at 1-2B (MiniCPM5, LFM3, Qwen3.5) — zero spontaneous
+board_add. Decomposition must be structural.
+
+## Decision direction — planner phase (option 2)
+
+Team + prompt → daemon seeds board task { title: <task>, strategy:
+"plan" }. The plan worker's entire job is board_add per subtask —
+unconditional instruction, the shape proven to work (probe-board).
+Driver session supervises and synthesizes. Remote/larger models
+(refuseless glm-5.3, openrouter nemotron-ultra) will re-test whether
+scale changes spontaneous engagement — the planner phase is correct
+regardless: it removes a behavioral dependency on the model choosing
+to decompose.
