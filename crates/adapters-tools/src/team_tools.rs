@@ -111,10 +111,18 @@ impl ToolExecutor for TeamTools {
                     .iter()
                     .find(|task| task.title.trim().to_lowercase() == wanted)
                 {
-                    return Err(PortError(format!(
-                        "board_add: \"{}\" is already on the board as {} ({:?})",
+                    // An observation, not an error: a tool error ends a
+                    // worker's turn and fails its task, and a worker
+                    // re-adding the task it is already doing (smoke run 3)
+                    // is a harmless mistake the model can read and move on from.
+                    let output = format!(
+                        "not added: \"{}\" is already on the board as {} ({:?})",
                         same.title, same.id, same.status
-                    )));
+                    );
+                    return Ok(Observation {
+                        name: name.to_string(),
+                        output: delimit(name, &output),
+                    });
                 }
                 if existing.len() >= orexis_core::BOARD_CAP {
                     return Err(PortError(format!(
@@ -307,14 +315,15 @@ mod tests {
     async fn board_add_refuses_a_duplicate_title() {
         let (board, tools) = tools();
         block_on(board.create("Fix alpha.txt", "build", vec![])).expect("create");
-        let error = tools
+        let observation = tools
             .execute(
                 "board_add",
                 r#"{"title":"  fix ALPHA.txt ","strategy":"build"}"#,
             )
             .await
-            .expect_err("duplicate");
-        assert!(error.to_string().contains("already on the board"));
+            .expect("a duplicate is an observation, not a failed turn");
+        assert!(observation.output.contains("not added"));
+        assert!(observation.output.contains("already on the board"));
         assert_eq!(block_on(board.list()).expect("list").len(), 1);
     }
 
