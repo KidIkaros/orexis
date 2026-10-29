@@ -70,8 +70,7 @@ if [ -n "$from_dir" ]; then
   [ -d "$from_dir" ] || bad "--from directory not found: $from_dir"
   fetch() { cp "$from_dir/$1" "$work/$2"; }
 else
-  REPO="${OREXIS_RELEASE_REPO:-}"
-  [ -n "$REPO" ] || bad "OREXIS_RELEASE_REPO is not set (owner/repo); the installer does not guess"
+  REPO="${OREXIS_RELEASE_REPO:-KidIkaros/orexis}"
 
   command -v curl >/dev/null 2>&1 || bad "curl is required"
 

@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "orexis"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "blake2",
@@ -1354,7 +1354,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-artifacts-fs"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1366,7 +1366,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-board-sqlite"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1379,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-codec"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-core",
  "orexis-ports",
@@ -1388,7 +1388,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-context-fs"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-core",
  "orexis-ports",
@@ -1397,7 +1397,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-entity-sqlite"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1411,7 +1411,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-evolution-git"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "ed25519-dalek",
@@ -1426,7 +1426,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-fake"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1437,7 +1437,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-http"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1448,7 +1448,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-jsonrpc"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde_json",
  "thiserror 2.0.21",
@@ -1456,7 +1456,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-lsp"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "orexis-ports",
@@ -1467,7 +1467,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-message-sqlite"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1479,7 +1479,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-protocol-a2a"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1494,7 +1494,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-protocol-acp"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-adapters-jsonrpc",
  "orexis-protocol",
@@ -1504,7 +1504,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-protocol-mcp"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1520,7 +1520,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-protocol-utcp"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "orexis-adapters-http",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-provider-anthropic"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1550,7 +1550,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-provider-catalog"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1561,14 +1561,14 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-provider-llamacpp"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "orexis-adapters-provider-openai"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1583,7 +1583,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-session-sqlite"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-skills"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-ports",
  "serde",
@@ -1608,7 +1608,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-tools"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-adapters-tui"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "crossterm",
  "orexis-client",
@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-bench"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-client",
  "orexis-composition",
@@ -1657,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-client"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-core",
  "orexis-protocol",
@@ -1667,7 +1667,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-composition"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "dirs",
  "futures",
@@ -1700,7 +1700,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "blake3",
  "serde",
@@ -1709,7 +1709,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-daemon"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1735,7 +1735,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-desktop-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-client",
  "orexis-core",
@@ -1747,7 +1747,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-ports"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "orexis-core",
@@ -1755,7 +1755,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-protocol"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "orexis-core",
  "serde",
@@ -1763,7 +1763,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-slice"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1779,7 +1779,7 @@ dependencies = [
 
 [[package]]
 name = "orexis-usecases"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",

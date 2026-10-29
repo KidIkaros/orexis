@@ -126,12 +126,8 @@ pub fn upgrade(from: Option<&Path>) -> Result<String, UpgradeError> {
             (artifacts, std::fs::read(dir.join(&name))?)
         }
         None => {
-            let repo = std::env::var("OREXIS_RELEASE_REPO").map_err(|_| {
-                UpgradeError::Manifest(
-                    "OREXIS_RELEASE_REPO is not set (owner/repo); the upgrade does not guess"
-                        .into(),
-                )
-            })?;
+            let repo = std::env::var("OREXIS_RELEASE_REPO")
+                .unwrap_or_else(|_| "KidIkaros/orexis".to_string());
             let base = format!("https://github.com/{repo}/releases/latest/download");
             let transport = orexis_adapters_http::ReqwestTransport::new();
             let manifest = fetch_text(&transport, &format!("{base}/latest.json"))?;
