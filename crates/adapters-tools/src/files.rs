@@ -92,6 +92,11 @@ impl LocalTools {
         for entry in entries_iter {
             let entry = entry.map_err(|error| PortError(error.to_string()))?;
             let name = entry.file_name().to_string_lossy().to_string();
+            // Harness state is not the project: advertising it cost real
+            // steps (M8-16). target/ and node_modules/ stay listable.
+            if matches!(name.as_str(), ".orexis" | ".git") {
+                continue;
+            }
             let file_type = entry
                 .file_type()
                 .map_err(|error| PortError(error.to_string()))?;

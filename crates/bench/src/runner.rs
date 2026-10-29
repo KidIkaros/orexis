@@ -140,9 +140,14 @@ async fn run_once(
     args: &SuiteArgs,
 ) -> Result<RunResult, Box<dyn std::error::Error>> {
     let t0 = Instant::now();
-    let dir = tempfile::tempdir()?;
+    let state = tempfile::tempdir()?;
+    // The fixture is the only thing the model's workspace holds; daemon
+    // state lives beside it so the gate measures the task, not the daemon
+    // (M8-16).
+    let workspace = state.path().join("workspace");
+    std::fs::create_dir(&workspace)?;
     for (path, content) in &task.fixture.files {
-        let target = dir.path().join(path);
+        let target = workspace.join(path);
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -152,9 +157,9 @@ async fn run_once(
     let runtime = build_runtime(BuildConfig {
         profile_id: args.profile.clone(),
         model_id: args.model.clone(),
-        db_path: dir.path().join("bench.db"),
-        project_root: dir.path().to_path_buf(),
-        cwd: dir.path().to_path_buf(),
+        db_path: state.path().join("bench.db"),
+        project_root: workspace.clone(),
+        cwd: workspace.clone(),
         providers_dir: None,
         mcp_dirs: Some(Vec::new()),
         utcp_dirs: Some(Vec::new()),
@@ -167,7 +172,7 @@ async fn run_once(
         context_limit: 32768,
     })?;
     let sessions = runtime.sessions.clone();
-    let socket = dir.path().join("bench.sock");
+    let socket = state.path().join("bench.sock");
     let config = DaemonConfig {
         socket: socket.clone(),
         profile_id: args.profile.clone(),
@@ -306,13 +311,13 @@ async fn run_once(
 
     let mut pass = done || finished;
     for judge in &task.judges {
-        pass &= judge.check(dir.path()).map_err(|e| e.to_string())?;
+        pass &= judge.check(&workspace).map_err(|e| e.to_string())?;
     }
     // A run's evidence is its session log and board; the fixture workspace
     // is deleted on drop unless the caller asks for it (the M8 gate needed
     // it to tell a team pass from a driver pass).
     if std::env::var_os("OREXIS_BENCH_KEEP").is_some() {
-        let kept = dir.keep();
+        let kept = state.keep();
         eprintln!("kept workspace: {}", kept.display());
     }
 

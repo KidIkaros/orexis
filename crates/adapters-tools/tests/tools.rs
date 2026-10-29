@@ -71,6 +71,20 @@ fn list_and_search_work() {
 }
 
 #[test]
+fn list_dir_hides_harness_state_but_not_build_dirs() {
+    let (dir, tools) = setup();
+    std::fs::create_dir(dir.path().join(".orexis")).unwrap();
+    std::fs::create_dir(dir.path().join(".git")).unwrap();
+    std::fs::create_dir(dir.path().join("target")).unwrap();
+    let listed = run(&tools, "list_dir", r#"{"path":"."}"#).expect("list");
+    assert!(!listed.output.contains(".orexis"), "{}", listed.output);
+    assert!(!listed.output.contains(".git"), "{}", listed.output);
+    // Browsing target/ is legitimate in a real repo, so it stays.
+    assert!(listed.output.contains("target/"));
+    assert!(listed.output.contains("a.txt"));
+}
+
+#[test]
 fn rejects_relative_escape() {
     let (_dir, tools) = setup();
     assert!(run(&tools, "read_file", r#"{"path":"../outside.txt"}"#).is_err());

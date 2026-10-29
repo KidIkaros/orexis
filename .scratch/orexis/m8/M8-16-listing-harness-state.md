@@ -1,6 +1,6 @@
 # M8-16 — the model's listing shows harness state
 
-- **Status:** open
+- **Status:** fixed; gate re-run pending
 - **Found by:** M8-15
 
 ## Bug
@@ -29,3 +29,11 @@ M8-15 is the observed cost: a model read the listing, saw `.orexis/` above
 
 The M8 gate's pass rate is measured through this listing. Noise in it is a
 step tax on every worker, and the small models the gate runs hit it hardest.
+
+## Resolution
+
+Rule: the model-facing `list_dir` hides `.orexis` and `.git` only; `target/`
+and `node_modules/` stay listable (browsing them is legitimate).
+Test: `list_dir_hides_harness_state_but_not_build_dirs`. The bench now puts
+daemon state (`bench.db`, `board.db`, `bus.db`, `entity.db`, `bench.sock`) in
+a state dir beside a `workspace/` subdirectory holding only the fixture.
