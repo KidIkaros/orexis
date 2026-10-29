@@ -27,7 +27,7 @@ capabilities:
 models:
   - id: local
     context: 32768
-    max_output: 4096
+    max_output: 1024
 limits:
   max_concurrency: 2
 fallbacks: []

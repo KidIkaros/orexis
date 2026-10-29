@@ -89,6 +89,17 @@ impl<T: Transport> OpenAiCompatibleProvider<T> {
             "stream_options": { "include_usage": true },
         });
 
+        if let Some(max_tokens) = self
+            .profile
+            .models
+            .iter()
+            .find(|model| model.id == self.model)
+            .map(|model| model.max_output)
+            .filter(|&cap| cap > 0)
+        {
+            body["max_tokens"] = json!(max_tokens);
+        }
+
         if !tools.is_empty() {
             body["tools"] = json!(tools
                 .iter()
@@ -477,5 +488,11 @@ mod tests {
             ["hel", "lo"]
         );
         assert!(matches!(actions[0], Action::Say { .. }));
+    }
+    #[test]
+    fn request_body_emits_max_tokens_from_model_profile() {
+        let provider = provider(vec![]);
+        let body = provider.request_body(&messages(), &[], Thinking::Auto);
+        assert_eq!(body["max_tokens"], 128000);
     }
 }
