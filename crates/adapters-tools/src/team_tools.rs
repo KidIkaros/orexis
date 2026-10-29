@@ -102,7 +102,21 @@ impl ToolExecutor for TeamTools {
                     .unwrap_or_default();
                 // The board is capped (M8 limits): a runaway planner gets
                 // an error, not an unbounded task list.
-                if self.board.list().await?.len() >= orexis_core::BOARD_CAP {
+                let existing = self.board.list().await?;
+                // A small planner re-adds the same task every few steps (M8
+                // smoke run: alpha.txt three times); the board names the
+                // existing one instead of growing a copy.
+                let wanted = title.trim().to_lowercase();
+                if let Some(same) = existing
+                    .iter()
+                    .find(|task| task.title.trim().to_lowercase() == wanted)
+                {
+                    return Err(PortError(format!(
+                        "board_add: \"{}\" is already on the board as {} ({:?})",
+                        same.title, same.id, same.status
+                    )));
+                }
+                if existing.len() >= orexis_core::BOARD_CAP {
                     return Err(PortError(format!(
                         "the board is full ({} tasks)",
                         orexis_core::BOARD_CAP
@@ -287,6 +301,21 @@ mod tests {
             .await
             .expect_err("unknown strategy");
         assert!(error.to_string().contains("unknown strategy"));
+    }
+
+    #[tokio::test]
+    async fn board_add_refuses_a_duplicate_title() {
+        let (board, tools) = tools();
+        block_on(board.create("Fix alpha.txt", "build", vec![])).expect("create");
+        let error = tools
+            .execute(
+                "board_add",
+                r#"{"title":"  fix ALPHA.txt ","strategy":"build"}"#,
+            )
+            .await
+            .expect_err("duplicate");
+        assert!(error.to_string().contains("already on the board"));
+        assert_eq!(block_on(board.list()).expect("list").len(), 1);
     }
 
     #[tokio::test]
