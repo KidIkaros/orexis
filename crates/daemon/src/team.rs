@@ -195,6 +195,7 @@ pub async fn spawn_worker_turn(
     worker: WorkerTurn,
     permit: tokio::sync::OwnedSemaphorePermit,
 ) -> PortResult<tokio::task::JoinHandle<WorkerOutcome>> {
+    hub.mark_worker(&rt.id);
     let assembly = assemble_turn(rt, config, base_tools, hub, Some(&worker)).await?;
     let sink = Arc::new(BroadcastSink::new(rt.tx.clone()));
     let delta_sink = Arc::new(BroadcastDeltaSink::new(rt.tx.clone()));

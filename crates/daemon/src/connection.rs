@@ -157,10 +157,10 @@ pub(crate) async fn handle(
             message = approvals.recv() => {
                 match message {
                     Ok(ServerMsg::ApprovalRequest { session_id, .. })
-                        if runtime
-                            .as_ref()
-                            .map(|rt| rt.id.as_str() != session_id.as_str())
-                            .unwrap_or(true) => {}
+                        if !hub.surfaces(
+                            session_id.as_str(),
+                            runtime.as_ref().map(|rt| rt.id.as_str()),
+                        ) => {}
                     Ok(message) => write_msg(&mut write_half, &message).await?,
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
                         write_msg(

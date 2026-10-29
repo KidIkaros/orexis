@@ -1,6 +1,6 @@
 # M8-17 — a worker's board write waits on an approval no client can answer
 
-- **Status:** open — found by the M8 gate run (M8-10)
+- **Status:** routing fixed (rule a); gate re-run pending — found by the M8 gate run (M8-10)
 - **Blocks:** any honest M8 team measurement
 
 ## Bug
@@ -57,6 +57,17 @@ runs in the gate hit this; the fifth's driver also finished alone.
 - [ ] The bench answers worker approvals only if the chosen rule says a
       client must.
 - [ ] Re-run the M8 gate (M8-10) after the fix; the verdict may change.
+
+## Resolution (rule a)
+
+The team loop is daemon-wide, so there is no single spawning session to
+route to. `spawn_worker_turn` marks the worker's session on the
+`ApprovalHub`; `ApprovalHub::surfaces` shows a worker's request on every
+connection, and the request's `session_id` names the worker. Invariant 6
+is untouched: the ruleset still decides what asks; only the audience
+changed. Unit test: `a_workers_request_surfaces_on_any_connection`.
+Open: the bench client must answer worker approvals (next step), then the
+M8-10 gate re-run.
 
 ## Repro
 

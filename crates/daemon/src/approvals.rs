@@ -63,6 +63,7 @@ pub struct ApprovalHub {
     pending: Mutex<HashMap<u64, PendingApproval>>,
     overrides: Arc<dyn ApprovalOverrides>,
     tx: broadcast::Sender<ServerMsg>,
+    workers: Mutex<HashSet<String>>,
 }
 
 impl ApprovalHub {
@@ -73,7 +74,28 @@ impl ApprovalHub {
             pending: Mutex::new(HashMap::new()),
             overrides,
             tx,
+            workers: Mutex::new(HashSet::new()),
         }
+    }
+
+    /// Nothing attaches to a worker's session, so its requests would
+    /// wait out the clock unseen (M8-17): they surface on every
+    /// connection instead, labelled by the worker's session id.
+    pub fn mark_worker(&self, session: &str) {
+        if let Ok(mut workers) = self.workers.lock() {
+            workers.insert(session.to_string());
+        }
+    }
+
+    /// Whether a connection attached to `attached` should be shown a
+    /// request raised by `request_session`.
+    pub fn surfaces(&self, request_session: &str, attached: Option<&str>) -> bool {
+        attached == Some(request_session)
+            || self
+                .workers
+                .lock()
+                .map(|workers| workers.contains(request_session))
+                .unwrap_or(false)
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<ServerMsg> {
@@ -197,6 +219,18 @@ mod tests {
 
     fn hub() -> Arc<ApprovalHub> {
         Arc::new(ApprovalHub::new(Arc::new(MemoryOverrides::default())))
+    }
+
+    #[test]
+    fn a_workers_request_surfaces_on_any_connection() {
+        let hub = hub();
+        assert!(!hub.surfaces("w1", Some("driver")));
+        assert!(!hub.surfaces("w1", None));
+        hub.mark_worker("w1");
+        assert!(hub.surfaces("w1", Some("driver")));
+        assert!(hub.surfaces("w1", None));
+        assert!(!hub.surfaces("other", Some("driver")));
+        assert!(hub.surfaces("driver", Some("driver")));
     }
 
     #[tokio::test]
