@@ -25,8 +25,8 @@ set -euo pipefail
 APP=orexis
 # The minisign public key, pinned once the keypair is generated (the
 # wizard step in the ticket). Empty means "not pinned yet".
-MINISIGN_PUB="untrusted comment: minisign public key: A3AE24BDEE448490
-RWSQhETuvSSuox7d4jNKtv4SO1V8xqnzHZKBzvB5Zy2kdtYDKx+pTu4g"
+MINISIGN_PUB="untrusted comment: minisign public key: 6A23EAF0ABE697AB
+RWSrl+ar8OojapVJ+qEQMRz87e1bCn3a0khKWx1ezLfo8ubx8LKZplBq"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
 say()  { printf '%s\n' "$1"; }

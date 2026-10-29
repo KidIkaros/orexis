@@ -50,8 +50,9 @@ sign() {
   else
     die "neither minisign nor rsign is installed"
   fi
+  rm -f "$file.minisig"
   case "$signer" in
-    minisign) minisign -S -f -s "$key" -m "$file" ;;
+    minisign) minisign -S -s "$key" -m "$file" ;;
     rsign) rsign sign -s "$key" -W "$file" ;;
   esac
 }
@@ -81,7 +82,11 @@ archive_target() {
   echo "== checksum"
   (
     cd "$outdir"
-    sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+    else
+      shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+    fi
   )
 
   if [ "$sign_it" = "yes" ]; then
