@@ -9,10 +9,19 @@ impl TuiApp {
     pub fn handle_key(&mut self, key: KeyEvent) -> TuiAction {
         match self.state {
             TuiState::Approval => match key.code {
-                KeyCode::Char('y') => TuiAction::Approve,
-                KeyCode::Char('n') => TuiAction::Deny,
+                KeyCode::Char('y') => {
+                    self.state = TuiState::Streaming;
+                    TuiAction::Approve
+                }
+                KeyCode::Char('n') => {
+                    self.state = TuiState::Streaming;
+                    TuiAction::Deny
+                }
                 KeyCode::Char('d') => TuiAction::Diff,
-                KeyCode::Char('a') => TuiAction::AlwaysAllow,
+                KeyCode::Char('a') => {
+                    self.state = TuiState::Streaming;
+                    TuiAction::AlwaysAllow
+                }
                 KeyCode::Esc => {
                     self.state = TuiState::Streaming;
                     TuiAction::Cancel
@@ -146,18 +155,24 @@ impl TuiApp {
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => {
                 self.scroll = self.scroll.saturating_add(1);
+                if !self.entries.is_empty() {
+                    self.selected = (self.selected + 1).min(self.entries.len() - 1);
+                }
                 TuiAction::None
             }
             KeyCode::Char('k') | KeyCode::Up => {
                 self.scroll = self.scroll.saturating_sub(1);
+                self.selected = self.selected.saturating_sub(1);
                 TuiAction::None
             }
             KeyCode::Char('g') => {
                 self.scroll = 0;
+                self.selected = 0;
                 TuiAction::None
             }
             KeyCode::Char('G') => {
                 self.scroll = usize::MAX;
+                self.selected = self.entries.len().saturating_sub(1);
                 TuiAction::None
             }
             KeyCode::Enter => {

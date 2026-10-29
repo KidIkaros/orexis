@@ -23,6 +23,16 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Upgrade { from } => crate::upgrade::upgrade(from.as_deref())
             .map(|text| print!("{text}"))
             .map_err(|error| Box::new(error) as Box<dyn std::error::Error>),
+        Command::Trace { db, session, out } => {
+            let text =
+                runtime()?.block_on(orexis_composition::export_session_trace(db, &session))?;
+            if let Some(path) = out {
+                std::fs::write(path, text)?;
+            } else {
+                println!("{text}");
+            }
+            Ok(())
+        }
         Command::Bench { args } => runtime()?.block_on(orexis_bench::cli::cli(&args)),
         Command::Version => {
             println!("orexis {}", env!("CARGO_PKG_VERSION"));
@@ -95,6 +105,11 @@ pub enum Command {
     Upgrade {
         from: Option<PathBuf>,
     },
+    Trace {
+        db: PathBuf,
+        session: String,
+        out: Option<PathBuf>,
+    },
     Bench {
         args: Vec<String>,
     },
@@ -137,6 +152,30 @@ fn parse(args: &[String]) -> Command {
         "upgrade" => Command::Upgrade {
             from: flag_value(flags, "--from").map(PathBuf::from),
         },
+        "trace" => {
+            let db = flag_value(flags, "--db")
+                .or_else(|| std::env::var("OREXIS_DB").ok())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("/tmp/orexis.db"));
+            let out = flag_value(flags, "--out").map(PathBuf::from);
+            let session = flag_value(flags, "--session").or_else(|| {
+                let mut iter = flags.iter();
+                while let Some(arg) = iter.next() {
+                    if arg == "--db" || arg == "--out" || arg == "--session" {
+                        let _ = iter.next();
+                        continue;
+                    }
+                    if !arg.starts_with("--") {
+                        return Some(arg.clone());
+                    }
+                }
+                None
+            });
+            match session {
+                Some(session) => Command::Trace { db, session, out },
+                None => Command::Usage,
+            }
+        }
         "--version" | "-V" | "version" => Command::Version,
         "bench" => Command::Bench {
             args: flags.to_vec(),
@@ -317,5 +356,24 @@ mod tests {
     fn no_arguments_is_usage() {
         assert_eq!(parse(&[]), Command::Usage);
         assert_eq!(parse(&args(&["--help"])), Command::Usage);
+    }
+
+    #[test]
+    fn trace_subcommand_parses() {
+        assert_eq!(
+            parse(&args(&[
+                "trace",
+                "--db",
+                "/tmp/s.db",
+                "--out",
+                "/tmp/trace.json",
+                "session-42"
+            ])),
+            Command::Trace {
+                db: PathBuf::from("/tmp/s.db"),
+                session: "session-42".to_string(),
+                out: Some(PathBuf::from("/tmp/trace.json")),
+            }
+        );
     }
 }

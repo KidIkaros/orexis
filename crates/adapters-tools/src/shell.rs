@@ -21,12 +21,14 @@ impl LocalTools {
                 .clamp(1, 600),
         );
         let cwd = self.resolve(args.get("cwd").and_then(Value::as_str).unwrap_or("."))?;
+        let root = self.root.clone();
         if let Some(reason) = hardline_reason(&command) {
             return Err(PortError(format!("blocked command: {reason}")));
         }
-        let output = tokio::task::spawn_blocking(move || run_shell(&cwd, &command, timeout))
-            .await
-            .map_err(|error| PortError(error.to_string()))??;
+        let output =
+            tokio::task::spawn_blocking(move || run_shell_in(&root, &cwd, &command, timeout))
+                .await
+                .map_err(|error| PortError(error.to_string()))??;
         Ok(Observation {
             name: "shell".to_string(),
             output,
@@ -83,14 +85,83 @@ fn blocked_program(program: &str) -> Option<&'static str> {
         .map(|(_, reason)| *reason)
 }
 
+/// Build the Linux `bwrap` (bubblewrap) argument prefix that mounts `/`
+/// read-only, isolates `/tmp`, mounts only `root` read-write, optionally
+/// unshares the network namespace, and binds child lifetime to the parent.
+pub fn bwrap_prefix(root: &Path, cwd: &Path, isolate_net: bool) -> Vec<String> {
+    let root_str = root.to_string_lossy().into_owned();
+    let cwd_str = cwd.to_string_lossy().into_owned();
+    let mut args = vec![
+        "--ro-bind".to_string(),
+        "/".to_string(),
+        "/".to_string(),
+        "--dev".to_string(),
+        "/dev".to_string(),
+        "--proc".to_string(),
+        "/proc".to_string(),
+        "--tmpfs".to_string(),
+        "/tmp".to_string(),
+        "--bind".to_string(),
+        root_str.clone(),
+        root_str,
+        "--die-with-parent".to_string(),
+        "--chdir".to_string(),
+        cwd_str,
+    ];
+    if isolate_net {
+        args.push("--unshare-net".to_string());
+    }
+    args.push("--".to_string());
+    args
+}
+
+/// True when `bwrap` is installed, unprivileged user namespaces are allowed
+/// on this host, and `OREXIS_NO_SANDBOX` is not set.
+pub fn bwrap_available() -> bool {
+    if std::env::var("OREXIS_NO_SANDBOX").is_ok() {
+        return false;
+    }
+    static AVAILABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        Command::new("bwrap")
+            .args([
+                "--ro-bind",
+                "/",
+                "/",
+                "--dev",
+                "/dev",
+                "--proc",
+                "/proc",
+                "--die-with-parent",
+                "--",
+                "true",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success())
+    })
+}
+
 pub(crate) fn run_program(
     cwd: &Path,
     program: &str,
     args: &[String],
     timeout: Duration,
 ) -> PortResult<CommandOutput> {
-    let mut process = Command::new(program);
-    process.args(args);
+    let mut process = if bwrap_available() {
+        let mut cmd = Command::new("bwrap");
+        let isolate_net = std::env::var("OREXIS_SANDBOX_NET").is_err();
+        cmd.args(bwrap_prefix(cwd, cwd, isolate_net));
+        cmd.arg(program);
+        cmd.args(args);
+        cmd
+    } else {
+        let mut cmd = Command::new(program);
+        cmd.args(args);
+        cmd
+    };
     configure(&mut process, cwd);
     let child = process
         .spawn()
@@ -117,8 +188,26 @@ fn hardline_reason(command: &str) -> Option<&'static str> {
 }
 
 pub(crate) fn run_shell(cwd: &Path, command: &str, timeout: Duration) -> PortResult<String> {
-    let mut process = Command::new("sh");
-    process.arg("-c").arg(command);
+    run_shell_in(cwd, cwd, command, timeout)
+}
+
+pub(crate) fn run_shell_in(
+    root: &Path,
+    cwd: &Path,
+    command: &str,
+    timeout: Duration,
+) -> PortResult<String> {
+    let mut process = if bwrap_available() {
+        let mut cmd = Command::new("bwrap");
+        let isolate_net = std::env::var("OREXIS_SANDBOX_NET").is_err();
+        cmd.args(bwrap_prefix(root, cwd, isolate_net));
+        cmd.arg("sh").arg("-c").arg(command);
+        cmd
+    } else {
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(command);
+        cmd
+    };
     configure(&mut process, cwd);
     let child = process
         .spawn()

@@ -97,6 +97,14 @@ impl DaemonClient {
         })
     }
 
+    pub fn approve_always(&mut self, id: u64) -> std::io::Result<()> {
+        self.send(&ClientMsg::Approve {
+            id,
+            yes: true,
+            always: true,
+        })
+    }
+
     pub fn interrupt(&mut self) -> std::io::Result<()> {
         self.send(&ClientMsg::Interrupt)
     }

@@ -15,6 +15,7 @@ mod scheduler;
 mod session;
 mod strategy;
 mod supervisor;
+mod trace;
 mod turn;
 
 pub use apply::{apply_candidate, handle_trigger, rollback, should_rollback, ApplyRequest};
@@ -29,6 +30,10 @@ pub use identity::{append_diary, decay_traits, distill_trait, identity, self_vie
 pub use memory::{forget, recall, remember};
 pub use replay::verify_replay;
 pub use scheduler::{admit_ready, ROSTER_CAP};
-pub use strategy::{strategy, BudgetDefaults, Strategy, StrategyId};
+pub use strategy::{
+    harness_for, select_harness, strategy, BudgetDefaults, ExecutionRecord, HarnessConfig,
+    Strategy, StrategyId,
+};
 pub use supervisor::{supervise, Supervision, SupervisorState, MAX_RESTARTS};
-pub use turn::{run_turn, TurnDeps, TurnOutcome};
+pub use trace::{export_chrome_trace, TraceSpan};
+pub use turn::{run_turn, run_turn_with_budget, TurnDeps, TurnOutcome};

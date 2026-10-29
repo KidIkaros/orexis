@@ -16,6 +16,7 @@ mod workspace;
 pub use checkpoints::GitCheckpointStore;
 pub use gate::{AutoApprove, DenyAll, GatedTools};
 pub use router::{NamespaceTools, RouterTools};
+pub use shell::{bwrap_available, bwrap_prefix};
 pub use strategy_tools::StrategyTools;
 pub use team_tools::TeamTools;
 pub use verify::ShellVerifier;

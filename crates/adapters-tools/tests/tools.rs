@@ -194,6 +194,40 @@ async fn shell_rejects_cwd_escape() {
         .is_err());
 }
 
+#[tokio::test]
+async fn shell_bwrap_sandbox_confines_filesystem_and_builds_argv() {
+    let root = std::path::Path::new("/work/repo");
+    let cwd = std::path::Path::new("/work/repo/sub");
+    let argv = orexis_adapters_tools::bwrap_prefix(root, cwd, true);
+    assert!(argv.windows(3).any(|w| w == ["--ro-bind", "/", "/"]));
+    assert!(argv
+        .windows(3)
+        .any(|w| w == ["--bind", "/work/repo", "/work/repo"]));
+    assert!(argv.contains(&"--unshare-net".to_string()));
+    assert!(argv.contains(&"--die-with-parent".to_string()));
+
+    if orexis_adapters_tools::bwrap_available() {
+        let (_dir, tools) = setup();
+        // Writing inside the workspace succeeds.
+        let inside = tools
+            .execute("shell", r#"{"command":"echo ok > inside.txt"}"#)
+            .await
+            .expect("inside write");
+        assert!(inside.output.contains("exit 0"), "{}", inside.output);
+
+        // Writing to the read-only root filesystem outside the workspace is denied by OS namespace.
+        let outside = tools
+            .execute("shell", r#"{"command":"touch /usr/orexis_sandbox_probe"}"#)
+            .await
+            .expect("outside probe");
+        assert!(
+            !outside.output.contains("exit 0"),
+            "sandbox must deny writes outside workspace: {}",
+            outside.output
+        );
+    }
+}
+
 fn git_repo(dir: &std::path::Path) {
     let run_git = |args: &[&str]| {
         let output = std::process::Command::new("git")

@@ -60,3 +60,4 @@ What else was on the table, and why it lost.
 | [0018](0018-provider-conformance-fixtures.md) | Provider conformance fixtures and the fidelity manifest | accepted |
 | [0019](0019-packaging-signing.md) | Packaging, signing, and upgrade | accepted |
 | [0020](0020-team-mode-domain.md) | The team-mode domain: workers over sessions, three stores, a capacity-bounded scheduler | accepted |
+| [0021](0021-oo-harness-specialization.md) | Specialized harness classes per strategy (OO-Harness pattern) | proposed |

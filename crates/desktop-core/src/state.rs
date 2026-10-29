@@ -249,16 +249,26 @@ impl AppState {
                 });
                 self.status = Status::Running;
             }
-            SessionEvent::Observation { name, output, .. } => {
+            SessionEvent::Observation {
+                call_id,
+                name,
+                output,
+            } => {
                 for entry in self.transcript.iter_mut().rev() {
                     if let DesktopEntry::Tool {
+                        call_id: entry_id,
                         name: tool,
                         ok,
                         detail,
                         ..
                     } = entry
                     {
-                        if tool == name && !*ok {
+                        let matches_id = if call_id.is_empty() {
+                            tool == name
+                        } else {
+                            entry_id == call_id
+                        };
+                        if matches_id && !*ok {
                             *ok = true;
                             *detail = output.clone();
                             break;
@@ -327,6 +337,11 @@ impl AppState {
             }
             SessionEvent::Interrupted { reason } => {
                 self.live = None;
+                self.status = if reason.starts_with("budget exceeded") {
+                    Status::Budget
+                } else {
+                    Status::Empty
+                };
                 self.transcript.push(DesktopEntry::Info {
                     message: format!("interrupted: {reason}"),
                 });
@@ -446,26 +461,46 @@ mod tests {
             args: "b".to_string(),
         }));
         state.apply(event(SessionEvent::Observation {
-            call_id: "c2".to_string(),
+            call_id: "c1".to_string(),
             name: "read_file".to_string(),
-            output: "second".to_string(),
+            output: "first".to_string(),
         }));
         let DesktopEntry::Tool {
             call_id,
             ok,
             detail,
             ..
-        } = &state.transcript[1]
+        } = &state.transcript[0]
         else {
             panic!("expected tool");
         };
-        assert_eq!(call_id, "c2");
+        assert_eq!(call_id, "c1");
         assert!(ok);
-        assert_eq!(detail, "second");
-        let DesktopEntry::Tool { ok, .. } = &state.transcript[0] else {
+        assert_eq!(detail, "first");
+        let DesktopEntry::Tool { ok, .. } = &state.transcript[1] else {
             panic!("expected tool");
         };
         assert!(!ok);
+    }
+
+    #[test]
+    fn interrupted_updates_status_to_budget_or_empty() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Busy {
+            session_id: "s1".into(),
+        });
+        state.apply(event(SessionEvent::Interrupted {
+            reason: "budget exceeded: 70000 tokens > 64000 token limit".into(),
+        }));
+        assert_eq!(state.status, Status::Budget);
+
+        state.apply(ServerMsg::Busy {
+            session_id: "s1".into(),
+        });
+        state.apply(event(SessionEvent::Interrupted {
+            reason: "user stop".into(),
+        }));
+        assert_eq!(state.status, Status::Empty);
     }
 
     #[test]

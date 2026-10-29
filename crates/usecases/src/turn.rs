@@ -1,6 +1,8 @@
 //! The turn loop: a use case over core + ports. No adapter, no runtime.
 
-use orexis_core::{hash_messages, Action, SessionEvent, Thinking, FORMAT_VERSION};
+use orexis_core::{
+    hash_messages, session_usage, Action, CostBudget, SessionEvent, Thinking, FORMAT_VERSION,
+};
 use orexis_ports::{
     Checkpointer, Codec, DeltaSink, EventSink, PortResult, Provider, SessionAppend, SessionRead,
     ToolExecutor, Verifier,
@@ -37,6 +39,14 @@ pub struct TurnOutcome {
 }
 
 pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
+    run_turn_with_budget(deps, CostBudget::default(), 8).await
+}
+
+pub async fn run_turn_with_budget(
+    deps: TurnDeps<'_>,
+    cost_budget: CostBudget,
+    compaction_keep_tail: usize,
+) -> PortResult<TurnOutcome> {
     let TurnDeps {
         provider,
         tools,
@@ -112,10 +122,15 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
             .into_iter()
             .map(|stored| stored.event)
             .collect::<Vec<_>>();
+        if let Some(reason) = cost_budget.check(&session_usage(&events)) {
+            append(session, sink, SessionEvent::Interrupted { reason }).await?;
+            return Ok(TurnOutcome { steps, done: false });
+        }
         let tool_fragment = codec.prompt_fragment(context.tools);
         let mut assembled = assemble(&context, &events, &tool_fragment);
         if assembled.needs_compaction {
-            if let Some(compaction) = plan_compaction(&events, 8, &ExtractiveSummarizer) {
+            let keep_last = compaction_keep_tail.max(1);
+            if let Some(compaction) = plan_compaction(&events, keep_last, &ExtractiveSummarizer) {
                 append(session, sink, compaction).await?;
                 events = reader
                     .events()
@@ -207,6 +222,15 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
         )
         .await?;
 
+        let mut cumulative = session_usage(&events);
+        if let Some(step_usage) = &response.usage {
+            cumulative.accumulate(step_usage);
+        }
+        if let Some(reason) = cost_budget.check(&cumulative) {
+            append(session, sink, SessionEvent::Interrupted { reason }).await?;
+            return Ok(TurnOutcome { steps, done: false });
+        }
+
         if execute_actions(session, sink, tools, actions, step, verifier, skip_verify).await? {
             done = true;
             break;
@@ -214,4 +238,153 @@ pub async fn run_turn(deps: TurnDeps<'_>) -> PortResult<TurnOutcome> {
     }
 
     Ok(TurnOutcome { steps, done })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use futures::executor::block_on;
+    use orexis_core::{
+        CostBudget, EventRef, Message, ModelPricing, Observation, ProviderResponse, StoredEvent,
+        TokenUsage, ToolSpec,
+    };
+    use orexis_ports::{Decoded, NullDeltaSink};
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct MemSession {
+        events: Mutex<Vec<StoredEvent>>,
+    }
+
+    #[async_trait]
+    impl SessionAppend for MemSession {
+        async fn append(&self, event: SessionEvent) -> PortResult<EventRef> {
+            let mut events = self.events.lock().unwrap();
+            let seq = events.len() as u64 + 1;
+            let event_id = format!("ev-{seq}");
+            events.push(StoredEvent {
+                seq,
+                event_id: event_id.clone(),
+                generation_id: 1,
+                event,
+            });
+            Ok(EventRef { seq, event_id })
+        }
+    }
+
+    #[async_trait]
+    impl SessionRead for MemSession {
+        async fn events(&self) -> PortResult<Vec<StoredEvent>> {
+            Ok(self.events.lock().unwrap().clone())
+        }
+    }
+
+    struct Sink;
+    impl EventSink for Sink {
+        fn emit(&self, _event: &SessionEvent, _seq: u64) {}
+    }
+
+    struct PassCodec;
+    impl Codec for PassCodec {
+        fn name(&self) -> &'static str {
+            "pass"
+        }
+        fn uses_native_tools(&self) -> bool {
+            true
+        }
+        fn prompt_fragment(&self, _tools: &[ToolSpec]) -> String {
+            String::new()
+        }
+        fn decode(&self, _raw: &str, _tools: &[ToolSpec]) -> Decoded {
+            Decoded {
+                actions: Vec::new(),
+                errors: Vec::new(),
+            }
+        }
+    }
+
+    struct ExpensiveProvider;
+    #[async_trait]
+    impl Provider for ExpensiveProvider {
+        async fn complete(
+            &self,
+            _messages: &[Message],
+            _tools: &[ToolSpec],
+            _step: usize,
+            _thinking: Thinking,
+        ) -> PortResult<ProviderResponse> {
+            Ok(ProviderResponse {
+                actions: vec![Action::CallTool {
+                    call_id: "c1".into(),
+                    name: "noop".into(),
+                    args: "{}".into(),
+                }],
+                raw_text: String::new(),
+                usage: Some(TokenUsage {
+                    prompt: 100_000,
+                    completion: 50_000,
+                }),
+            })
+        }
+    }
+
+    struct NoopTools;
+    #[async_trait]
+    impl ToolExecutor for NoopTools {
+        async fn execute(&self, name: &str, _args: &str) -> PortResult<Observation> {
+            Ok(Observation {
+                name: name.to_string(),
+                output: "ok".into(),
+            })
+        }
+    }
+
+    #[test]
+    fn turn_halts_immediately_when_cost_budget_is_exceeded() {
+        let session = MemSession::default();
+        let budget = CostBudget {
+            max_tokens: None,
+            max_cost_microdollars: Some(500_000), // $0.50 ceiling
+            pricing: ModelPricing {
+                prompt_microdollars_per_million: 3_000_000,
+                completion_microdollars_per_million: 15_000_000,
+            },
+        };
+        let outcome = block_on(run_turn_with_budget(
+            TurnDeps {
+                provider: &ExpensiveProvider,
+                tools: &NoopTools,
+                session: &session,
+                reader: &session,
+                sink: &Sink,
+                session_id: "s1",
+                prompt: "spend money",
+                max_steps: 5,
+                context: ContextConfig {
+                    system_prompt: "sys",
+                    tools: &[],
+                    context_files: &[],
+                    context_limit: 32768,
+                },
+                codec: &PassCodec,
+                checkpointer: None,
+                verifier: None,
+                skip_verify: false,
+                delta_sink: &NullDeltaSink,
+                thinking: Thinking::default(),
+            },
+            budget,
+            4,
+        ))
+        .expect("turn");
+
+        assert!(!outcome.done);
+        assert_eq!(outcome.steps, 1);
+        let events = block_on(session.events()).unwrap();
+        assert!(events.iter().any(|stored| matches!(
+            &stored.event,
+            SessionEvent::Interrupted { reason } if reason.contains("budget exceeded")
+        )));
+    }
 }

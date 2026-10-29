@@ -281,3 +281,59 @@ fn evolution_sets_overlay() {
     assert_eq!(app.evolution_text.as_deref(), Some("#1 apply"));
     assert!(matches!(app.overlay, Some(Overlay::Evolution)));
 }
+
+#[test]
+fn done_and_interrupted_transition_state_and_extract_readable_tool_target() {
+    let mut app = TuiApp::new();
+    app.push_event(&SessionEvent::ToolCall {
+        call_id: "c1".into(),
+        name: "read_file".into(),
+        args: r#"{"path":"src/main.rs","extra":1}"#.into(),
+    });
+    let Entry::Tool(row) = &app.entries[0] else {
+        panic!("expected tool row");
+    };
+    assert_eq!(row.target, "src/main.rs");
+
+    app.push_event(&SessionEvent::Done {
+        summary: "all good".into(),
+    });
+    assert_eq!(app.state, TuiState::Empty);
+
+    app.push_event(&SessionEvent::UserMessage {
+        text: "again".into(),
+    });
+    assert_eq!(app.state, TuiState::Streaming);
+    app.push_event(&SessionEvent::Interrupted {
+        reason: "budget exceeded: 100 > 50".into(),
+    });
+    assert_eq!(app.state, TuiState::BudgetExhausted);
+}
+
+#[test]
+fn diff_message_populates_bottom_sheet_and_transcript_j_k_moves_selected() {
+    let mut app = TuiApp::new();
+    app.apply(ServerMsg::Diff {
+        diff: "--- a/x\n+++ b/x\n".into(),
+    });
+    assert_eq!(app.bottom_sheet.as_deref(), Some("--- a/x\n+++ b/x\n"));
+
+    app.push_event(&SessionEvent::ToolCall {
+        call_id: "c1".into(),
+        name: "read_file".into(),
+        args: r#"{"path":"a.rs"}"#.into(),
+    });
+    app.push_event(&SessionEvent::ToolCall {
+        call_id: "c2".into(),
+        name: "read_file".into(),
+        args: r#"{"path":"b.rs"}"#.into(),
+    });
+    app.focus = Focus::Transcript;
+    assert_eq!(app.selected, 0);
+    app.handle_key(key(KeyCode::Char('j')));
+    assert_eq!(app.selected, 1);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('o'))),
+        TuiAction::OpenFile("b.rs".into())
+    );
+}

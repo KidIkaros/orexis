@@ -533,3 +533,13 @@ pub fn load_catalog() -> Result<orexis_adapters_provider_catalog::Catalog, Build
     }
     Ok(orexis_adapters_provider_catalog::Catalog::load(&dirs)?)
 }
+
+/// Export a session's event log from the SQLite store at `db_path` in Chrome
+/// Trace Event Format (`ui.perfetto.dev` / `chrome://tracing`) with zero
+/// network telemetry.
+pub async fn export_session_trace(db_path: PathBuf, session_id: &str) -> Result<String, PortError> {
+    let factory = SqliteSessionFactory::new(db_path);
+    let refs = factory.open(Some(session_id))?;
+    let events = refs.read.events().await?;
+    Ok(orexis_usecases::export_chrome_trace(session_id, &events))
+}

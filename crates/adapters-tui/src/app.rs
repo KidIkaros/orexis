@@ -119,7 +119,7 @@ impl TuiApp {
                 self.entries.push(Entry::Tool(ToolRow {
                     call_id: call_id.clone(),
                     name: name.clone(),
-                    target: args.clone(),
+                    target: orexis_core::extract_tool_target(args),
                     elapsed_ms: 0,
                     ok: false,
                     expanded: false,
@@ -143,7 +143,18 @@ impl TuiApp {
             }
             SessionEvent::Done { summary } => {
                 self.live = None;
+                self.state = TuiState::Empty;
                 self.entries.push(Entry::Info(format!("done: {summary}")));
+            }
+            SessionEvent::Interrupted { reason } => {
+                self.live = None;
+                self.state = if reason.starts_with("budget exceeded") {
+                    TuiState::BudgetExhausted
+                } else {
+                    TuiState::Empty
+                };
+                self.entries
+                    .push(Entry::Info(format!("interrupted: {reason}")));
             }
             SessionEvent::Error { message } => {
                 self.live = None;
@@ -209,7 +220,14 @@ impl TuiApp {
             }
             ServerMsg::Busy { .. } => self.set_state(TuiState::Streaming),
             ServerMsg::Queued { position, .. } => self.set_queued(position),
-            ServerMsg::Diff { .. } => {}
+            ServerMsg::Diff { diff } => {
+                self.bottom_sheet = Some(if diff.is_empty() {
+                    "working tree clean".to_string()
+                } else {
+                    diff
+                });
+                self.revision += 1;
+            }
             ServerMsg::Dir { .. } => {}
             ServerMsg::File { .. } => {}
             ServerMsg::Artifacts { items } => {
@@ -225,7 +243,12 @@ impl TuiApp {
                 self.overlay = Some(Overlay::Artifacts);
                 self.revision += 1;
             }
-            ServerMsg::Settings { .. } => {}
+            ServerMsg::Settings { settings } => {
+                self.provider = settings.profile;
+                self.model = settings.model;
+                self.plan_mode = settings.plan_mode;
+                self.revision += 1;
+            }
             ServerMsg::Board { tasks } => {
                 self.board_text = Some(if tasks.is_empty() {
                     "no board tasks".to_string()
@@ -266,7 +289,14 @@ impl TuiApp {
                 self.overlay = Some(Overlay::SelfState);
                 self.revision += 1;
             }
-            ServerMsg::Audit { .. } => {}
+            ServerMsg::Audit { entries } => {
+                self.entries.push(Entry::Info(if entries.is_empty() {
+                    "no audit entries".to_string()
+                } else {
+                    entries.join("\n")
+                }));
+                self.revision += 1;
+            }
             ServerMsg::Sessions { sessions } => {
                 self.entries
                     .push(Entry::Info(format!("{} sessions", sessions.len())));

@@ -72,6 +72,222 @@ pub struct TokenUsage {
     pub completion: u64,
 }
 
+impl TokenUsage {
+    pub fn total(&self) -> u64 {
+        self.prompt.saturating_add(self.completion)
+    }
+
+    pub fn accumulate(&mut self, other: &Self) {
+        self.prompt = self.prompt.saturating_add(other.prompt);
+        self.completion = self.completion.saturating_add(other.completion);
+    }
+}
+
+/// Per-million-token pricing in microdollars (1 USD = 1_000_000 microdollars),
+/// keeping cost accounting exact and integer-only in core.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ModelPricing {
+    pub prompt_microdollars_per_million: u64,
+    pub completion_microdollars_per_million: u64,
+}
+
+impl ModelPricing {
+    pub fn cost_microdollars(&self, usage: &TokenUsage) -> u64 {
+        let prompt = (usage.prompt as u128)
+            .saturating_mul(self.prompt_microdollars_per_million as u128)
+            / 1_000_000;
+        let completion = (usage.completion as u128)
+            .saturating_mul(self.completion_microdollars_per_million as u128)
+            / 1_000_000;
+        prompt.saturating_add(completion).min(u64::MAX as u128) as u64
+    }
+}
+
+/// Hard ceiling on a turn or session's token and dollar spend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CostBudget {
+    pub max_tokens: Option<u64>,
+    pub max_cost_microdollars: Option<u64>,
+    pub pricing: ModelPricing,
+}
+
+impl CostBudget {
+    /// Returns the reason string when `usage` exceeds the configured token
+    /// or dollar ceiling, or `None` when within budget.
+    pub fn check(&self, usage: &TokenUsage) -> Option<String> {
+        if let Some(max_tokens) = self.max_tokens {
+            let total = usage.total();
+            if total > max_tokens {
+                return Some(format!(
+                    "budget exceeded: {total} tokens > {max_tokens} token limit"
+                ));
+            }
+        }
+        if let Some(max_cost) = self.max_cost_microdollars {
+            let cost = self.pricing.cost_microdollars(usage);
+            if cost > max_cost {
+                return Some(format!(
+                    "budget exceeded: ${:.4} ({cost} microdollars) > ${:.4} limit",
+                    cost as f64 / 1_000_000.0,
+                    max_cost as f64 / 1_000_000.0
+                ));
+            }
+        }
+        None
+    }
+}
+
+/// Sum the token usage recorded across a session's event log.
+pub fn session_usage(events: &[SessionEvent]) -> TokenUsage {
+    let mut total = TokenUsage::default();
+    for event in events {
+        if let SessionEvent::ModelResponse {
+            usage: Some(usage), ..
+        } = event
+        {
+            total.accumulate(usage);
+        }
+    }
+    total
+}
+
+/// Extract a scannable target string from a tool argument payload (`path`,
+/// `command`, `query`, or `title` when `args` is a JSON object).
+pub fn extract_tool_target(args: &str) -> String {
+    if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(args) {
+        for key in ["path", "command", "query", "title"] {
+            if let Some(value) = map.get(key).and_then(serde_json::Value::as_str) {
+                return value.to_string();
+            }
+        }
+    }
+    args.to_string()
+}
+
+/// One span or instant event in Chrome Trace Event Format (`ui.perfetto.dev`
+/// / `chrome://tracing`), projected locally from a session's `StoredEvent`
+/// log with zero external network telemetry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TraceSpan {
+    pub name: String,
+    pub cat: String,
+    pub ph: String,
+    pub ts: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dur: Option<u64>,
+    pub pid: u32,
+    pub tid: u32,
+    pub args: serde_json::Value,
+}
+
+/// Project a session's `StoredEvent` log into a Chrome Trace Event JSON
+/// document (`{"session_id": ..., "traceEvents": [...]}`).
+pub fn render_chrome_trace(session_id: &str, events: &[StoredEvent]) -> String {
+    let mut spans = Vec::new();
+    let mut open_llm: Option<(u64, String, String)> = None;
+    let mut open_tools: std::collections::BTreeMap<String, (u64, String, String)> =
+        std::collections::BTreeMap::new();
+
+    for stored in events {
+        let ts = stored.seq.saturating_mul(1_000);
+        match &stored.event {
+            SessionEvent::ModelRequest {
+                profile_id,
+                request_hash,
+            } => {
+                open_llm = Some((ts, profile_id.clone(), request_hash.clone()));
+            }
+            SessionEvent::ModelResponse {
+                text,
+                actions,
+                usage,
+            } => {
+                let (start_ts, profile_id, request_hash) = open_llm.take().unwrap_or((
+                    ts.saturating_sub(500),
+                    String::new(),
+                    String::new(),
+                ));
+                let dur = ts.saturating_sub(start_ts).max(1);
+                let u = usage.unwrap_or_default();
+                spans.push(TraceSpan {
+                    name: "model_step".to_string(),
+                    cat: "llm".to_string(),
+                    ph: "X".to_string(),
+                    ts: start_ts,
+                    dur: Some(dur),
+                    pid: 1,
+                    tid: stored.generation_id.max(1) as u32,
+                    args: serde_json::json!({
+                        "seq": stored.seq,
+                        "profile_id": profile_id,
+                        "request_hash": request_hash,
+                        "prompt_tokens": u.prompt,
+                        "completion_tokens": u.completion,
+                        "total_tokens": u.total(),
+                        "actions": actions.len(),
+                        "text_bytes": text.len(),
+                    }),
+                });
+            }
+            SessionEvent::ToolCall {
+                call_id,
+                name,
+                args,
+            } => {
+                open_tools.insert(call_id.clone(), (ts, name.clone(), args.clone()));
+            }
+            SessionEvent::Observation {
+                call_id,
+                name,
+                output,
+            } => {
+                let (start_ts, tool_name, tool_args) = open_tools.remove(call_id).unwrap_or((
+                    ts.saturating_sub(500),
+                    name.clone(),
+                    String::new(),
+                ));
+                let dur = ts.saturating_sub(start_ts).max(1);
+                spans.push(TraceSpan {
+                    name: format!("tool:{tool_name}"),
+                    cat: "tool".to_string(),
+                    ph: "X".to_string(),
+                    ts: start_ts,
+                    dur: Some(dur),
+                    pid: 1,
+                    tid: stored.generation_id.max(1) as u32,
+                    args: serde_json::json!({
+                        "seq": stored.seq,
+                        "call_id": call_id,
+                        "args": tool_args,
+                        "output_bytes": output.len(),
+                    }),
+                });
+            }
+            other => {
+                spans.push(TraceSpan {
+                    name: other.kind().to_string(),
+                    cat: "session".to_string(),
+                    ph: "i".to_string(),
+                    ts,
+                    dur: None,
+                    pid: 1,
+                    tid: stored.generation_id.max(1) as u32,
+                    args: serde_json::json!({
+                        "seq": stored.seq,
+                        "event_id": stored.event_id,
+                    }),
+                });
+            }
+        }
+    }
+
+    let doc = serde_json::json!({
+        "session_id": session_id,
+        "traceEvents": spans,
+    });
+    serde_json::to_string_pretty(&doc).unwrap_or_else(|_| "{}".to_string())
+}
+
 /// A tool the model may call. `schema` is a JSON Schema object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolSpec {
@@ -760,5 +976,55 @@ mod tests {
             tool_calls: Vec::new(),
         }];
         assert_eq!(hash_messages(&messages), hash_messages(&messages));
+    }
+
+    #[test]
+    fn cost_budget_enforces_token_and_dollar_ceilings() {
+        let events = vec![
+            SessionEvent::ModelResponse {
+                text: "step 1".into(),
+                actions: Vec::new(),
+                usage: Some(TokenUsage {
+                    prompt: 100_000,
+                    completion: 50_000,
+                }),
+            },
+            SessionEvent::ModelResponse {
+                text: "step 2".into(),
+                actions: Vec::new(),
+                usage: Some(TokenUsage {
+                    prompt: 100_000,
+                    completion: 50_000,
+                }),
+            },
+        ];
+        let total = session_usage(&events);
+        assert_eq!(total.prompt, 200_000);
+        assert_eq!(total.completion, 100_000);
+        assert_eq!(total.total(), 300_000);
+
+        let token_budget = CostBudget {
+            max_tokens: Some(250_000),
+            max_cost_microdollars: None,
+            pricing: ModelPricing::default(),
+        };
+        assert!(token_budget
+            .check(&total)
+            .is_some_and(|reason| reason.contains("budget exceeded") && reason.contains("300000")));
+
+        // $3/1M prompt, $15/1M completion => 200k*3 + 100k*15 = 600_000 + 1_500_000 = 2_100_000 microdollars ($2.10)
+        let pricing = ModelPricing {
+            prompt_microdollars_per_million: 3_000_000,
+            completion_microdollars_per_million: 15_000_000,
+        };
+        assert_eq!(pricing.cost_microdollars(&total), 2_100_000);
+        let cost_budget = CostBudget {
+            max_tokens: None,
+            max_cost_microdollars: Some(500_000), // $0.50 ceiling
+            pricing,
+        };
+        assert!(cost_budget
+            .check(&total)
+            .is_some_and(|reason| reason.contains("budget exceeded") && reason.contains("0.5000")));
     }
 }

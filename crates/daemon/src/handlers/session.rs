@@ -247,9 +247,6 @@ pub(crate) async fn approve(
     let Some(resolved) = hub.resolve(id, yes, always) else {
         return Ok(());
     };
-    if resolved.session != rt.id {
-        return Ok(());
-    }
     let event = SessionEvent::ApprovalDecision {
         tool: resolved.tool,
         args: resolved.args,

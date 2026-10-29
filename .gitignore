@@ -16,6 +16,7 @@ Cargo.lock.bak
 /sessions/
 /results/
 /workspace/
+/.orexis/
 .env
 .env.*
 !.env.example

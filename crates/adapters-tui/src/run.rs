@@ -60,6 +60,12 @@ fn run_loop(
                                 client.approve(id, false)?;
                             }
                         }
+                        TuiAction::AlwaysAllow => {
+                            if let Some(id) = app.pending_approval.take() {
+                                client.approve_always(id)?;
+                            }
+                        }
+                        TuiAction::Diff => client.diff()?,
                         TuiAction::Interrupt | TuiAction::Cancel => client.interrupt()?,
                         TuiAction::Undo => client.undo()?,
                         TuiAction::SelfView => client.self_view()?,
