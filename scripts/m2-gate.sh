@@ -6,7 +6,13 @@ cd "$root"
 
 "$root/scripts/m3-gate.sh"
 
+cargo test -p orexis-desktop-core
 cargo check --manifest-path crates/desktop/ui/Cargo.toml --target wasm32-unknown-unknown
+
+if ! test -f "crates/desktop/src-tauri/icons/icon.png"; then
+  echo "missing desktop bundle icon: crates/desktop/src-tauri/icons/icon.png" >&2
+  exit 1
+fi
 
 if grep -RIn --include='*.rs' -E 'TcpListener|axum::serve|hyper::Server|warp::serve' crates/desktop crates/daemon crates/composition >/dev/null; then
   echo "desktop/daemon must not expose an HTTP server" >&2

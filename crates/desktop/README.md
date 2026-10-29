@@ -26,9 +26,14 @@ cd crates/desktop/src-tauri && cargo tauri dev
 The shell attaches with `invoke('attach', { socket, session: null })`; the
 Rust bridge emits `orexis://event` for each `ServerMsg`.
 
+## Install from Release
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KidIkaros/orexis/main/scripts/install.sh | bash -s -- --desktop
+```
+
 ## Status
 
-Source skeleton: three zones, status bar, transcript listener, composer,
-left/right panels. Not built in CI; the bridge and state are tested in
-`desktop-core`. M2-01 remains open until the shell builds on a machine with
-the webkit/gtk prerequisites.
+Three zones, status bar, transcript listener, composer, left/right panels,
+hunk-aligned split diff viewer, and automatic full-screen diff expansion.
+Packaged and signed in CI via `scripts/release.sh desktop <target>` (`.github/workflows/release.yml`).

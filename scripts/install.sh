@@ -35,6 +35,7 @@ warn() { printf "${YELLOW}%s${NC}\n" "$1" >&2; }
 bad()  { printf "${RED}%s${NC}\n" "$1" >&2; exit 1; }
 
 from_dir=""
+desktop_mode=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --from)
@@ -42,9 +43,20 @@ while [ $# -gt 0 ]; do
       from_dir="$2"
       shift 2
       ;;
+    --desktop)
+      desktop_mode=1
+      shift
+      ;;
     *) bad "unknown argument: $1" ;;
   esac
 done
+
+bin_name="orexis"
+manifest_key="artifacts"
+if [ "$desktop_mode" -eq 1 ]; then
+  bin_name="orexis-desktop"
+  manifest_key="desktop_artifacts"
+fi
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 [ "$os" = "darwin" ] && os="macos"
@@ -120,24 +132,25 @@ fi
 
 # The manifest is the source of truth for the version and the checksums.
 read_manifest() {
-  python3 - "$work/latest.json" "$target" "$1" <<'EOF'
+  python3 - "$work/latest.json" "$target" "$1" "$manifest_key" <<'EOF'
 import json, sys
 manifest = json.load(open(sys.argv[1]))
 field = sys.argv[3]
+key = sys.argv[4]
 if field == "version":
     print(manifest["version"])
     sys.exit()
 target = sys.argv[2]
-for artifact in manifest["artifacts"]:
+for artifact in manifest.get(key, []):
     if artifact["target"] == target:
         print(artifact[field])
         break
 else:
-    sys.exit(f"no artifact for {target} in the manifest")
+    sys.exit(f"no {key} entry for {target} in the manifest")
 EOF
 }
 version="${OREXIS_VERSION:-$(read_manifest version)}"
-artifact="orexis-$version-$target.tar.gz"
+artifact="$bin_name-$version-$target.tar.gz"
 say "downloading $artifact"
 fetch "$artifact" "$artifact"
 fetch "$artifact.minisig" "$artifact.minisig" 2>/dev/null || true
@@ -162,9 +175,9 @@ fi
 install_dir="${OREXIS_INSTALL_DIR:-$HOME/.local/bin}"
 mkdir -p "$install_dir"
 tar -xzf "$work/$artifact" -C "$work"
-mv "$work/orexis" "$install_dir/orexis"
-chmod +x "$install_dir/orexis"
-good "installed $APP v$version to $install_dir/orexis"
+mv "$work/$bin_name" "$install_dir/$bin_name"
+chmod +x "$install_dir/$bin_name"
+good "installed $bin_name v$version to $install_dir/$bin_name"
 
 case ":$PATH:" in
   *":$install_dir:"*) ;;

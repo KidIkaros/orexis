@@ -65,7 +65,7 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved; v0.1.0 published live.
 21. ~~[`orexis upgrade`](021-upgrade-command.md)~~ — resolved; Rust-side minisign verification, atomic replace, state untouched.
 22. ~~[No silent default](022-no-silent-default.md)~~ — resolved; an unconfigured serve refuses to start, naming `orexis init`.
-23. [Desktop workspace release packaging (v0.2.0, M2)](023-desktop-release-packaging.md)
+23. ~~[Desktop workspace release packaging (v0.2.0, M2)](023-desktop-release-packaging.md)~~ — resolved; hunk-aligned split diff, auto-expand, and signed `desktop_artifacts` pipeline.
 24. [Team mode benchmark graduation (v0.3.0, M8 / §9)](024-team-mode-benchmark-graduation.md)
 25. [Zero-config MCP auto-discovery and rival state importers (v0.4.0, M7)](025-zero-config-mcp-and-importers.md)
 26. [Living entity and neuron steering research (v0.5.0, M5 / R01)](026-living-entity-and-neuron-steering.md)

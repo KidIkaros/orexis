@@ -336,6 +336,12 @@ body {
   color: var(--text);
 }
 
+.diff .pad {
+  display: inline-block;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .diff-split {
   display: grid;
   grid-template-columns: 1fr 1fr;

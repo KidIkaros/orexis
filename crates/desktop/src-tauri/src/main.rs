@@ -50,6 +50,7 @@ fn attach(
     socket: String,
     session: Option<String>,
 ) -> Result<(), String> {
+    let socket = std::env::var("OREXIS_SOCKET").unwrap_or(socket);
     let bridge = DesktopBridge::connect(&PathBuf::from(socket), session)
         .map_err(|error| error.to_string())?;
     *state
@@ -103,11 +104,7 @@ fn settings(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), Str
 }
 
 #[tauri::command]
-fn list_dir(
-    app: tauri::AppHandle,
-    state: State<DesktopState>,
-    path: String,
-) -> Result<(), String> {
+fn list_dir(app: tauri::AppHandle, state: State<DesktopState>, path: String) -> Result<(), String> {
     state.with_mut(|bridge| bridge.list_dir(&path).map_err(|error| error.to_string()))?;
     emit_state(&app)
 }

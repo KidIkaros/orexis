@@ -63,6 +63,7 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Team-mode gate measured: paired breadth run on Qwen3.5-2B — pass 4/5 → 5/5 (the one flip is M8-16's listing trap), wall −1,720%, tokens 1.80×; the team arm was the driver's serial work while the plan worker stalled on an unanswerable `board_add` approval (M8-17) ⇒ **team mode stays experimental** | §9; M8-10; `bench-results-qwen35-gate.jsonl` |
 | Data portability: `export --all` / `import` bundle round-trips all sessions, generations, and entity store without loss | §5.1, M9 |
 | v0.1.0 released: multi-target signed release pipeline (minisign, 4 targets), live `install.sh` verified on GitHub (KidIkaros/orexis) | §5, §5.1, M9 |
+| Desktop release packaging & split diff (v0.2.0, M2): hunk-aligned side-by-side split diff with auto-expand (>40 lines) in `desktop-core`/Leptos; `release.sh desktop`, `install.sh --desktop`, and CI matrix (`desktop_artifacts` in signed `latest.json`) | ADR-0008, ADR-0019; ticket 023 |
 
 ### Frontier
 
@@ -79,7 +80,7 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 9. ~~**Native adapter timing: Gemini / Bedrock / Vertex**~~ — resolved; ADR-0016.
 10. ~~**Packaging and signing**~~ — resolved; ADR-0019.
 11. ~~**Eight per-repo study decisions**~~ — resolved; synthesis drafted.
-12. **Desktop workspace release packaging (v0.2.0, M2)** — ticket 023: Tauri v2 desktop bundles (Linux `.deb`/AppImage, macOS `.dmg`), IPC wiring with `desktop-core`, side-by-side diff inspector, evaluation cycles 1 & 2.
+12. ~~**Desktop workspace release packaging (v0.2.0, M2)**~~ — resolved; ticket 023.
 13. **Team mode multi-model benchmark graduation (v0.3.0, §9/§10)** — run breadth suite on remote frontier (Claude 3.7 / GPT-4.5) to test team vs serial token and wall-clock ratios for GA graduation; provider rate-limit QoS.
 14. **Zero-config MCP auto-discovery and rival state importers (v0.4.0)** — discover local configs (Claude, Cursor, OpenCode); `orexis import --format aider|cline|opencode`; ACP editor plugins.
 15. **Local neuron steering research (M5-R01) & zero-vector memory lattice (v0.5.0, M5)** — activation steering probes on local Qwen/Llama (H-Neuron sycophancy reduction, zero-token cognitive posture); lexical full-text memory lattice.

@@ -84,6 +84,8 @@ pub struct Snapshot {
     pub status: String,
     pub live: Option<String>,
     pub diff: Option<String>,
+    #[serde(default)]
+    pub diff_expanded: bool,
     pub files: Vec<FileEntry>,
     pub files_path: String,
     pub preview: Option<FilePreview>,
@@ -107,6 +109,7 @@ impl Default for Snapshot {
             status: "empty".to_string(),
             live: None,
             diff: None,
+            diff_expanded: false,
             files: Vec::new(),
             files_path: ".".to_string(),
             preview: None,

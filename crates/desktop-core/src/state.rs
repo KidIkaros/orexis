@@ -101,6 +101,7 @@ pub struct AppState {
     pub status: Status,
     pub live: Option<String>,
     pub diff: Option<String>,
+    pub diff_expanded: bool,
     pub files: Vec<FileEntry>,
     pub files_path: String,
     pub preview: Option<FilePreview>,
@@ -126,6 +127,7 @@ impl Default for AppState {
             status: Status::Empty,
             live: None,
             diff: None,
+            diff_expanded: false,
             files: Vec::new(),
             files_path: ".".to_string(),
             preview: None,
@@ -163,6 +165,7 @@ impl AppState {
             ServerMsg::Queued { .. } => self.status = Status::Queued,
             ServerMsg::Sessions { sessions } => self.sessions = sessions,
             ServerMsg::Diff { diff } => {
+                self.diff_expanded = crate::diff::should_auto_expand_diff(&diff);
                 self.diff = Some(diff);
                 self.right = RightTab::Diff;
             }
@@ -351,6 +354,7 @@ impl AppState {
                 if message.starts_with("restored checkpoint") {
                     self.live = None;
                     self.diff = None;
+                    self.diff_expanded = false;
                 }
                 self.transcript.push(DesktopEntry::Info {
                     message: message.clone(),
@@ -663,5 +667,49 @@ mod tests {
             entry,
             DesktopEntry::Info { message } if message.contains("recovered")
         )));
+    }
+
+    #[test]
+    fn large_diff_automatically_opens_expanded() {
+        let mut state = AppState::default();
+        state.apply(ServerMsg::Diff {
+            diff: "--- a/a.rs\n+++ b/a.rs\n-old\n+new\n".to_string(),
+        });
+        assert!(!state.diff_expanded);
+
+        let large = (0..45)
+            .map(|i| format!("+line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        state.apply(ServerMsg::Diff { diff: large });
+        assert!(state.diff_expanded);
+    }
+
+    #[test]
+    fn split_diff_aligns_hunks_and_pads_unbalanced_changes() {
+        let unified = "\
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,3 +1,4 @@
+ fn main() {
+-    old_call();
++    new_call_one();
++    new_call_two();
+ }";
+        let rows = crate::diff::align_split_diff(unified);
+        assert_eq!(rows.len(), 6);
+        assert_eq!(rows[0].left.kind, crate::diff::DiffLineKind::Meta);
+        assert_eq!(rows[1].left.kind, crate::diff::DiffLineKind::Hunk);
+        assert_eq!(rows[2].left.kind, crate::diff::DiffLineKind::Ctx);
+        assert_eq!(rows[2].right.kind, crate::diff::DiffLineKind::Ctx);
+        assert_eq!(rows[3].left.kind, crate::diff::DiffLineKind::Del);
+        assert_eq!(rows[3].left.text, "-    old_call();");
+        assert_eq!(rows[3].right.kind, crate::diff::DiffLineKind::Add);
+        assert_eq!(rows[3].right.text, "+    new_call_one();");
+        assert_eq!(rows[4].left.kind, crate::diff::DiffLineKind::Pad);
+        assert_eq!(rows[4].left.text, "");
+        assert_eq!(rows[4].right.kind, crate::diff::DiffLineKind::Add);
+        assert_eq!(rows[4].right.text, "+    new_call_two();");
+        assert_eq!(rows[5].left.kind, crate::diff::DiffLineKind::Ctx);
     }
 }

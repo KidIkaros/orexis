@@ -20,6 +20,10 @@
     "withGlobalTauri": true
   },
   "bundle": {
-    "active": false
+    "active": false,
+    "targets": ["deb", "appimage", "dmg"],
+    "icon": [
+      "icons/icon.png"
+    ]
   }
 }

@@ -152,6 +152,15 @@ pub fn App() -> impl IntoView {
         set_deciding.set(false);
     });
 
+    Effect::new(move |_| {
+        let snap = snapshot.get();
+        if snap.diff.is_some() {
+            set_expanded.set(snap.diff_expanded);
+        } else {
+            set_expanded.set(false);
+        }
+    });
+
     start_shortcuts(
         snapshot,
         decide.clone(),

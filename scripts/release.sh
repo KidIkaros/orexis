@@ -95,6 +95,53 @@ archive_target() {
   fi
 }
 
+desktop_target() {
+  local target="$1"
+  local outdir="$2"
+  local sign_it="${3:-yes}"
+  echo "== build desktop UI (wasm32)"
+  (
+    cd crates/desktop/ui
+    trunk build --release
+  )
+  [ -f "crates/desktop/ui/dist/index.html" ] || die "desktop UI dist/index.html not found"
+
+  echo "== build desktop shell ($target)"
+  "${CARGO:-cargo}" build --release --manifest-path crates/desktop/src-tauri/Cargo.toml --target "$target"
+  local binary="crates/desktop/src-tauri/target/$target/release/orexis-desktop"
+  if [ ! -f "$binary" ]; then
+    binary="target/$target/release/orexis-desktop"
+  fi
+  [ -f "$binary" ] || die "desktop binary not found: $binary"
+
+  echo "== archive desktop"
+  local name="orexis-desktop-$version-$target"
+  local stage
+  stage="$(mktemp -d)"
+  cp "$binary" "$stage/orexis-desktop"
+  for doc in README.md LICENSE NOTICE; do
+    [ -f "$doc" ] && cp "$doc" "$stage/"
+  done
+  mkdir -p "$outdir"
+  tar -czf "$outdir/$name.tar.gz" -C "$stage" .
+  rm -rf "$stage"
+
+  echo "== checksum desktop"
+  (
+    cd "$outdir"
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+    else
+      shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+    fi
+  )
+
+  if [ "$sign_it" = "yes" ]; then
+    echo "== sign desktop"
+    sign "$outdir/$name.tar.gz"
+  fi
+}
+
 build_manifest() {
   local artdir="$1"
   local outdir="$2"
@@ -109,7 +156,7 @@ build_manifest() {
     echo "  \"version\": \"$version\","
     echo "  \"artifacts\": ["
     local first=1
-    for checksum in "$artdir"/*.tar.gz.sha256; do
+    for checksum in "$artdir"/orexis-[0-9]*.tar.gz.sha256; do
       [ -f "$checksum" ] || die "no artifact checksums in $artdir"
       local name hash
       name="$(basename "$checksum" .sha256)"
@@ -122,6 +169,22 @@ build_manifest() {
       printf '    {"target": "%s", "url": "https://github.com/%s/releases/download/v%s/%s", "sha256": "%s"}' \
         "$(target_of "$name")" "$repo" "$version" "$name" "$hash"
     done
+    echo "  ],"
+    echo "  \"desktop_artifacts\": ["
+    local dfirst=1
+    for checksum in "$artdir"/orexis-desktop-*.tar.gz.sha256; do
+      [ -f "$checksum" ] || continue
+      local name hash
+      name="$(basename "$checksum" .sha256)"
+      hash="$(awk '{print $1}' "$checksum")"
+      [ -f "$artdir/$name.minisig" ] || die "unsigned desktop artifact: $name"
+      if [ $dfirst -eq 0 ]; then
+        echo ","
+      fi
+      dfirst=0
+      printf '    {"target": "%s", "url": "https://github.com/%s/releases/download/v%s/%s", "sha256": "%s"}' \
+        "$(target_of "$name")" "$repo" "$version" "$name" "$hash"
+    done
     echo "  ]"
     echo "}"
   } > "$manifest"
@@ -131,11 +194,12 @@ build_manifest() {
 }
 
 target_of() {
-  # orexis-<version>-<target>.tar.gz -> <target>
+  # orexis-[desktop-]<version>-<target>.tar.gz -> <target>
   local name="$1"
-  local without_version="${name#orexis-}"
-  without_version="${without_version#*-}"
-  echo "${without_version%.tar.gz}"
+  name="${name#orexis-desktop-}"
+  name="${name#orexis-}"
+  name="${name#*-}"
+  echo "${name%.tar.gz}"
 }
 
 host_target() {
@@ -150,6 +214,14 @@ case "${1:-}" in
     outdir="$(abs "${2:-dist}")"
     mkdir -p "$outdir"
     archive_target "$target" "$outdir"
+    ;;
+  desktop)
+    shift
+    [ $# -ge 1 ] || die "desktop needs a target"
+    target="$1"
+    outdir="$(abs "${2:-dist}")"
+    mkdir -p "$outdir"
+    desktop_target "$target" "$outdir"
     ;;
   manifest)
     shift
@@ -169,6 +241,6 @@ case "${1:-}" in
     echo "dry-run complete: $outdir (unsigned)"
     ;;
   *)
-  die "usage: scripts/release.sh { archive TARGET [OUTDIR] | manifest ARTDIR OUTDIR | dry-run [OUTDIR] }"
+  die "usage: scripts/release.sh { archive TARGET [OUTDIR] | desktop TARGET [OUTDIR] | manifest ARTDIR OUTDIR | dry-run [OUTDIR] }"
   ;;
 esac
