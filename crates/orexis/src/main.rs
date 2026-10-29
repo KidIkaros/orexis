@@ -33,14 +33,33 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(())
         }
+        Command::Export { db, session, out } => {
+            let text = orexis_composition::export_bundle(&db, session.as_deref())?;
+            if let Some(path) = out {
+                std::fs::write(path, text)?;
+            } else {
+                print!("{text}");
+            }
+            Ok(())
+        }
+        Command::Import { db, input } => {
+            let jsonl = match input {
+                Some(path) => std::fs::read_to_string(path)?,
+                None => {
+                    use std::io::Read;
+                    let mut buf = String::new();
+                    std::io::stdin().read_to_string(&mut buf)?;
+                    buf
+                }
+            };
+            let count = orexis_composition::import_bundle(&db, &jsonl)?;
+            println!("imported {count} records");
+            Ok(())
+        }
         Command::Bench { args } => runtime()?.block_on(orexis_bench::cli::cli(&args)),
         Command::Version => {
             println!("orexis {}", env!("CARGO_PKG_VERSION"));
             Ok(())
-        }
-        Command::NotYet(name) => {
-            eprintln!("not yet: {name} has no implementation; see .scratch/orexis/issues/");
-            std::process::exit(2);
         }
         Command::Usage => {
             usage();
@@ -110,12 +129,19 @@ pub enum Command {
         session: String,
         out: Option<PathBuf>,
     },
+    Export {
+        db: PathBuf,
+        session: Option<String>,
+        out: Option<PathBuf>,
+    },
+    Import {
+        db: PathBuf,
+        input: Option<PathBuf>,
+    },
     Bench {
         args: Vec<String>,
     },
     Version,
-    /// A subcommand whose ticket has not landed; named in the error.
-    NotYet(&'static str),
     Providers {
         detail: Option<String>,
     },
@@ -180,8 +206,52 @@ fn parse(args: &[String]) -> Command {
         "bench" => Command::Bench {
             args: flags.to_vec(),
         },
-        "export" => Command::NotYet("export"),
-        "import" => Command::NotYet("import"),
+        "export" => {
+            let db = flag_value(flags, "--db")
+                .or_else(|| std::env::var("OREXIS_DB").ok())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("/tmp/orexis.db"));
+            let out = flag_value(flags, "--out").map(PathBuf::from);
+            let all = flags.iter().any(|arg| arg == "--all");
+            let session = if all {
+                None
+            } else {
+                flag_value(flags, "--session").or_else(|| {
+                    let mut iter = flags.iter();
+                    while let Some(arg) = iter.next() {
+                        if arg == "--db" || arg == "--out" || arg == "--session" {
+                            let _ = iter.next();
+                            continue;
+                        }
+                        if !arg.starts_with("--") {
+                            return Some(arg.clone());
+                        }
+                    }
+                    None
+                })
+            };
+            Command::Export { db, session, out }
+        }
+        "import" => {
+            let db = flag_value(flags, "--db")
+                .or_else(|| std::env::var("OREXIS_DB").ok())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("/tmp/orexis.db"));
+            let input = flag_value(flags, "--in").map(PathBuf::from).or_else(|| {
+                let mut iter = flags.iter();
+                while let Some(arg) = iter.next() {
+                    if arg == "--db" || arg == "--in" {
+                        let _ = iter.next();
+                        continue;
+                    }
+                    if !arg.starts_with("--") {
+                        return Some(PathBuf::from(arg));
+                    }
+                }
+                None
+            });
+            Command::Import { db, input }
+        }
         "--help" | "-h" | "help" => Command::Usage,
         other => {
             eprintln!("unknown subcommand: {other}");
@@ -241,8 +311,13 @@ fn usage() {
          \x20                  select a provider; interactive when flags are absent\n\
          \x20 upgrade [--from DIR]\n\
          \x20                  verify and install the newest release; state untouched\n\
-         \x20 export | import | bench\n\
-         \x20                  not yet (M9)"
+         \x20 export [--all] [--db PATH] [--session ID] [--out FILE]\n\
+         \x20                  export session and entity state as JSONL\n\
+         \x20 import [--db PATH] [FILE]\n\
+         \x20                  import session and entity JSONL bundle\n\
+         \x20 trace [--db PATH] [--out FILE] <SESSION>\n\
+         \x20                  export Chrome Trace Event JSON for a session\n\
+         \x20 bench            run the benchmark suite"
     );
 }
 
@@ -315,13 +390,37 @@ mod tests {
     }
 
     #[test]
-    fn unbuilt_subcommands_report_not_yet() {
-        for name in ["export", "import"] {
-            assert!(
-                matches!(parse(&args(&[name])), Command::NotYet(_)),
-                "{name} must be a NotYet stub"
-            );
-        }
+    fn export_and_import_parse() {
+        assert_eq!(
+            parse(&args(&[
+                "export",
+                "--all",
+                "--db",
+                "/tmp/a.db",
+                "--out",
+                "/tmp/dump.jsonl"
+            ])),
+            Command::Export {
+                db: PathBuf::from("/tmp/a.db"),
+                session: None,
+                out: Some(PathBuf::from("/tmp/dump.jsonl")),
+            }
+        );
+        assert_eq!(
+            parse(&args(&["export", "--db", "/tmp/a.db", "s1"])),
+            Command::Export {
+                db: PathBuf::from("/tmp/a.db"),
+                session: Some("s1".to_string()),
+                out: None,
+            }
+        );
+        assert_eq!(
+            parse(&args(&["import", "--db", "/tmp/b.db", "/tmp/dump.jsonl"])),
+            Command::Import {
+                db: PathBuf::from("/tmp/b.db"),
+                input: Some(PathBuf::from("/tmp/dump.jsonl")),
+            }
+        );
     }
 
     #[test]

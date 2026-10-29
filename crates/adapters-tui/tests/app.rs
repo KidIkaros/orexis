@@ -337,3 +337,56 @@ fn diff_message_populates_bottom_sheet_and_transcript_j_k_moves_selected() {
         TuiAction::OpenFile("b.rs".into())
     );
 }
+
+#[test]
+fn composer_history_navigates_up_and_down_preserving_draft() {
+    let mut app = TuiApp::new();
+    app.composer = "first".into();
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        TuiAction::Send("first".into())
+    );
+    app.composer = "second".into();
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        TuiAction::Send("second".into())
+    );
+
+    app.composer = "draft".into();
+    app.handle_key(key(KeyCode::Up));
+    assert_eq!(app.composer, "second");
+    app.handle_key(key(KeyCode::Up));
+    assert_eq!(app.composer, "first");
+    app.handle_key(key(KeyCode::Down));
+    assert_eq!(app.composer, "second");
+    app.handle_key(key(KeyCode::Down));
+    assert_eq!(app.composer, "draft");
+}
+
+#[test]
+fn streaming_auto_scrolls_to_bottom_and_unlocks_on_scroll_up() {
+    let mut app = TuiApp::new();
+    assert!(app.auto_scroll);
+    for i in 0..30 {
+        app.push_event(&SessionEvent::UserMessage {
+            text: format!("msg-{i:02}"),
+        });
+    }
+    let out = render(&app, 80, 12);
+    assert!(
+        out.contains("msg-29"),
+        "auto_scroll should show tail: {out}"
+    );
+    assert!(!out.contains("msg-00"));
+
+    app.focus = Focus::Transcript;
+    app.handle_key(key(KeyCode::Char('g')));
+    assert!(!app.auto_scroll);
+    let top_out = render(&app, 80, 12);
+    assert!(top_out.contains("msg-00"));
+
+    app.handle_key(key(KeyCode::Char('G')));
+    assert!(app.auto_scroll);
+    let tail_out = render(&app, 80, 12);
+    assert!(tail_out.contains("msg-29"));
+}

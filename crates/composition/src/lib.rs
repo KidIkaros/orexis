@@ -543,3 +543,55 @@ pub async fn export_session_trace(db_path: PathBuf, session_id: &str) -> Result<
     let events = refs.read.events().await?;
     Ok(orexis_usecases::export_chrome_trace(session_id, &events))
 }
+
+/// Export either a single session's JSONL or `--all` (every session plus the
+/// entity store) without loss (M9 1.0 checklist).
+pub fn export_bundle(
+    db_path: &std::path::Path,
+    session_id: Option<&str>,
+) -> Result<String, PortError> {
+    if let Some(id) = session_id {
+        let store = orexis_adapters_session_sqlite::SqliteSessionStore::open_session(db_path, id)?;
+        return store.export_jsonl();
+    }
+    let mut out = orexis_adapters_session_sqlite::SqliteSessionStore::export_all_jsonl(db_path)?;
+    let entity_path = db_path.with_file_name("entity.db");
+    if entity_path.exists() {
+        let entity = SqliteEntityFactory::new(entity_path).open()?;
+        out.push_str(&entity.read.export_jsonl()?);
+    }
+    Ok(out)
+}
+
+/// Import a JSONL bundle produced by `export_bundle` into `db_path` and its
+/// sibling `entity.db`, returning the number of imported events.
+pub fn import_bundle(db_path: &std::path::Path, jsonl: &str) -> Result<usize, PortError> {
+    let mut session_lines = String::new();
+    let mut entity_lines = String::new();
+    let mut entity_count = 0usize;
+
+    for line in jsonl.lines().filter(|l| !l.trim().is_empty()) {
+        if orexis_adapters_session_sqlite::SqliteSessionStore::is_session_record(line)? {
+            session_lines.push_str(line);
+            session_lines.push('\n');
+        } else {
+            entity_lines.push_str(line);
+            entity_lines.push('\n');
+            entity_count += 1;
+        }
+    }
+
+    let mut total = 0usize;
+    if !session_lines.is_empty() {
+        total += orexis_adapters_session_sqlite::SqliteSessionStore::import_all_jsonl(
+            db_path,
+            &session_lines,
+        )?;
+    }
+    if !entity_lines.is_empty() {
+        let entity_path = db_path.with_file_name("entity.db");
+        orexis_adapters_entity_sqlite::import_jsonl(&entity_path, &entity_lines)?;
+        total += entity_count;
+    }
+    Ok(total)
+}

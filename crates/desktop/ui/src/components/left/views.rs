@@ -30,12 +30,16 @@ pub(super) fn sessions_view(snapshot: ReadSignal<Snapshot>, open: Callback<Strin
 }
 
 pub(super) fn board_view(snapshot: ReadSignal<Snapshot>, open: Callback<String>) -> AnyView {
-    let sessions = snapshot.get().sessions;
+    let snap = snapshot.get();
+    if let Some(board_text) = snap.board_text {
+        return view! { <pre class="preview">{board_text}</pre> }.into_any();
+    }
+    let sessions = snap.sessions.clone();
     if sessions.is_empty() {
-        return empty(&snapshot.get());
+        return empty(&snap);
     }
     view! {
-        <p class="muted">"session projection · workers land in M8"</p>
+        <p class="muted">"session projection · team board ready"</p>
         <div class="table">
             <div class="table-head board">
                 <span>"session"</span>
@@ -68,12 +72,16 @@ pub(super) fn board_view(snapshot: ReadSignal<Snapshot>, open: Callback<String>)
 }
 
 pub(super) fn fleet_view(snapshot: ReadSignal<Snapshot>, open: Callback<String>) -> AnyView {
-    let sessions = snapshot.get().sessions;
+    let snap = snapshot.get();
+    if let Some(fleet_text) = snap.fleet_text {
+        return view! { <pre class="preview">{fleet_text}</pre> }.into_any();
+    }
+    let sessions = snap.sessions.clone();
     if sessions.is_empty() {
-        return empty(&snapshot.get());
+        return empty(&snap);
     }
     view! {
-        <p class="muted">"session projection · workers land in M8"</p>
+        <p class="muted">"session projection · team fleet ready"</p>
         <div class="table">
             <div class="table-head fleet">
                 <span>"session"</span>

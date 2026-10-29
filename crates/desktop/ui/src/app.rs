@@ -122,6 +122,16 @@ pub fn App() -> impl IntoView {
                 artifacts.run(());
             }
             LeftTab::Artifacts => artifacts.run(()),
+            LeftTab::Board => {
+                spawn_local(async move {
+                    let _ = invoke("board", JsValue::NULL).await;
+                });
+            }
+            LeftTab::Fleet => {
+                spawn_local(async move {
+                    let _ = invoke("fleet", JsValue::NULL).await;
+                });
+            }
             _ => {}
         }
     });

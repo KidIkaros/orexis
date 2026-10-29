@@ -34,7 +34,12 @@ pub fn draw(frame: &mut Frame, app: &TuiApp) {
 
     let lines = transcript_lines(app);
     let height = chunks[1].height as usize;
-    let start = app.scroll.min(lines.len().saturating_sub(height));
+    let max_scroll = lines.len().saturating_sub(height);
+    let start = if app.auto_scroll {
+        max_scroll
+    } else {
+        app.scroll.min(max_scroll)
+    };
     let visible: Vec<Line> = lines.into_iter().skip(start).take(height).collect();
     if visible.is_empty() {
         frame.render_widget(
@@ -65,7 +70,7 @@ pub fn draw(frame: &mut Frame, app: &TuiApp) {
         crate::overlays::draw_overlay(frame, app, overlay, area);
     }
     if let Some(sheet) = &app.bottom_sheet {
-        crate::overlays::draw_bottom_sheet(frame, sheet, chunks[1]);
+        crate::overlays::draw_bottom_sheet(frame, app, sheet, chunks[1]);
     }
 
     if app.focus == Focus::Composer {

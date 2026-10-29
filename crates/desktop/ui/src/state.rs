@@ -90,6 +90,10 @@ pub struct Snapshot {
     pub artifacts: Vec<Artifact>,
     pub settings: Option<SettingsInfo>,
     pub self_text: Option<String>,
+    #[serde(default)]
+    pub board_text: Option<String>,
+    #[serde(default)]
+    pub fleet_text: Option<String>,
 }
 
 impl Default for Snapshot {
@@ -109,6 +113,8 @@ impl Default for Snapshot {
             artifacts: Vec::new(),
             settings: None,
             self_text: None,
+            board_text: None,
+            fleet_text: None,
         }
     }
 }

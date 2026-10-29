@@ -128,3 +128,35 @@ fn migrates_a_v1_event_table() {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].generation_id, 1);
 }
+
+#[test]
+fn export_all_and_import_all_round_trip_without_loss() {
+    let dir = tempfile::tempdir().unwrap();
+    let src_path = dir.path().join("src.db");
+    let s1 = SqliteSessionStore::open(&src_path).unwrap();
+    let s1_id = s1.session_id().to_string();
+    block_on(s1.append(user("alpha"))).unwrap();
+    block_on(s1.append(user("beta"))).unwrap();
+    let s2_id = s1.fork_at(1).unwrap();
+    let s2 = SqliteSessionStore::open_session(&src_path, &s2_id).unwrap();
+    block_on(s2.append(user("gamma"))).unwrap();
+
+    let jsonl = SqliteSessionStore::export_all_jsonl(&src_path).unwrap();
+    let dst_path = dir.path().join("dst.db");
+    let imported = SqliteSessionStore::import_all_jsonl(&dst_path, &jsonl).unwrap();
+    assert_eq!(imported, 4); // 2 in s1 + 1 copied in s2 + 1 appended in s2
+
+    let dst_sessions = SqliteSessionStore::list_sessions(&dst_path).unwrap();
+    assert_eq!(dst_sessions, vec![s1_id.clone(), s2_id.clone()]);
+
+    let dst_s1 = SqliteSessionStore::open_session(&dst_path, &s1_id).unwrap();
+    let dst_s2 = SqliteSessionStore::open_session(&dst_path, &s2_id).unwrap();
+    assert_eq!(
+        block_on(s1.events()).unwrap(),
+        block_on(dst_s1.events()).unwrap()
+    );
+    assert_eq!(
+        block_on(s2.events()).unwrap(),
+        block_on(dst_s2.events()).unwrap()
+    );
+}

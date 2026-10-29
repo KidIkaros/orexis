@@ -129,6 +129,18 @@ fn artifacts(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), St
 }
 
 #[tauri::command]
+fn board(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.board().map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
+fn fleet(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
+    state.with_mut(|bridge| bridge.fleet().map_err(|error| error.to_string()))?;
+    emit_state(&app)
+}
+
+#[tauri::command]
 fn diff(app: tauri::AppHandle, state: State<DesktopState>) -> Result<(), String> {
     state.with_mut(|bridge| bridge.diff().map_err(|error| error.to_string()))?;
     emit_state(&app)
@@ -172,6 +184,8 @@ fn main() {
             list_dir,
             read_file,
             artifacts,
+            board,
+            fleet,
             undo,
             interrupt,
             list_sessions,

@@ -373,14 +373,17 @@ mod tests {
 
     #[test]
     fn an_unpinned_key_is_a_clear_error() {
-        // The placeholder orexis.pub names the wizard step; parsing it
-        // must fail with the key-not-pinned error, not a cryptic parse
-        // error.
-        let error = read_manifest_with(PINNED_KEY, "{}", "sig").expect_err("refused");
+        let placeholder = "untrusted comment: paste the release public key here";
+        let error = read_manifest_with(placeholder, "{}", "sig").expect_err("refused");
         assert!(
             matches!(error, UpgradeError::KeyNotPinned),
             "error: {error}"
         );
+    }
+
+    #[test]
+    fn pinned_key_is_valid() {
+        PublicKey::parse(PINNED_KEY).expect("pinned key must parse");
     }
 
     #[test]

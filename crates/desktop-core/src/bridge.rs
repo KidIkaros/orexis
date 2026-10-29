@@ -54,7 +54,16 @@ impl DesktopBridge {
     }
 
     pub fn approve(&mut self, id: u64, yes: bool) -> io::Result<()> {
-        self.client.approve(id, yes)
+        self.approve_with(id, yes, false)
+    }
+
+    pub fn approve_with(&mut self, id: u64, yes: bool, always: bool) -> io::Result<()> {
+        self.state.pending = None;
+        if always && yes {
+            self.client.approve_always(id)
+        } else {
+            self.client.approve(id, yes)
+        }
     }
 
     pub fn self_view(&mut self) -> io::Result<()> {

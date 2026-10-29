@@ -2,7 +2,8 @@
 
 use ratatui::{
     layout::Rect,
-    text::Line,
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
@@ -105,7 +106,7 @@ fn overlay_lines(app: &TuiApp, overlay: Overlay) -> Vec<Line<'static>> {
     }
 }
 
-pub(crate) fn draw_bottom_sheet(frame: &mut Frame, sheet: &str, area: Rect) {
+pub(crate) fn draw_bottom_sheet(frame: &mut Frame, app: &TuiApp, sheet: &str, area: Rect) {
     let height = (area.height / 3).max(5);
     let rect = Rect {
         x: area.x,
@@ -113,9 +114,35 @@ pub(crate) fn draw_bottom_sheet(frame: &mut Frame, sheet: &str, area: Rect) {
         width: area.width,
         height,
     };
+    let styled_lines: Vec<Line<'static>> = sheet
+        .lines()
+        .map(|line| {
+            let owned = line.to_string();
+            if !app.color {
+                return Line::from(owned);
+            }
+            if owned.starts_with("@@") {
+                Line::from(Span::styled(owned, Style::default().fg(Color::Cyan)))
+            } else if owned.starts_with("+++")
+                || owned.starts_with("---")
+                || owned.starts_with("diff ")
+            {
+                Line::from(Span::styled(
+                    owned,
+                    Style::default().add_modifier(Modifier::BOLD),
+                ))
+            } else if owned.starts_with('+') {
+                Line::from(Span::styled(owned, Style::default().fg(Color::Green)))
+            } else if owned.starts_with('-') {
+                Line::from(Span::styled(owned, Style::default().fg(Color::Red)))
+            } else {
+                Line::from(owned)
+            }
+        })
+        .collect();
     frame.render_widget(Clear, rect);
     frame.render_widget(
-        Paragraph::new(sheet.to_string())
+        Paragraph::new(styled_lines)
             .block(Block::default().borders(Borders::ALL).title("detail"))
             .wrap(Wrap { trim: false }),
         rect,

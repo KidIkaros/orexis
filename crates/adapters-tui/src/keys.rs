@@ -117,7 +117,10 @@ impl TuiApp {
                 };
                 TuiAction::None
             }
-            KeyCode::Esc => TuiAction::Cancel,
+            KeyCode::Esc => {
+                self.bottom_sheet = None;
+                TuiAction::Cancel
+            }
             _ => match self.focus {
                 Focus::Composer => self.handle_composer(key),
                 Focus::Transcript => self.handle_transcript(key),
@@ -134,7 +137,39 @@ impl TuiApp {
             }
             KeyCode::Enter => {
                 let text = std::mem::take(&mut self.composer);
+                if !text.trim().is_empty() && self.history.last() != Some(&text) {
+                    self.history.push(text.clone());
+                }
+                self.history_index = None;
+                self.composer_draft.clear();
+                self.auto_scroll = true;
                 TuiAction::Send(text)
+            }
+            KeyCode::Up => {
+                if !self.history.is_empty() {
+                    let next_idx = match self.history_index {
+                        None => {
+                            self.composer_draft = self.composer.clone();
+                            self.history.len() - 1
+                        }
+                        Some(idx) => idx.saturating_sub(1),
+                    };
+                    self.history_index = Some(next_idx);
+                    self.composer = self.history[next_idx].clone();
+                }
+                TuiAction::None
+            }
+            KeyCode::Down => {
+                if let Some(idx) = self.history_index {
+                    if idx + 1 < self.history.len() {
+                        self.history_index = Some(idx + 1);
+                        self.composer = self.history[idx + 1].clone();
+                    } else {
+                        self.history_index = None;
+                        self.composer = std::mem::take(&mut self.composer_draft);
+                    }
+                }
+                TuiAction::None
             }
             KeyCode::Backspace => {
                 self.composer.pop();
@@ -161,16 +196,24 @@ impl TuiApp {
                 TuiAction::None
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                self.scroll = self.scroll.saturating_sub(1);
+                if self.auto_scroll {
+                    let total = crate::render::transcript_lines(self).len();
+                    self.scroll = total.saturating_sub(2);
+                    self.auto_scroll = false;
+                } else {
+                    self.scroll = self.scroll.saturating_sub(1);
+                }
                 self.selected = self.selected.saturating_sub(1);
                 TuiAction::None
             }
             KeyCode::Char('g') => {
+                self.auto_scroll = false;
                 self.scroll = 0;
                 self.selected = 0;
                 TuiAction::None
             }
             KeyCode::Char('G') => {
+                self.auto_scroll = true;
                 self.scroll = usize::MAX;
                 self.selected = self.entries.len().saturating_sub(1);
                 TuiAction::None

@@ -203,3 +203,36 @@ fn fleet_overlay_renders() {
     assert!(out.contains("worker-task-12"));
     assert!(out.contains("running"));
 }
+
+#[test]
+fn bottom_sheet_diff_colors_additions_deletions_and_hunks() {
+    use ratatui::style::Color;
+    let mut app = TuiApp::new();
+    app.bottom_sheet = Some("@@ -1,2 +1,2 @@\n-old\n+new".to_string());
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).expect("terminal");
+    terminal.draw(|frame| draw(frame, &app)).expect("draw");
+    let buffer = terminal.backend().buffer();
+
+    let mut saw_cyan = false;
+    let mut saw_red = false;
+    let mut saw_green = false;
+    for y in 0..24 {
+        for x in 0..80 {
+            if let Some(cell) = buffer.cell(ratatui::layout::Position::new(x, y)) {
+                match cell.fg {
+                    Color::Cyan if cell.symbol() == "@" => saw_cyan = true,
+                    Color::Red if cell.symbol() == "-" => saw_red = true,
+                    Color::Green if cell.symbol() == "+" => saw_green = true,
+                    _ => {}
+                }
+            }
+        }
+    }
+    assert!(saw_cyan, "expected cyan hunk header in bottom sheet diff");
+    assert!(saw_red, "expected red deletion line in bottom sheet diff");
+    assert!(
+        saw_green,
+        "expected green addition line in bottom sheet diff"
+    );
+}

@@ -351,3 +351,47 @@ limits:
     .expect("build openai");
     assert_eq!(runtime_openai.codec.name(), "native");
 }
+
+#[test]
+fn export_bundle_and_import_bundle_round_trip_sessions_and_entity() {
+    use futures::executor::block_on;
+    use orexis_core::{Drive, EntityEvent, SessionEvent};
+
+    let src_dir = tempfile::tempdir().expect("src");
+    let dst_dir = tempfile::tempdir().expect("dst");
+    let providers = providers_dir("native");
+
+    let src_db = src_dir.path().join("s.db");
+    let rt = build_runtime(config(&src_dir, providers.path().to_path_buf(), "known"))
+        .expect("build src");
+
+    let s1 = rt.sessions.open(None).expect("open s1");
+    block_on(s1.append.append(SessionEvent::UserMessage {
+        text: "hello export".to_string(),
+    }))
+    .expect("append user");
+
+    let entity = rt.entity.open().expect("open entity");
+    block_on(entity.append.append(EntityEvent::DriveUpdate {
+        drive: Drive::Curiosity,
+        value: 0.9,
+        reason: "explore".to_string(),
+    }))
+    .expect("append entity");
+
+    let bundle = orexis_composition::export_bundle(&src_db, None).expect("export bundle");
+    let dst_db = dst_dir.path().join("s.db");
+    let imported = orexis_composition::import_bundle(&dst_db, &bundle).expect("import bundle");
+    assert!(imported >= 2, "expected session + entity records imported");
+
+    let dst_rt = build_runtime(config(&dst_dir, providers.path().to_path_buf(), "known"))
+        .expect("build dst");
+    let dst_s1 = dst_rt.sessions.open(Some(&s1.id)).expect("open dst s1");
+    assert_eq!(
+        block_on(s1.read.events()).expect("src events"),
+        block_on(dst_s1.read.events()).expect("dst events")
+    );
+    let dst_entity = dst_rt.entity.open().expect("open dst entity");
+    let snap = block_on(dst_entity.read.snapshot()).expect("dst snapshot");
+    assert_eq!(snap.drives.curiosity, 0.9);
+}

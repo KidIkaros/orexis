@@ -87,6 +87,7 @@ pub struct FilePreview {
     pub truncated: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AppState {
     pub connection: Connection,
     pub session: Option<String>,
