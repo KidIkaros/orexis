@@ -61,6 +61,8 @@ A **sovereign, model-agnostic coding harness with a living entity**: your state,
 | Packaging: one `orexis` binary, four targets, minisign-signed artifacts (one keypair with the Tauri updater), GitHub Releases primary, verify-before-execute; upgrade preservation is structural | ADR-0019; ticket 010 |
 | Team-mode domain: workers are in-process turns over sessions sharing the entity; board/bus/blackboard are ports with sqlite/fs adapters; the scheduler asks the provider for capacity; strategies are use cases; the supervisor is a watchdog; opt-in, benchmark-gated | ADR-0020; M8 spec |
 | Team-mode gate measured: paired breadth run on Qwen3.5-2B — pass 4/5 → 5/5 (the one flip is M8-16's listing trap), wall −1,720%, tokens 1.80×; the team arm was the driver's serial work while the plan worker stalled on an unanswerable `board_add` approval (M8-17) ⇒ **team mode stays experimental** | §9; M8-10; `bench-results-qwen35-gate.jsonl` |
+| Data portability: `export --all` / `import` bundle round-trips all sessions, generations, and entity store without loss | §5.1, M9 |
+| v0.1.0 released: multi-target signed release pipeline (minisign, 4 targets), live `install.sh` verified on GitHub (KidIkaros/orexis) | §5, §5.1, M9 |
 
 ### Frontier
 
@@ -77,10 +79,15 @@ Open decisions, in order. Each is one session's work; resolving it appends a row
 9. ~~**Native adapter timing: Gemini / Bedrock / Vertex**~~ — resolved; ADR-0016.
 10. ~~**Packaging and signing**~~ — resolved; ADR-0019.
 11. ~~**Eight per-repo study decisions**~~ — resolved; synthesis drafted.
+12. **Desktop workspace release packaging (v0.2.0, M2)** — ticket 023: Tauri v2 desktop bundles (Linux `.deb`/AppImage, macOS `.dmg`), IPC wiring with `desktop-core`, side-by-side diff inspector, evaluation cycles 1 & 2.
+13. **Team mode multi-model benchmark graduation (v0.3.0, §9/§10)** — run breadth suite on remote frontier (Claude 3.7 / GPT-4.5) to test team vs serial token and wall-clock ratios for GA graduation; provider rate-limit QoS.
+14. **Zero-config MCP auto-discovery and rival state importers (v0.4.0)** — discover local configs (Claude, Cursor, OpenCode); `orexis import --format aider|cline|opencode`; ACP editor plugins.
+15. **Local neuron steering research (M5-R01) & zero-vector memory lattice (v0.5.0, M5)** — activation steering probes on local Qwen/Llama (H-Neuron sycophancy reduction, zero-token cognitive posture); lexical full-text memory lattice.
+16. **100-cycle evolution gate & long-term stability guarantees (v1.0.0 LTS, M6)** — 100 autonomous self-mutation cycles with zero unrecoverable rollbacks.
 
 ### Not yet specified
 
-Neuron activation alignment/steering for local open weights — research (M5-R01); model-specific, not entity identity (ADR-0014) · MAS scheduling policy after the breadth benchmark · evolution calibration after 100 cycles · A2A/UTCP adoption after M7 · SDK/marketplace/importers timing · multi-user collaboration · mobile/web.
+Neuron activation alignment/steering for local open weights — research track (M5-R01); model-specific, not entity identity (ADR-0014) · MAS scheduling policy after the breadth benchmark on frontier models · evolution calibration after 100 cycles · A2A/UTCP adoption after M7 · SDK/marketplace timing · multi-user collaboration · mobile/web.
 
 ### Out of scope
 
@@ -314,13 +321,23 @@ Rules: core/ports depend on `std` + `futures` only; use cases never name adapter
 
 ### 5.1 1.0 checklist
 
-- Installs from a signed release artifact on Linux and macOS.
-- `orexis init` selects a provider; there is no silent default.
-- Completes a multi-file coding task with edit, shell, git, verify, and diff review.
-- Entity state persists across restarts and model switches.
-- `export --all` / `import` round-trips without loss.
-- Upgrade preserves sessions and the entity.
-- No telemetry; `/self` shows exactly what leaves the machine.
+- Installs from a signed release artifact on Linux and macOS. (Achieved: v0.1.0)
+- `orexis init` selects a provider; there is no silent default. (Achieved: v0.1.0)
+- Completes a multi-file coding task with edit, shell, git, verify, and diff review. (Achieved: v0.1.0)
+- Entity state persists across restarts and model switches. (Achieved: v0.1.0)
+- `export --all` / `import` round-trips without loss. (Achieved: v0.1.0)
+- Upgrade preserves sessions and the entity. (Achieved: v0.1.0)
+- No telemetry; `/self` shows exactly what leaves the machine. (Achieved: v0.1.0)
+
+### 5.2 Post-v0.1.0 Roadmap (v0.2.0 through v1.0.0 LTS)
+
+| Version | Milestone | Focus | Deliverables | Gate |
+|---|---|---|---|---|
+| **v0.2.0** | **M2** | Desktop Oversight Workspace | Tauri v2 bundles (`.deb`, AppImage, `.dmg`), side-by-side split diff component, hunk-level approvals, shared socket attach | `scripts/m2-gate.sh` green; usability cycles 1 & 2 completed; multi-platform desktop release artifacts signed |
+| **v0.3.0** | **M8 / §9** | Team Mode GA & Fleet Concurrency | Fix M8-16 (listing trap) & M8-17 (board approvals); frontier benchmark matrix (Claude 3.7 / GPT-4.5); provider rate-limit QoS | Breadth benchmark beats serial: $\ge 15\%$ higher pass rate or $\ge 25\%$ lower wall clock at $\le 2\times$ tokens across frontier models |
+| **v0.4.0** | **M7** | Ecosystem Interop & Migration Bridge | Zero-config MCP auto-discovery (Claude, Cursor, OpenCode); universal state importer (`aider`, `cline`, `opencode`); ACP editor plugins | Conformance test suite across 3 rival formats with zero event loss; zero-config discovery verified across 5 MCP servers |
+| **v0.5.0** | **M5 / R01** | Living Entity & Cognitive Alignment | Production zero-vector lexical memory lattice (FTS5 + entity graph); Research Track M5-R01 local neuron steering prototype (H-Neuron sycophancy reduction) | `/self` stability across 10 sessions & 3 model switches; standalone reproducible prototype of activation steering on open weights without runtime coupling (ADR-0014) |
+| **v1.0.0 LTS** | **M6** | Sovereign Autonomous Agent | 100-cycle self-evolution gate; signed tamper-evident git ledger; sealed core guarantees; long-term API and protocol stability | 100 autonomous self-mutation cycles with zero unrecoverable rollbacks; full multi-platform security and reproducibility audit |
 
 ---
 

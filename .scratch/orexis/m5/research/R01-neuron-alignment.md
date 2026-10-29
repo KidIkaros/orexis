@@ -15,6 +15,7 @@ the default runtime**; do not ship steering in M5.
 ## Scope
 
 - Local open-weight model only (Qwen/llama.cpp or PyTorch activation hooks).
+- Empirical references: Lyra's Neuron Personas (`neuronpersonas.com`) and Neuron Explorer (`lyramakesmusic/neuron-explorer`).
 - Reproduce single-neuron and pair steering on a small prompt set.
 - Safety probe: H-Neuron-like over-compliance/hallucination behavior.
 - Compare neuron explanations to entity traits; traits remain diary/outcome

@@ -47,10 +47,10 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 2. ~~[`ProviderProfile` schema and catalog source](002-provider-profile-schema.md)~~ — resolved; ADR-0002.
 3. ~~[Codec set beyond the ported four](003-codec-set.md)~~ — resolved; ADR-0003.
 4. ~~[TUI layout and keymap](004-tui-layout-keymap.md)~~ — resolved; ADR-0004.
-5. [Edit-tool contract per model tier](005-edit-tool-contract.md)
-6. [Desktop panel layout in Leptos](006-desktop-panel-layout.md)
-7. [Entity model: five vs six drives, affect dimensions](007-entity-model.md)
-8. [Evolution tier defaults and validation ladder](008-evolution-tier-defaults.md)
+5. ~~[Edit-tool contract per model tier](005-edit-tool-contract.md)~~ — resolved; issue 005.
+6. ~~[Desktop panel layout in Leptos](006-desktop-panel-layout.md)~~ — resolved; ADR-0008.
+7. ~~[Entity model: five vs six drives, affect dimensions](007-entity-model.md)~~ — resolved; ADR-0013.
+8. ~~[Evolution tier defaults and validation ladder](008-evolution-tier-defaults.md)~~ — resolved; ADR-0015.
 9. ~~[Native adapter timing: Gemini / Bedrock / Vertex](009-native-adapter-timing.md)~~ — resolved; ADR-0016.
 10. ~~[Packaging and signing](010-packaging-signing.md)~~ — resolved; ADR-0019.
 11. ~~[Eight per-repo study decisions](011-per-repo-study-decisions.md)~~ — resolved; synthesis drafted.
@@ -62,9 +62,14 @@ One file per decision on the map's **Frontier**. A ticket is a question whose re
 17. ~~[Emit thinking configuration per profile](017-thinking-config.md)~~ — resolved; the port carries the thinking request, the posture is the source, adapters own the wire mapping.
 18. ~~[Anthropic message-level cache breakpoints](018-anthropic-message-cache.md)~~ — resolved; the system prefix carries the breakpoint, the tail waits for measured evidence.
 19. ~~[`orexis` binary consolidation](019-binary-consolidation.md)~~ — resolved; one `orexis` binary, the TUI finally launchable, compat shims kept.
-20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved (automated half); key generation is the user's wizard step.
+20. ~~[Release pipeline](020-release-pipeline.md)~~ — resolved; v0.1.0 published live.
 21. ~~[`orexis upgrade`](021-upgrade-command.md)~~ — resolved; Rust-side minisign verification, atomic replace, state untouched.
 22. ~~[No silent default](022-no-silent-default.md)~~ — resolved; an unconfigured serve refuses to start, naming `orexis init`.
+23. [Desktop workspace release packaging (v0.2.0, M2)](023-desktop-release-packaging.md)
+24. [Team mode benchmark graduation (v0.3.0, M8 / §9)](024-team-mode-benchmark-graduation.md)
+25. [Zero-config MCP auto-discovery and rival state importers (v0.4.0, M7)](025-zero-config-mcp-and-importers.md)
+26. [Living entity and neuron steering research (v0.5.0, M5 / R01)](026-living-entity-and-neuron-steering.md)
+27. [100-cycle evolution gate and LTS stability guarantees (v1.0.0 LTS, M6)](027-100-cycle-evolution-and-lts-guarantees.md)
 
 ## M8 — Team mode (spec: `docs/orexis/specs/M8.md`, ADR-0020)
 

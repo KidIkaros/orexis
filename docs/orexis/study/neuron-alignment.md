@@ -28,6 +28,8 @@ identity.
 | H-Neurons, arXiv:2512.01797 | Neurons linked to over-compliance/hallucination; amplifying increases compliance, suppressing reduces it | Safety probe |
 | NGFT, arXiv:2609.05913 | Neuron-guided fine-tuning anchors activations to reference states | Training-time, different from inference steering |
 | OpenAI neuron explanations | Natural-language explanations of neurons | Interpretability tooling |
+| Neuron Personas (neuronpersonas.com) | Empirical catalog of persona-inducing neurons in Qwen 2.5/3.5; shows personality emergence and vector composability | Persona catalog & empirical validation |
+| Neuron Explorer (lyramakesmusic/neuron-explorer) | Interactive UI & harness for inspecting, cataloging, and steering model neuron activations | Tooling reference for local activation hooks |
 
 "Neuron activation alignment" is therefore at least three different things:
 representational alignment research, inference-time steering, and a
