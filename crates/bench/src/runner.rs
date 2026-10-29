@@ -74,6 +74,7 @@ pub struct SuiteArgs {
     pub out: PathBuf,
     /// Resume-safe output: append, never truncate.
     pub append: bool,
+    pub providers_dir: Option<PathBuf>,
 }
 
 /// Run every (task, mode) pair once, writing one JSONL row per run.
@@ -160,7 +161,7 @@ async fn run_once(
         db_path: state.path().join("bench.db"),
         project_root: workspace.clone(),
         cwd: workspace.clone(),
-        providers_dir: None,
+        providers_dir: args.providers_dir.clone(),
         mcp_dirs: Some(Vec::new()),
         utcp_dirs: Some(Vec::new()),
         a2a_dirs: Some(Vec::new()),

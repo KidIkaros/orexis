@@ -120,15 +120,14 @@ pub enum BuildError {
 
 /// Build the real runtime: catalog -> provider -> codec -> context.
 pub fn build_runtime(config: BuildConfig) -> Result<Runtime, BuildError> {
-    let providers_dir = match &config.providers_dir {
-        Some(dir) => dir.clone(),
-        None => providers_dir()?,
-    };
-    let mut dirs = vec![providers_dir];
+    let mut dirs = vec![providers_dir()?];
     if let Some(user) = dirs::config_dir() {
         dirs.push(user.join("orexis/providers"));
     }
     dirs.push(config.cwd.join(".orexis/providers"));
+    if let Some(custom) = &config.providers_dir {
+        dirs.push(custom.clone());
+    }
     let catalog = Catalog::load(&dirs)?;
     let resolution = catalog
         .resolve_model(&config.profile_id, &config.model_id)

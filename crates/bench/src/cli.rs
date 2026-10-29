@@ -36,6 +36,16 @@ pub async fn cli(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                     value(rest, "--out").unwrap_or_else(|| "bench-results.jsonl".to_string()),
                 ),
                 append: rest.iter().any(|arg| arg == "--append"),
+                providers_dir: value(rest, "--providers-dir")
+                    .map(PathBuf::from)
+                    .or_else(|| {
+                        let default_dir = PathBuf::from("bench/providers");
+                        if default_dir.exists() {
+                            Some(default_dir)
+                        } else {
+                            None
+                        }
+                    }),
             };
             run_suite(&suite).await
         }
@@ -52,7 +62,7 @@ pub async fn cli(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         _ => {
             eprintln!(
                 "usage: orexis bench run --tasks FILE --profile ID --model ID \
-                 [--modes serial,team] [--out FILE] [--timeout-secs N] [--append]\n\
+                 [--modes serial,team] [--out FILE] [--timeout-secs N] [--providers-dir PATH] [--append]\n\
                  \x20      orexis bench compare --serial FILE --team FILE"
             );
             std::process::exit(2);

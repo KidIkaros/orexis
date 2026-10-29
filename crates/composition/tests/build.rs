@@ -288,3 +288,66 @@ limits:
         other => panic!("expected Unsupported, got {other:?}"),
     }
 }
+
+#[test]
+fn explicit_providers_dir_overrides_shipped_while_preserving_others() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let custom = tempfile::tempdir().expect("custom");
+    std::fs::write(
+        custom.path().join("llamacpp.yaml"),
+        r#"
+id: llamacpp
+display_name: llama.cpp custom
+kind: llamacpp
+base_url: http://127.0.0.1:8080/v1
+wire:
+  dialect: open_ai
+  tool_format: native
+  stream_format: sse
+capabilities:
+  tools: true
+models:
+  - id: local
+    context: 32768
+limits:
+  max_concurrency: 2
+"#,
+    )
+    .expect("write profile");
+
+    let runtime = build_runtime(BuildConfig {
+        profile_id: "llamacpp".to_string(),
+        model_id: "local".to_string(),
+        db_path: dir.path().join("s.db"),
+        project_root: dir.path().to_path_buf(),
+        cwd: dir.path().to_path_buf(),
+        providers_dir: Some(custom.path().to_path_buf()),
+        mcp_dirs: Some(Vec::new()),
+        utcp_dirs: Some(Vec::new()),
+        a2a_dirs: Some(Vec::new()),
+        evolution_key: None,
+        verify_command: None,
+        system_prompt: String::new(),
+        context_limit: 32768,
+    })
+    .expect("build llamacpp");
+    assert_eq!(runtime.generation_slots, 2);
+
+    let runtime_openai = build_runtime(BuildConfig {
+        profile_id: "openai".to_string(),
+        model_id: "gpt-4o".to_string(),
+        db_path: dir.path().join("s2.db"),
+        project_root: dir.path().to_path_buf(),
+        cwd: dir.path().to_path_buf(),
+        providers_dir: Some(custom.path().to_path_buf()),
+        mcp_dirs: Some(Vec::new()),
+        utcp_dirs: Some(Vec::new()),
+        a2a_dirs: Some(Vec::new()),
+        evolution_key: None,
+        verify_command: None,
+        system_prompt: String::new(),
+        context_limit: 32768,
+    })
+    .expect("build openai");
+    assert_eq!(runtime_openai.codec.name(), "native");
+}
