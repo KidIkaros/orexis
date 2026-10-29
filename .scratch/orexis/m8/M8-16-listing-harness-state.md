@@ -1,6 +1,6 @@
 # M8-16 — the model's listing shows harness state
 
-- **Status:** fixed; gate re-run pending
+- **Status:** resolved (2026-10-29)
 - **Found by:** M8-15
 
 ## Bug
