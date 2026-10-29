@@ -207,6 +207,38 @@ pub fn App() -> impl IntoView {
                             })
                     }}
                     <Transcript snapshot set_preview />
+                    {move || {
+                        let inline_decide = decide.clone();
+                        snapshot.get().pending.map(|approval| {
+                            let id = approval.id;
+                            view! {
+                                <div class="banner approval-banner" role="status" aria-live="polite">
+                                    <span>
+                                        "⚠ Waiting on approval: "
+                                        <strong>{approval.tool}</strong>
+                                        " — review in the right panel or press "
+                                        <kbd class="kbd">"y"</kbd>
+                                        " / "
+                                        <kbd class="kbd">"n"</kbd>
+                                    </span>
+                                    <div class="banner-actions">
+                                        <button
+                                            class="approve compact"
+                                            on:click=move |_| inline_decide.run((id, true, false))
+                                        >
+                                            "Approve (y)"
+                                        </button>
+                                        <button
+                                            class="deny compact"
+                                            on:click=move |_| inline_decide.run((id, false, false))
+                                        >
+                                            "Deny (n)"
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        })
+                    }}
                     <Composer
                         composer
                         set_composer

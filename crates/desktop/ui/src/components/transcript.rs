@@ -12,26 +12,36 @@ pub fn Transcript(
     view! {
         <div class="transcript" role="log" aria-label="transcript">
             {move || {
-                snapshot
-                    .get()
-                    .transcript
+                let entries = snapshot.get().transcript;
+                if entries.is_empty() && snapshot.get().live.is_none() {
+                    return view! {
+                        <div class="empty-state">
+                            <p class="empty-title">"Ready to steer"</p>
+                            <p class="muted">
+                                "Send a task below. Tool executions, file diffs, and reversible checkpoints will appear side-by-side."
+                            </p>
+                        </div>
+                    }
+                        .into_any();
+                }
+                entries
                     .into_iter()
                     .map(|entry| match entry {
                         Entry::User { text } => {
                             view! {
-                                <p class="line user">
-                                    <span class="who">"you › "</span>
-                                    {text}
-                                </p>
+                                <div class="line user">
+                                    <span class="who">"you"</span>
+                                    <span class="msg-body">{text}</span>
+                                </div>
                             }
                                 .into_any()
                         }
                         Entry::Assistant { text } => {
                             view! {
-                                <p class="line assistant">
-                                    <span class="who">"orexis › "</span>
-                                    {text}
-                                </p>
+                                <div class="line assistant">
+                                    <span class="who">"orexis"</span>
+                                    <span class="msg-body">{text}</span>
+                                </div>
                             }
                                 .into_any()
                         }
@@ -42,12 +52,14 @@ pub fn Transcript(
                             detail,
                         } => {
                             let preview_text = detail.clone();
+                            let status_badge = if ok { "✓ done" } else { "⟳ running…" };
+                            let status_cls = if ok { "tool-status ok" } else { "tool-status pending" };
                             view! {
                                 <details class="line tool" class:ok=ok>
                                     <summary>
                                         <span class="tool-name">{name}</span>
-                                        " "
-                                        {target}
+                                        <span class="tool-target">{target}</span>
+                                        <span class=status_cls>{status_badge}</span>
                                     </summary>
                                     <pre>{detail}</pre>
                                     <button
@@ -56,7 +68,7 @@ pub fn Transcript(
                                             set_preview.set(Some(preview_text.clone()))
                                         }
                                     >
-                                        "open in panel"
+                                        "open in right panel"
                                     </button>
                                 </details>
                             }
@@ -65,22 +77,23 @@ pub fn Transcript(
                         Entry::Approval { tool, args } => {
                             view! {
                                 <p class="line approval-line">
-                                    "approval requested · "
-                                    {tool}
+                                    "⚠ approval requested · "
+                                    <strong>{tool}</strong>
                                     " · "
-                                    {args}
+                                    <code>{args}</code>
                                 </p>
                             }
                                 .into_any()
                         }
                         Entry::Error { message } => {
-                            view! { <p class="line error">{message}</p> }.into_any()
+                            view! { <p class="line error">"✕ "{message}</p> }.into_any()
                         }
                         Entry::Info { message } => {
-                            view! { <p class="line info">{message}</p> }.into_any()
+                            view! { <p class="line info">"· "{message}</p> }.into_any()
                         }
                     })
                     .collect_view()
+                    .into_any()
             }}
             {move || {
                 snapshot
@@ -88,11 +101,13 @@ pub fn Transcript(
                     .live
                     .map(|text| {
                         view! {
-                            <p class="line assistant live">
-                                <span class="who">"orexis › "</span>
-                                {text}
-                                <span class="caret"></span>
-                            </p>
+                            <div class="line assistant live">
+                                <span class="who">"orexis"</span>
+                                <span class="msg-body">
+                                    {text}
+                                    <span class="caret"></span>
+                                </span>
+                            </div>
                         }
                     })
             }}

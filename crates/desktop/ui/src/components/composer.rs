@@ -1,4 +1,4 @@
-//! Composer: prompt input, skip-verify, send.
+//! Composer: prompt input, skip-verify mode guard, send.
 
 use leptos::prelude::*;
 
@@ -16,7 +16,7 @@ pub fn Composer(
             <textarea
                 class="composer"
                 autofocus=true
-                placeholder="ask orexis…"
+                placeholder="Ask Orexis… (Enter to send, Shift+Enter for newline)"
                 aria-label="prompt"
                 prop:value=composer
                 on:input=move |ev| set_composer.set(event_target_value(&ev))
@@ -28,17 +28,27 @@ pub fn Composer(
                 }
             ></textarea>
             <div class="composer-actions">
-                <label class="skip">
+                <label class="skip" class:armed=move || skip.get()>
                     <input
                         type="checkbox"
                         prop:checked=skip
                         on:change=move |ev| set_skip.set(event_target_checked(&ev))
                     />
-                    "skip verify"
+                    {move || {
+                        if skip.get() {
+                            "⚠ skip verify (armed)"
+                        } else {
+                            "skip verify"
+                        }
+                    }}
                 </label>
-                <button class="send" on:click=move |_| on_send.run(())>
-                    "send"
-                </button>
+                <div class="composer-right">
+                    <span class="hint">"⇧Enter newline · 1–6 panels · d diff"</span>
+                    <button class="send" on:click=move |_| on_send.run(())>
+                        "send "
+                        <kbd class="kbd kbd-dark">"⏎"</kbd>
+                    </button>
+                </div>
             </div>
         </div>
     }

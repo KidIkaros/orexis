@@ -1,4 +1,4 @@
-//! Status bar: connection, state, undo, reattach.
+//! Status bar: connection, state, active model, undo, reattach.
 
 use leptos::prelude::*;
 
@@ -18,7 +18,17 @@ pub fn StatusBar(
     view! {
         <header class="status">
             <span class="brand">"orexis"</span>
-            <span class="chip" aria-live="polite">
+            <span class="chip status-chip" aria-live="polite">
+                <span class=move || {
+                    let s = snapshot.get().status;
+                    if error.get().is_some() || s == "error" || s == "disconnected" {
+                        "dot error"
+                    } else if s == "running" || s == "streaming" {
+                        "dot running"
+                    } else {
+                        "dot"
+                    }
+                }></span>
                 {move || {
                     if error.get().is_some() {
                         "daemon unavailable".to_string()
@@ -31,10 +41,20 @@ pub fn StatusBar(
                     }
                 }}
             </span>
+            <span class="chip">
+                {move || snapshot.get().session.unwrap_or_else(|| "no session".to_string())}
+            </span>
+            {move || {
+                snapshot.get().settings.map(|cfg| {
+                    let plan = if cfg.plan_mode { " · plan:on" } else { "" };
+                    view! {
+                        <span class="chip model-chip" title="Active provider profile and model">
+                            {format!("{} · {}{}", cfg.profile, cfg.model, plan)}
+                        </span>
+                    }
+                })
+            }}
             <span class="spacer"></span>
-            <button class="undo" aria-label="settings" on:click=move |_| settings.run(())>
-                "settings"
-            </button>
             {move || {
                 (snapshot.get().connection == "disconnected")
                     .then(|| {
@@ -48,15 +68,25 @@ pub fn StatusBar(
             {move || {
                 snapshot.get().session.is_some().then(|| {
                     view! {
-                        <button class="undo" on:click=move |_| undo.run(())>
-                            "undo"
+                        <button
+                            class="undo"
+                            title="Restore latest git checkpoint (Ctrl/Cmd+Z)"
+                            on:click=move |_| undo.run(())
+                        >
+                            "undo "
+                            <kbd class="kbd">"⌘Z"</kbd>
                         </button>
                     }
                 })
             }}
-            <span class="meta">
-                {move || snapshot.get().session.unwrap_or_else(|| "no session".to_string())}
-            </span>
+            <button
+                class="undo"
+                aria-label="settings"
+                title="View model, permissions, and privacy boundaries"
+                on:click=move |_| settings.run(())
+            >
+                "settings"
+            </button>
         </header>
     }
 }
